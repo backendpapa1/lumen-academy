@@ -139,6 +139,8 @@ const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "must be HH:MM");
 export const TimeOfDayZ = z.strictObject({
   tz: z.string().min(1),
   peak: z.array(z.tuple([hhmm, hhmm])),
+  /** Peak windows apply Mon–Fri only (in `tz`). */
+  weekdaysOnly: z.boolean().default(false),
   peakMultiplier: z.number().positive(),
 });
 

@@ -106,3 +106,16 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ configDir: dir, env: {} })).toThrow(/pricing\.yaml/);
   });
 });
+
+describe("committed pricing", () => {
+  it("prices every model the config can route to", () => {
+    const cfg = loadConfig({ configDir: realConfigDir, env: {} });
+    for (const profile of Object.values(cfg.models.profiles)) {
+      for (const spec of Object.values(profile)) {
+        const price = cfg.pricing[spec.provider].models[spec.model];
+        expect(price, `${spec.provider}:${spec.model}`).toBeDefined();
+        expect(JSON.stringify(price), `${spec.provider}:${spec.model}`).not.toContain("null");
+      }
+    }
+  });
+});

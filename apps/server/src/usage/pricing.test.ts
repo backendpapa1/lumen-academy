@@ -19,6 +19,7 @@ const pricing: PricingConfig = {
         ["09:00", "12:00"],
         ["14:00", "18:00"],
       ],
+      weekdaysOnly: true,
       peakMultiplier: 2,
     },
   },
@@ -111,5 +112,15 @@ describe("peakMultiplier", () => {
     expect(peakMultiplier(tod, new Date("2026-10-20T03:59:00Z"))).toBe(2); // 11:59
     expect(peakMultiplier(tod, new Date("2026-10-20T04:00:00Z"))).toBe(1); // 12:00
     expect(peakMultiplier(undefined, PEAK)).toBe(1);
+  });
+
+  it("is off-peak all weekend when weekdaysOnly (Beijing calendar)", () => {
+    expect(new Date("2026-10-20T02:00:00Z").getUTCDay()).toBe(2); // Tuesday
+    expect(peakMultiplier(tod, new Date("2026-10-24T02:00:00Z"))).toBe(1); // Sat 10:00 Beijing
+    expect(peakMultiplier(tod, new Date("2026-10-25T07:00:00Z"))).toBe(1); // Sun 15:00 Beijing
+    expect(peakMultiplier(tod, new Date("2026-10-23T07:00:00Z"))).toBe(2); // Fri 15:00 Beijing
+    // Sunday 23:00 UTC is already Monday 07:00 in Beijing: weekday, but before the window.
+    expect(peakMultiplier(tod, new Date("2026-10-25T23:00:00Z"))).toBe(1);
+    expect(peakMultiplier(tod, new Date("2026-10-26T01:30:00Z"))).toBe(2); // Mon 09:30 Beijing
   });
 });
