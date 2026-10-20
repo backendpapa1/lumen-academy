@@ -13,7 +13,8 @@
     "sim:comprehension": "tsx scripts/sim-comprehension.ts",
     "cli:ingest": "tsx scripts/cli-ingest.ts",
     "eval:retrieval": "tsx scripts/eval-retrieval.ts",
-    "cli:curriculum": "tsx scripts/cli-curriculum.ts"
+    "cli:curriculum": "tsx scripts/cli-curriculum.ts",
+    "cli:register": "tsx scripts/cli-register.ts"
   },
   "dependencies": {
     "@fastify/cors": "11.3.1",

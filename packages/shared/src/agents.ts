@@ -196,3 +196,65 @@ export const EditableCurriculumZ = z.object({
     .min(1),
 });
 export type EditableCurriculum = z.infer<typeof EditableCurriculumZ>;
+
+// --- Archetypes & registration ------------------------------------------------
+
+/** docs/03 §5.1 — label, accent colour and a behaviour brief used in prompts. */
+export const ARCHETYPE_INFO: Record<Archetype, { label: string; accent: string; brief: string }> = {
+  skeptic: {
+    label: "Skeptic",
+    accent: "#FFB547",
+    brief: "Demands the why; challenges hand-waving.",
+  },
+  lost_signal: {
+    label: "Lost Signal",
+    accent: "#FF6B6B",
+    brief: "Has realistic misunderstandings; mixes up terms.",
+  },
+  overachiever: {
+    label: "Overachiever",
+    accent: "#A78BFA",
+    brief: "Reads ahead; connects to the next concept.",
+  },
+  literalist: {
+    label: "Literalist",
+    accent: "#22D3EE",
+    brief: "Wants it explained like they're 10; trips on jargon.",
+  },
+  pragmatist: {
+    label: "Pragmatist",
+    accent: "#A3E635",
+    brief: "Asks where this is used in the real world.",
+  },
+  connector: {
+    label: "Connector",
+    accent: "#2DD4BF",
+    brief: "Draws analogies to other fields, sometimes bad ones.",
+  },
+  quiet: {
+    label: "Quiet One",
+    accent: "#94A3B8",
+    brief: "Rarely speaks; exams reveal what they absorbed.",
+  },
+  saboteur: {
+    label: "Saboteur",
+    accent: "#F472B6",
+    brief: "Confidently states plausible wrong claims.",
+  },
+};
+
+/** LLM-written flavour for one batch of planned cadets (Registrar). */
+export const CadetFlavourZ = z.object({
+  cadets: z.array(
+    z.object({
+      index: z.number().int(),
+      name: z.string().min(1),
+      quirk: z.string().min(1),
+      voiceNotes: z.string().min(1),
+      backstory: z.string().default(""),
+      visualQuirk: z.string().default(""),
+      hair: z.string().default(""),
+    }),
+  ),
+});
+export type CadetFlavour = z.infer<typeof CadetFlavourZ>;

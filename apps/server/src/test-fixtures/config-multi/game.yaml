@@ -21,6 +21,79 @@ comprehension:
   lowConfidenceWeight: 0.5 # deltas from a Director fallback turn count at 50%
   understoodAt: 0.75
 
+# Registration (docs/03 §5.2). Archetypes are drawn in code (seeded); the LLM writes flavour only.
+registration:
+  batchSize: 3 # cadets per flavour call, so the first arrivals appear fast
+  guaranteed: # always present, in this order, once the cohort reaches the size
+    - { archetype: skeptic, minSize: 1 }
+    - { archetype: lost_signal, minSize: 1 }
+    - { archetype: literalist, minSize: 1 }
+    - { archetype: overachiever, minSize: 6 }
+    - { archetype: pragmatist, minSize: 8 }
+  weights: # remaining slots; saboteur only when unlocked
+    standard:
+      {
+        lost_signal: 3,
+        skeptic: 2,
+        connector: 2,
+        pragmatist: 2,
+        quiet: 2,
+        literalist: 1,
+        overachiever: 1,
+      }
+    gentle:
+      {
+        lost_signal: 2,
+        skeptic: 1,
+        connector: 2,
+        pragmatist: 3,
+        quiet: 3,
+        literalist: 3,
+        overachiever: 1,
+      }
+    ruthless:
+      {
+        lost_signal: 2,
+        skeptic: 4,
+        connector: 1,
+        pragmatist: 1,
+        quiet: 1,
+        literalist: 1,
+        overachiever: 3,
+        saboteur: 2,
+      }
+  homeworlds:
+    [
+      Titan Shipyards,
+      Europa Deep,
+      Ceres Exchange,
+      Lagos Orbital,
+      Mars Commons,
+      Ganymede Rings,
+      Luna Arcology,
+      Callisto Reach,
+      Vesta Foundry,
+      Io Relay,
+    ]
+  # Sampled in code so classes are diverse (docs/07 §2.1); the LLM fits names and looks to them.
+  heritage:
+    [
+      West African,
+      East African,
+      South Asian,
+      East Asian,
+      Southeast Asian,
+      Latin American,
+      Middle Eastern,
+      Northern European,
+      Southern European,
+      Pacific Islander,
+      Caribbean,
+      Central Asian,
+    ]
+  genderPresentation: [feminine, masculine, androgynous]
+  ageRange: [late teens, early twenties, mid twenties]
+
 # Archetype trait means (docs/03 §5.3); each cadet draws ± traitSpread around them (seeded).
 traitSpread: 0.12
 archetypes:

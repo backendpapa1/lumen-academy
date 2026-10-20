@@ -195,6 +195,18 @@ export type PricingConfig = z.infer<typeof PricingConfigZ>;
 
 // ------------------------------------------------------------------- game.yaml
 
+// Mirrors ARCHETYPES in agents.ts (kept here to avoid a config → agents import cycle).
+const ARCHETYPE_KEYS = [
+  "skeptic",
+  "lost_signal",
+  "overachiever",
+  "literalist",
+  "pragmatist",
+  "connector",
+  "quiet",
+  "saboteur",
+] as const;
+
 const unit = z.number().min(0).max(1);
 
 export const GameConfigZ = z.strictObject({
@@ -222,18 +234,24 @@ export const GameConfigZ = z.strictObject({
     lowConfidenceWeight: unit,
     understoodAt: unit,
   }),
+  registration: z.strictObject({
+    batchSize: z.number().int().min(1).max(15),
+    guaranteed: z.array(
+      z.strictObject({ archetype: z.enum(ARCHETYPE_KEYS), minSize: z.number().int().min(1) }),
+    ),
+    weights: z.strictObject({
+      standard: z.partialRecord(z.enum(ARCHETYPE_KEYS), z.number().nonnegative()),
+      gentle: z.partialRecord(z.enum(ARCHETYPE_KEYS), z.number().nonnegative()),
+      ruthless: z.partialRecord(z.enum(ARCHETYPE_KEYS), z.number().nonnegative()),
+    }),
+    homeworlds: z.array(z.string().min(1)).min(1),
+    heritage: z.array(z.string().min(1)).min(1),
+    genderPresentation: z.array(z.string().min(1)).min(1),
+    ageRange: z.array(z.string().min(1)).min(1),
+  }),
   traitSpread: unit,
   archetypes: z.record(
-    z.enum([
-      "skeptic",
-      "lost_signal",
-      "overachiever",
-      "literalist",
-      "pragmatist",
-      "connector",
-      "quiet",
-      "saboteur",
-    ]),
+    z.enum(ARCHETYPE_KEYS),
     z.strictObject({
       attention: unit,
       skepticism: unit,

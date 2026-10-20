@@ -17,7 +17,8 @@
     "dev": "concurrently -k -n server,client -c cyan,magenta \"pnpm --filter @lumen/server dev\" \"pnpm --filter @lumen/client dev\"",
     "test:e2e": "playwright test",
     "cli:ingest": "pnpm --filter @lumen/server cli:ingest",
-    "cli:curriculum": "pnpm --filter @lumen/server cli:curriculum"
+    "cli:curriculum": "pnpm --filter @lumen/server cli:curriculum",
+    "cli:register": "pnpm --filter @lumen/server cli:register"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

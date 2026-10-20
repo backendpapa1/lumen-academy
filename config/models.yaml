@@ -54,7 +54,7 @@ agents:
   cadetHomework: { role: standard, maxOutputTokens: 2500 } # includes thinking tokens
   notesRewriter: { role: fast, maxOutputTokens: 450 }
   leakGuard: { role: fastest, maxOutputTokens: 60, sampleRate: 0.5 }
-  registrar: { role: standard }
+  registrar: { role: fast } # flavour needs no reasoning; thinking made first arrivals ~8s
   curriculumArchitect: { role: heavy }
   examiner: { role: heavy }
   grader: { role: heavy }
