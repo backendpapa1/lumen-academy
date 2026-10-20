@@ -57,6 +57,8 @@ export const ModelSpecZ = z
     reasoningEffort: ReasoningEffortZ.optional(),
     temperature: z.number().min(0).max(2).optional(),
     maxOutputTokens: z.number().int().positive().optional(),
+    /** Overrides the provider timeout; long thinking calls need minutes, realtime ones seconds. */
+    timeoutMs: z.number().int().positive().optional(),
   })
   .superRefine((s, ctx) => {
     if (s.provider !== "deepseek" || s.reasoningEffort === undefined) return;

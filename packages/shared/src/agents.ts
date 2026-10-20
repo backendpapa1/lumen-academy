@@ -136,3 +136,48 @@ export function normalizeTeachingAnalysis(a: TeachingAnalysis): TeachingAnalysis
   };
 }
 export type TeachingAnalysis = z.infer<typeof TeachingAnalysisZ>;
+
+// --- Curriculum (docs/03 §3.2) ------------------------------------------------
+
+export const ConceptZ = z.object({
+  title: z.string().min(1),
+  summary: z.string().min(1),
+  keyFacts: z.array(z.string().min(1)).min(2),
+  misconceptions: z.array(z.string()).default([]),
+  prerequisites: z.array(z.string()).default([]), // concept titles
+  citations: z.array(z.string()).min(1), // chunk ids
+  difficulty: z.number(),
+});
+export type Concept = z.infer<typeof ConceptZ>;
+
+export const CurriculumZ = z.object({
+  modules: z
+    .array(
+      z.object({
+        title: z.string().min(1),
+        goal: z.string().default(""),
+        concepts: z.array(ConceptZ).min(1),
+      }),
+    )
+    .min(1),
+});
+export type Curriculum = z.infer<typeof CurriculumZ>;
+
+/** Documented bounds (docs/03 §3.2), applied after a lenient parse. */
+export function normalizeCurriculum(c: Curriculum): Curriculum {
+  return {
+    modules: c.modules.slice(0, 10).map((m) => ({
+      title: m.title.trim(),
+      goal: m.goal.trim(),
+      concepts: m.concepts.map((k) => ({
+        title: k.title.trim().slice(0, 60),
+        summary: k.summary.trim().slice(0, 400),
+        keyFacts: k.keyFacts.slice(0, 8).map((f) => f.trim().slice(0, 200)),
+        misconceptions: k.misconceptions.slice(0, 5).map((f) => f.trim().slice(0, 200)),
+        prerequisites: k.prerequisites,
+        citations: [...new Set(k.citations)],
+        difficulty: Math.min(5, Math.max(1, Math.round(k.difficulty))),
+      })),
+    })),
+  };
+}

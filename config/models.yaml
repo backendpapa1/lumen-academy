@@ -22,9 +22,19 @@ profiles:
     fastest: { provider: deepseek, model: deepseek-flash, thinking: off, temperature: 0.7 }
     fast: { provider: deepseek, model: deepseek-flash, thinking: off, temperature: 0.8 }
     # Judgement calls (Director, Registrar, homework…): light thinking.
-    standard: { provider: deepseek, model: deepseek-flash, thinking: on, reasoningEffort: low }
+    standard:
+      provider: deepseek
+      model: deepseek-flash
+      thinking: on
+      reasoningEffort: low
+      timeoutMs: 90000
     # Accuracy against the source (curriculum, exams, grading): full thinking.
-    heavy: { provider: deepseek, model: deepseek-flash, thinking: on, reasoningEffort: high }
+    heavy:
+      provider: deepseek
+      model: deepseek-flash
+      thinking: on
+      reasoningEffort: high
+      timeoutMs: 240000
     embeddings: { provider: openai, model: text-embedding-3-small }
     image: { provider: openai, model: gpt-image-1-mini }
 

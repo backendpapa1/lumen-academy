@@ -56,16 +56,17 @@ describe("loadConfig", () => {
   it("rejects a DeepSeek reasoning effort without thinking, or an unsupported one", () => {
     const off = tempConfig((file, text) =>
       file === "models.yaml"
-        ? text.replace("thinking: on, reasoningEffort: low", "thinking: off, reasoningEffort: low")
+        ? text.replace(
+            /(standard:\s+provider: deepseek\s+model: deepseek-flash\s+thinking: )on/,
+            "$1off",
+          )
         : text,
     );
     expect(() => loadConfig({ configDir: off, env: {} })).toThrow(
       /profiles\.flash\.standard\.reasoningEffort: DeepSeek reasoningEffort needs thinking: on/,
     );
     const bad = tempConfig((file, text) =>
-      file === "models.yaml"
-        ? text.replace("thinking: on, reasoningEffort: low", "thinking: on, reasoningEffort: none")
-        : text,
+      file === "models.yaml" ? text.replace("reasoningEffort: low", "reasoningEffort: none") : text,
     );
     expect(() => loadConfig({ configDir: bad, env: {} })).toThrow(
       /DeepSeek supports low \| high \| max/,
@@ -74,9 +75,7 @@ describe("loadConfig", () => {
 
   it("names the file and path of an invalid value", () => {
     const dir = tempConfig((file, text) =>
-      file === "models.yaml"
-        ? text.replace("heavy: { provider: deepseek,", "heavy: { provider: anthropic,")
-        : text,
+      file === "models.yaml" ? text.replace(/(heavy:\s+provider: )deepseek/, "$1anthropic") : text,
     );
     try {
       loadConfig({ configDir: dir, env: {} });

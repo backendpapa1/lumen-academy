@@ -16,6 +16,7 @@ export interface ResolvedSpec {
   reasoningEffort?: ModelSpec["reasoningEffort"];
   temperature?: number;
   maxOutputTokens?: number;
+  timeoutMs?: number;
   sampleRate?: number;
   /** True when this spec came from the fallback chain, not the profile. */
   isFallback: boolean;
@@ -61,6 +62,7 @@ export function resolveSpec(
     reasoningEffort: base.reasoningEffort,
     temperature: override.temperature ?? base.temperature,
     maxOutputTokens: override.maxOutputTokens ?? base.maxOutputTokens,
+    timeoutMs: base.timeoutMs,
     sampleRate: override.sampleRate,
     isFallback: false,
   });
