@@ -18,6 +18,7 @@ import {
   type TranscriptLine,
 } from "../agents/realtime/context.js";
 import { runCrowdReactor, type ReactorResult } from "../agents/realtime/crowdReactor.js";
+import { runCadetTurn, type CadetTurnResult } from "../agents/realtime/cadet.js";
 import type { DbHandle } from "../db/client.js";
 import { newId } from "../db/ids.js";
 import {
@@ -112,6 +113,8 @@ export class ClassSession {
   private speaking: { cadetId: string; abort: AbortController; hand?: HandRaise } | null = null;
   private readonly startedAt: number;
   private closed = false;
+  /** Overachievers who already used peek_ahead this period (once per period). */
+  private readonly peeked = new Set<string>();
 
   private constructor(
     private readonly deps: SessionDeps,
@@ -302,6 +305,77 @@ export class ClassSession {
     const name = this.cadetStates.find((c) => c.id === cadetId)?.name ?? cadetId;
     this.transcript.push({ speaker: name, text });
     return this.saveMessage(cadetId, kind, text, undefined, meta);
+  }
+
+  /**
+   * Calls on a cadet and streams what they say (T-3/T-4). A teach() while they
+   * speak aborts them and their hand goes back up. Returns null if interrupted.
+   */
+  async speak(
+    cadetId: string,
+    opts: { onDelta?: (text: string) => void } = {},
+  ): Promise<CadetTurnResult | null> {
+    const { signal, hand } = this.call(cadetId);
+    const { handle, factory, embedder, game } = this.deps;
+    const row = handle.db.select().from(cadets).where(eq(cadets.id, cadetId)).get()!;
+    const ledger = handle.db
+      .select()
+      .from(ledgerEntries)
+      .where(and(eq(ledgerEntries.cadetId, cadetId), eq(ledgerEntries.conceptId, this.conceptId)))
+      .get();
+    const idx = this.curriculum.findIndex((c) => c.id === this.conceptId);
+    const canPeek = row.archetype === "overachiever" && !this.peeked.has(cadetId);
+    try {
+      const result = await withUsageContext({ periodId: this.periodId }, () =>
+        runCadetTurn(
+          { factory, handle, embedder },
+          {
+            persona: {
+              id: row.id,
+              name: row.name,
+              homeworld: row.homeworld,
+              archetype: row.archetype as never,
+              quirk: row.quirk,
+              voiceNotes: row.voiceNotes,
+              notesMd: row.notesMd,
+            },
+            classroomId: this.classroomId,
+            concept: {
+              id: this.conceptId,
+              title: this.currentConcept.title,
+              nextId: this.curriculum[idx + 1]?.id,
+            },
+            comprehension: ledger?.comprehension ?? 0,
+            misconceptions: ledger
+              ? (JSON.parse(ledger.misconceptionsJson) as Misconception[]).map((m) => m.text)
+              : [],
+            transcript: [...this.transcript],
+            intent: hand?.intent ?? "clarify",
+            preview: hand?.preview ?? "(the Headmaster called on you)",
+            canPeek,
+            maxWords: game.cadet.maxWords,
+          },
+          { signal, onDelta: opts.onDelta },
+        ),
+      );
+      if (signal.aborted) return null;
+      if (result.peeked) this.peeked.add(cadetId);
+      const kind =
+        result.utterance.kind === "objection" ||
+        result.utterance.kind === "claim" ||
+        result.utterance.kind === "answer"
+          ? result.utterance.kind
+          : "question";
+      this.recordCadetUtterance(cadetId, result.utterance.text, kind, {
+        mood: result.utterance.mood,
+        confidence: result.utterance.confidence,
+        tools: result.usedTools,
+      });
+      return result;
+    } catch (err) {
+      if (signal.aborted) return null;
+      throw err;
+    }
   }
 
   async close(): Promise<void> {

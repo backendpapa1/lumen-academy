@@ -258,3 +258,24 @@ export const CadetFlavourZ = z.object({
   ),
 });
 export type CadetFlavour = z.infer<typeof CadetFlavourZ>;
+
+// --- Cadet speech (docs/03 §4.4) ---------------------------------------------
+
+export const UTTERANCE_KINDS = [
+  "question",
+  "answer",
+  "objection",
+  "example_request",
+  "claim",
+  "thanks",
+] as const;
+export const MOODS = ["curious", "confused", "excited", "doubtful", "proud", "sheepish"] as const;
+
+export const CadetUtteranceZ = z.object({
+  text: z.string().min(1).max(600),
+  kind: z.enum(UTTERANCE_KINDS),
+  conceptId: z.string().optional(),
+  confidence: z.number().min(0).max(1),
+  mood: z.enum(MOODS),
+});
+export type CadetUtterance = z.infer<typeof CadetUtteranceZ>;
