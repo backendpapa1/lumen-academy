@@ -55,7 +55,7 @@ export class ModelFactory {
     if (!opts.role && this.deps.meter?.budgetState() === "degrade")
       opts = { ...opts, role: "fastest" };
     const primary = resolveSpec(this.deps.config, agent, opts);
-    const all = [primary, ...fallbackSpecs(this.deps.config, primary, opts)];
+    const all = [primary, ...fallbackSpecs(this.deps.config, primary)];
     const healthy = all.filter((s) => this.health.isHealthy(s.provider));
     const unhealthy = all.filter((s) => !this.health.isHealthy(s.provider));
     return [...healthy, ...unhealthy].map((spec) => ({ spec, model: this.model(spec) }));

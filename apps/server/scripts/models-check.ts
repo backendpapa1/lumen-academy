@@ -42,7 +42,7 @@ if (idLines.every((l) => l.ok)) {
   const emb = await checkEmbeddings(cfg.models, env);
   print("3. Embeddings", [emb]);
   const probe = await probeDeepSeekThinkingToolLoop(cfg.models, env);
-  print("4. Probes (informational)", [probe]);
+  print("4. DeepSeek thinking + tool loop", [probe]);
   all.push(...roleLines, emb, probe);
 
   const t = meter.totals();

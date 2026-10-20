@@ -12,7 +12,7 @@ const pricing: PricingConfig = {
     },
   },
   deepseek: {
-    models: { "deepseek-v4-flash": { input: 0.2, cachedInput: 0.02, output: 0.8 } },
+    models: { "deepseek-flash": { input: 0.2, cachedInput: 0.02, output: 0.8 } },
     timeOfDay: {
       tz: "Asia/Shanghai",
       peak: [
@@ -96,7 +96,7 @@ describe("estimateUsd", () => {
   it("applies the DeepSeek peak multiplier in Beijing peak hours only", () => {
     const call = {
       provider: "deepseek" as const,
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
       inputTokens: 1_000_000,
     };
     expect(estimateUsd(pricing, { ...call, at: OFF_PEAK })).toBeCloseTo(0.2, 10);

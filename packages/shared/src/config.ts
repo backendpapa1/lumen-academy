@@ -64,7 +64,7 @@ export const ProfileZ = z.strictObject({
   image: ModelSpecZ,
 });
 
-/** "provider:model", e.g. "deepseek:deepseek-v4-flash". */
+/** "provider:model", e.g. "deepseek:deepseek-flash". */
 export const FallbackIdZ = z
   .string()
   .regex(/^(openai|deepseek):[\w.-]+$/, 'must look like "openai:<model>" or "deepseek:<model>"');

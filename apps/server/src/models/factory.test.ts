@@ -1,7 +1,7 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { ChatDeepSeek } from "@langchain/deepseek";
 import { ChatOpenAI } from "@langchain/openai";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../config/load.js";
 import { buildModel, ModelFactory, type Candidate } from "./factory.js";
 import { HealthRegistry } from "./health.js";
@@ -43,14 +43,6 @@ describe("resolveSpec", () => {
     expect(spec.temperature).toBeUndefined();
   });
 
-  it("forces DeepSeek thinking off for tool loops (ADR-004)", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const spec = resolveSpec(configFor(), "registrar", { toolLoop: true });
-    expect(spec).toMatchObject({ provider: "deepseek", thinking: "off" });
-    expect(resolveSpec(configFor(), "registrar").thinking).toBe("on");
-    warn.mockRestore();
-  });
-
   it("follows the active profile", () => {
     expect(resolveSpec(configFor("deepseek"), "curriculumArchitect")).toMatchObject({
       provider: "deepseek",
@@ -68,7 +60,7 @@ describe("resolveSpec", () => {
 describe("fallbackSpecs", () => {
   it("keeps config order and excludes the primary", () => {
     const cfg = configFor();
-    const primary = resolveSpec(cfg, "cadetTalk"); // fast: deepseek-v4-flash
+    const primary = resolveSpec(cfg, "cadetTalk"); // fast: deepseek-flash
     expect(fallbackSpecs(cfg, primary).map(specId)).toEqual([
       "openai:gpt-5.6-luna",
       "openai:gpt-5.4-nano",
@@ -86,16 +78,11 @@ describe("fallbackSpecs", () => {
     expect(flash?.reasoningEffort).toBeUndefined();
   });
 
-  it("keeps heavy-role DeepSeek fallbacks thinking, except in tool loops", () => {
+  it("keeps heavy-role DeepSeek fallbacks thinking (tool loops work with it, ADR-004)", () => {
     const cfg = configFor();
     const primary = resolveSpec(cfg, "examiner");
     expect(fallbackSpecs(cfg, primary).find((s) => s.provider === "deepseek")?.thinking).toBe("on");
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const loop = fallbackSpecs(cfg, resolveSpec(cfg, "examiner", { toolLoop: true }), {
-      toolLoop: true,
-    });
-    expect(loop.find((s) => s.provider === "deepseek")?.thinking).toBe("off");
-    warn.mockRestore();
+    expect(resolveSpec(cfg, "registrar").thinking).toBe("on");
   });
 });
 
@@ -155,7 +142,7 @@ describe("ModelFactory.run", () => {
       return "ok";
     });
     expect(out).toBe("ok");
-    expect(tried).toEqual(["deepseek:deepseek-v4-flash"]);
+    expect(tried).toEqual(["deepseek:deepseek-flash"]);
   });
 
   it("falls back in order on provider failures", async () => {
@@ -168,7 +155,7 @@ describe("ModelFactory.run", () => {
     });
     expect(out).toBe("gpt-5.4-nano");
     expect(tried).toEqual([
-      "deepseek:deepseek-v4-flash",
+      "deepseek:deepseek-flash",
       "openai:gpt-5.6-luna",
       "openai:gpt-5.4-nano",
     ]);
@@ -192,7 +179,7 @@ describe("ModelFactory.run", () => {
     expect(factory.candidates("cadetTalk").map(id)).toEqual([
       "openai:gpt-5.6-luna",
       "openai:gpt-5.4-nano",
-      "deepseek:deepseek-v4-flash",
+      "deepseek:deepseek-flash",
     ]);
   });
 
@@ -218,7 +205,7 @@ describe("ModelFactory.run", () => {
     );
     expect(events).toEqual([
       { id: "openai:gpt-5.4-nano", ok: false },
-      { id: "deepseek:deepseek-v4-flash", ok: true },
+      { id: "deepseek:deepseek-flash", ok: true },
     ]);
   });
 });

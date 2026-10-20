@@ -23,7 +23,7 @@ const OPENAI = [
   "gpt-image-2",
   "extra",
 ];
-const DEEPSEEK = ["deepseek-v4-flash", "deepseek-v4-pro"];
+const DEEPSEEK = ["deepseek-flash", "deepseek-v4-pro"];
 
 describe("configuredModelIds", () => {
   it("collects ids from every profile and fallback chain", () => {

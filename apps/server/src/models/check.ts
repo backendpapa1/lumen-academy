@@ -5,6 +5,7 @@ import { OpenAIEmbeddings } from "@langchain/openai";
 import { TEXT_ROLES, type ModelsConfig, type Provider } from "@lumen/shared";
 import { z } from "zod";
 import type { ModelFactory } from "./factory.js";
+import { structured } from "./structured.js";
 
 export interface CheckLine {
   ok: boolean;
@@ -100,11 +101,12 @@ export async function checkRoles(factory: ModelFactory): Promise<CheckLine[]> {
       const started = performance.now();
       const out = await factory.run(
         "classDirector",
-        async ({ model, spec }) => {
+        async (candidate) => {
+          const { spec } = candidate;
           used = `${spec.provider}:${spec.model}${spec.isFallback ? " (FALLBACK)" : ""}`;
-          return model
-            .withStructuredOutput(PingZ, { name: "ping" })
-            .invoke([new HumanMessage('Return ok=true and word="lumen".')]);
+          return structured(candidate, PingZ, "ping").invoke([
+            new HumanMessage('Return ok=true and word="lumen".'),
+          ]);
         },
         { role },
       );
@@ -148,9 +150,10 @@ export async function checkEmbeddings(
 }
 
 /**
- * Step 4 (informational, ADR-004): does a two-step tool loop work on DeepSeek
- * with thinking on? We expect it to fail because LangChain drops
- * reasoning_content. If it passes, the factory's toolLoop override can go.
+ * Step 4 (regression guard, ADR-004): multi-step tool loops on DeepSeek with
+ * thinking on worked live on 20 Oct 2026 even though LangChain doesn't send
+ * reasoning_content back. If this starts failing, deep agents on DeepSeek
+ * thinking roles will break, so it fails the check.
  */
 export async function probeDeepSeekThinkingToolLoop(
   cfg: ModelsConfig,
@@ -164,8 +167,9 @@ export async function probeDeepSeekThinkingToolLoop(
     description: "Add two numbers.",
     schema: z.object({ a: z.number(), b: z.number() }),
   });
+  // The DeepSeek profile's fast model, so no id is hard-coded here.
   const model = new ChatDeepSeek({
-    model: "deepseek-v4-flash",
+    model: cfg.profiles.deepseek.fast.model,
     apiKey,
     configuration: { baseURL: cfg.providers.deepseek.baseURL },
     modelKwargs: { thinking: { type: "enabled" } },
@@ -185,18 +189,12 @@ export async function probeDeepSeekThinkingToolLoop(
       first,
       new ToolMessage({ tool_call_id: call.id, content: "5" }),
     ]);
-    return {
-      ok: true,
-      info: true,
-      label,
-      detail: "PASSED: the ADR-004 toolLoop override may be removable. Re-test and update ADR-004",
-    };
+    return { ok: true, label, detail: "two-step tool loop works with thinking on" };
   } catch (err) {
     return {
-      ok: true,
-      info: true,
+      ok: false,
       label,
-      detail: `fails as expected (ADR-004 stands): ${describeError(err)}`,
+      detail: `tool loop with thinking on FAILED (deep agents on DeepSeek thinking roles will break; see ADR-004): ${describeError(err)}`,
     };
   }
 }

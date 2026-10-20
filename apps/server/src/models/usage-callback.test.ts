@@ -104,7 +104,7 @@ describe("UsageCallback (end to end through LangChain, offline)", () => {
     const bodies: Array<Record<string, unknown>> = [];
     const s = spec({
       provider: "deepseek",
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
       thinking: "off",
       isFallback: true,
     });

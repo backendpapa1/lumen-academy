@@ -11,7 +11,7 @@ openai:
     gpt-image-2: { perImage: { low: null, medium: null, high: null } }
 deepseek:
   models:
-    deepseek-v4-flash: { input: null, cachedInput: null, output: null }
+    deepseek-flash: { input: null, cachedInput: null, output: null }
     deepseek-v4-pro: { input: null, cachedInput: null, output: null }
   timeOfDay: # multipliers, Beijing time
     tz: Asia/Shanghai
