@@ -181,3 +181,18 @@ export function normalizeCurriculum(c: Curriculum): Curriculum {
     })),
   };
 }
+
+/** Curriculum as exported for hand editing (C-2): existing items carry their id. */
+export const EditableCurriculumZ = z.object({
+  modules: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        title: z.string().min(1),
+        goal: z.string().default(""),
+        concepts: z.array(ConceptZ.extend({ id: z.string().optional() })).min(1),
+      }),
+    )
+    .min(1),
+});
+export type EditableCurriculum = z.infer<typeof EditableCurriculumZ>;
