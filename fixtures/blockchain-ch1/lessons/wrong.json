@@ -1,0 +1,77 @@
+{
+  "id": "merkle-wrong",
+  "description": "Same structure and length as merkle-correct, with planted errors (marked) and some vagueness. The mirror check expects worse exam results than merkle-correct.",
+  "concepts": ["Block Header", "Merkle Trees", "Merkle Trees and Lightweight Clients"],
+  "messages": [
+    {
+      "concept": "Block Header",
+      "text": "Today: what's inside a block. A block is a container: a header plus the list of transactions."
+    },
+    {
+      "concept": "Block Header",
+      "text": "The header holds a copy of all the transactions, so it's the biggest part of the block.",
+      "plantedError": "The header is 80 bytes and does not contain the transactions."
+    },
+    {
+      "concept": "Block Header",
+      "text": "The header has a few fields: the version, a timestamp, the Merkle root, stuff like that."
+    },
+    {
+      "concept": "Block Header",
+      "text": "Blocks are linked because each block repeats all the transactions of the block before it.",
+      "plantedError": "Blocks are linked by the previous block's header hash, not by repeating transactions."
+    },
+    {
+      "concept": "Block Header",
+      "text": "The block hash is stored as a field inside the block header.",
+      "plantedError": "The block hash is not stored in the block; it is computed by hashing the header."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "Now the Merkle root. It's a hash that relates to the transactions somehow."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "Every transaction stores a copy of the Merkle root inside it, that's how they're tied together.",
+      "plantedError": "The Merkle root is stored in the block header, not in each transaction."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "You hash things together until you get one hash. That's the root."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "Bitcoin's Merkle trees use a single round of MD5.",
+      "plantedError": "Bitcoin's Merkle trees use double SHA256."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "If a level has an odd number of hashes, the extra one is just thrown away.",
+      "plantedError": "The last hash is duplicated, not discarded."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "Changing a transaction doesn't affect the root, because the root was fixed when the block was made.",
+      "plantedError": "Changing any transaction changes the Merkle root."
+    },
+    { "concept": "Merkle Trees", "text": "So the root is basically a label for the block." },
+    {
+      "concept": "Merkle Trees and Lightweight Clients",
+      "text": "Lightweight clients still download every transaction in every block to check anything.",
+      "plantedError": "Lightweight clients mostly keep headers and verify with Merkle paths."
+    },
+    {
+      "concept": "Merkle Trees and Lightweight Clients",
+      "text": "To prove a transaction is in a block, you send the whole block."
+    },
+    {
+      "concept": "Merkle Trees and Lightweight Clients",
+      "text": "The proof gets bigger linearly: double the transactions, double the proof.",
+      "plantedError": "A Merkle path grows with about log2(N), not linearly."
+    },
+    {
+      "concept": "Merkle Trees and Lightweight Clients",
+      "text": "Anyway, the client trusts the node that sent it."
+    }
+  ]
+}

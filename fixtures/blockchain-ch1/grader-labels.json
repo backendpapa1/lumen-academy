@@ -1,0 +1,209 @@
+{
+  "description": "Reference grades for the Grader-agreement eval (target: ≥85% of Grader scores within ±1 of these). Scale 0–5 as in apps/server/src/agents/prompts/grader.md. Facts are drawn from source.md.",
+  "labelledBy": "Claude (draft, 20 Oct 2026). Pending review by Paul: adjust any score you disagree with; your judgement is the reference.",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "What is the Merkle root and where is it stored?",
+      "facts": [
+        "The Merkle root is the single hash left after recursively hashing pairs of transaction hashes.",
+        "It summarises all the transactions in the block.",
+        "It is stored in the block header."
+      ]
+    },
+    {
+      "id": "q2",
+      "question": "How is a Merkle tree built from a block's transactions?",
+      "facts": [
+        "Each transaction is hashed to form a leaf.",
+        "Consecutive pairs of hashes are concatenated and hashed to form the parent.",
+        "This repeats level by level until one hash, the root, remains.",
+        "If a level has an odd number of hashes, the last hash is duplicated.",
+        "Bitcoin uses double-SHA256."
+      ]
+    },
+    {
+      "id": "q3",
+      "question": "Why does changing one transaction change the Merkle root?",
+      "facts": [
+        "Changing a transaction changes its hash.",
+        "That changes every parent hash on the way up.",
+        "So the root changes, and the header no longer matches."
+      ]
+    },
+    {
+      "id": "q4",
+      "question": "How can a lightweight client check that a transaction is in a block without downloading every transaction?",
+      "facts": [
+        "The client keeps block headers, which contain the Merkle root.",
+        "A full node sends a Merkle path: the sibling hashes from the transaction up to the root.",
+        "The client hashes up the path and compares the result with the Merkle root in the header."
+      ]
+    },
+    {
+      "id": "q5",
+      "question": "How big is a Merkle path, and why does that matter?",
+      "facts": [
+        "A Merkle path needs about log2(N) hashes for N transactions.",
+        "It grows very slowly as blocks get bigger, so proofs stay small (a few hundred bytes) even for thousands of transactions."
+      ]
+    },
+    {
+      "id": "q6",
+      "question": "What links one block to the previous block?",
+      "facts": [
+        "Each block header contains the hash of the previous block's header.",
+        "This forms a chain back to the genesis block."
+      ]
+    }
+  ],
+  "answers": [
+    {
+      "questionId": "q1",
+      "score": 5,
+      "answer": "It's the one hash you get after hashing the transactions together in pairs over and over. It sums up every transaction in the block and it's kept in the block header."
+    },
+    {
+      "questionId": "q1",
+      "score": 4,
+      "answer": "The Merkle root is a single hash summarising all the block's transactions. It lives in the block header."
+    },
+    {
+      "questionId": "q1",
+      "score": 3,
+      "answer": "It's a hash of the transactions. I think it goes in the header but I'm not sure how it's made."
+    },
+    {
+      "questionId": "q1",
+      "score": 1,
+      "answer": "Something to do with hashes. Maybe it's stored with the block somewhere?"
+    },
+    {
+      "questionId": "q1",
+      "score": 0,
+      "answer": "The Merkle root is stored inside every transaction so they're all linked together."
+    },
+
+    {
+      "questionId": "q2",
+      "score": 5,
+      "answer": "Hash every transaction to get the leaves. Then take neighbours in pairs, join the two hashes and hash that, using SHA256 twice. Keep going up a level at a time until one hash is left, the root. If there's an odd one out at some level, it gets duplicated."
+    },
+    {
+      "questionId": "q2",
+      "score": 4,
+      "answer": "Each transaction is hashed, then pairs of hashes are combined and hashed again, level after level, until only the root is left. Odd ones get duplicated."
+    },
+    {
+      "questionId": "q2",
+      "score": 3,
+      "answer": "You pair up transaction hashes and hash them together, and keep doing that until there's just one."
+    },
+    {
+      "questionId": "q2",
+      "score": 2,
+      "answer": "You hash all the transactions together in one go and that's the tree."
+    },
+    {
+      "questionId": "q2",
+      "score": 0,
+      "answer": "You hash the transactions with MD5 and throw away the odd one out if there's an uneven number."
+    },
+
+    {
+      "questionId": "q3",
+      "score": 5,
+      "answer": "If you change a transaction, its hash changes. That changes its parent's hash, and that one's parent, all the way up, so you end up with a different root, and the header no longer matches the block."
+    },
+    {
+      "questionId": "q3",
+      "score": 4,
+      "answer": "Because the change alters the transaction's hash and that ripples up through every level to the root."
+    },
+    {
+      "questionId": "q3",
+      "score": 2,
+      "answer": "Because the root depends on the transactions in some way."
+    },
+    {
+      "questionId": "q3",
+      "score": 1,
+      "answer": "I think it's a security thing, but I don't remember why."
+    },
+    {
+      "questionId": "q3",
+      "score": 0,
+      "answer": "It doesn't. The root is fixed when the block is created, so editing a transaction leaves it alone."
+    },
+
+    {
+      "questionId": "q4",
+      "score": 5,
+      "answer": "The client only keeps headers. A full node sends it a Merkle path, the sibling hashes from that transaction up to the root. The client hashes its way up and checks the result equals the Merkle root in the header it already has."
+    },
+    {
+      "questionId": "q4",
+      "score": 4,
+      "answer": "It asks a full node for a Merkle path and hashes up that path to see if it matches the root in the block header."
+    },
+    {
+      "questionId": "q4",
+      "score": 3,
+      "answer": "It gets a short proof made of some hashes from a full node and checks it against the block somehow."
+    },
+    {
+      "questionId": "q4",
+      "score": 1,
+      "answer": "It just trusts whatever the node it's connected to says."
+    },
+    {
+      "questionId": "q4",
+      "score": 0,
+      "answer": "It has to download every transaction in the block and check them one by one."
+    },
+
+    {
+      "questionId": "q5",
+      "score": 5,
+      "answer": "It's about log2 of the number of transactions, so even a block with thousands of transactions only needs a dozen or so hashes, a few hundred bytes. That keeps proofs tiny as blocks grow."
+    },
+    {
+      "questionId": "q5",
+      "score": 4,
+      "answer": "Roughly log2(N) hashes. It grows really slowly, so proofs stay small."
+    },
+    {
+      "questionId": "q5",
+      "score": 3,
+      "answer": "It's small, only a handful of hashes, which is good for phones."
+    },
+    { "questionId": "q5", "score": 1, "answer": "It depends on the block, I don't know exactly." },
+    {
+      "questionId": "q5",
+      "score": 0,
+      "answer": "It grows linearly: twice as many transactions means a proof twice as big."
+    },
+
+    {
+      "questionId": "q6",
+      "score": 5,
+      "answer": "Each block's header includes the hash of the previous block's header, so every block points back to its parent, all the way to the genesis block."
+    },
+    { "questionId": "q6", "score": 4, "answer": "The header stores the previous block's hash." },
+    {
+      "questionId": "q6",
+      "score": 3,
+      "answer": "There's some reference to the previous block in each block."
+    },
+    {
+      "questionId": "q6",
+      "score": 1,
+      "answer": "They're linked by time, the timestamps go in order."
+    },
+    {
+      "questionId": "q6",
+      "score": 0,
+      "answer": "Each block copies all the transactions of the block before it."
+    }
+  ]
+}

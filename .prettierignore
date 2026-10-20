@@ -6,3 +6,4 @@ data/
 README.md
 CLAUDE.md
 apps/server/drizzle/
+fixtures/

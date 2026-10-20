@@ -1,0 +1,71 @@
+{
+  "id": "merkle-correct",
+  "description": "A clear, accurate lesson on block headers and Merkle trees (Mastering Bitcoin ch. 11).",
+  "concepts": ["Block Header", "Merkle Trees", "Merkle Trees and Lightweight Clients"],
+  "messages": [
+    {
+      "concept": "Block Header",
+      "text": "Today: what's inside a block. A block is a container: a small header plus the list of transactions."
+    },
+    {
+      "concept": "Block Header",
+      "text": "The header is only 80 bytes. The transactions are much bigger, often hundreds of kilobytes or more."
+    },
+    {
+      "concept": "Block Header",
+      "text": "The header has a few fields: the version, the hash of the previous block's header, the Merkle root, a timestamp, the difficulty target and a nonce."
+    },
+    {
+      "concept": "Block Header",
+      "text": "The previous block hash is what links blocks into a chain. Each header points back to its parent."
+    },
+    {
+      "concept": "Block Header",
+      "text": "A block is identified by hashing its header twice with SHA256. That block hash isn't stored in the block itself."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "Now the Merkle root. It's a single hash that summarises every transaction in the block."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "Picture a tournament bracket. Each transaction is hashed. Then neighbouring hashes are paired, joined together and hashed again."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "You keep pairing and hashing level by level until one hash is left. That's the Merkle root."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "Bitcoin uses double SHA256 here too: SHA256 applied twice."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "If a level has an odd number of hashes, the last one is duplicated so it has a partner."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "The root goes in the header. Change any transaction and its hash changes, which changes every hash above it, so the root changes."
+    },
+    {
+      "concept": "Merkle Trees",
+      "text": "That's why the header commits to the whole set of transactions, even though it's tiny."
+    },
+    {
+      "concept": "Merkle Trees and Lightweight Clients",
+      "text": "Why bother? Lightweight clients, like phone wallets, don't download every transaction. They mostly keep headers."
+    },
+    {
+      "concept": "Merkle Trees and Lightweight Clients",
+      "text": "To prove a transaction is in a block, a full node sends a Merkle path: the sibling hashes along the way from that transaction up to the root."
+    },
+    {
+      "concept": "Merkle Trees and Lightweight Clients",
+      "text": "The path is about log2 of N hashes, where N is the number of transactions. For a few thousand transactions that's around a dozen hashes."
+    },
+    {
+      "concept": "Merkle Trees and Lightweight Clients",
+      "text": "The client rehashes up the path and checks the result matches the Merkle root in the header it already has. If it matches, the transaction is in the block."
+    }
+  ]
+}
