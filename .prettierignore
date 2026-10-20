@@ -8,3 +8,4 @@ CLAUDE.md
 apps/server/drizzle/
 fixtures/
 apps/server/src/agents/prompts/**/*.md
+eval/reports/

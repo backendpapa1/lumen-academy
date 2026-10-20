@@ -113,6 +113,8 @@ const NEUTRAL: TeachingAnalysis = {
 };
 const MAX_QUEUE = 5;
 const HAND_TTL_TURNS = 2;
+/** A cadet regains full priority this many turns after speaking. */
+const FAIRNESS_TURNS = 4;
 
 export class ClassSession {
   readonly periodId: string;
@@ -535,8 +537,21 @@ export class ClassSession {
     const kept = this.hands.filter(
       (h) => ord - h.raisedAtTurn < HAND_TTL_TURNS && !fresh.some((f) => f.cadetId === h.cadetId),
     );
-    this.hands = [...fresh, ...kept].sort((a, b) => b.urgency - a.urgency).slice(0, MAX_QUEUE);
+    this.hands = [...fresh, ...kept]
+      .sort((a, b) => this.handPriority(b) - this.handPriority(a))
+      .slice(0, MAX_QUEUE);
     this.events.onHands?.(this.handQueue);
+  }
+
+  /**
+   * Urgency, discounted for cadets who spoke recently, so one eager cadet
+   * doesn't own the queue (the reactor is told the same, but bids high anyway).
+   */
+  private handPriority(h: HandRaise): number {
+    const last = this.cadetStates.find((c) => c.id === h.cadetId)?.lastSpokeTurn;
+    if (last === null || last === undefined) return h.urgency;
+    const since = this.turnOrd - last;
+    return h.urgency * Math.min(1, (since + 1) / FAIRNESS_TURNS);
   }
 
   private setConcept(conceptId: string) {

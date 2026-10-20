@@ -18,7 +18,8 @@
     "test:e2e": "playwright test",
     "cli:ingest": "pnpm --filter @lumen/server cli:ingest",
     "cli:curriculum": "pnpm --filter @lumen/server cli:curriculum",
-    "cli:register": "pnpm --filter @lumen/server cli:register"
+    "cli:register": "pnpm --filter @lumen/server cli:register",
+    "eval:agents": "pnpm --filter @lumen/server eval:agents"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

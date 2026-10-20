@@ -1,0 +1,77 @@
+{
+  "description": "Fixed curriculum for pnpm eval:agents, so evals don't depend on a fresh Curriculum Architect run. Concept titles match the 'concept' field in lessons/*.json. citeHeading is resolved to chunk ids at load time (chunks whose heading path ends with it). Each concept has one exam question with its reference facts.",
+  "modules": [
+    {
+      "title": "Blocks and Merkle Trees",
+      "goal": "Explain what a block header holds and how a Merkle tree commits to and proves a block's transactions.",
+      "concepts": [
+        {
+          "title": "Block Header",
+          "summary": "A block is a small 80-byte header plus its transactions. The header links to the previous block and commits to the transactions.",
+          "keyFacts": [
+            "A block is a container with a small header followed by the list of transactions.",
+            "The block header is 80 bytes; the transactions are much larger.",
+            "The header contains the version, the previous block header's hash, the Merkle root, a timestamp, the difficulty target and a nonce.",
+            "Each header contains the hash of the previous block's header, which links blocks into a chain.",
+            "A block is identified by hashing its header twice with SHA256; that block hash is not stored inside the block."
+          ],
+          "misconceptions": [
+            "The block header contains a copy of all the transactions.",
+            "Blocks are linked by repeating the previous block's transactions.",
+            "The block hash is stored as a field in the block header."
+          ],
+          "citeHeading": "Block Header",
+          "difficulty": 2,
+          "exam": {
+            "question": "What does a block header contain, and how does it link a block to the one before it?",
+            "facts": [1, 2, 3, 4]
+          }
+        },
+        {
+          "title": "Merkle Trees",
+          "summary": "A Merkle tree hashes transactions in pairs, level by level, into one Merkle root that is stored in the block header.",
+          "keyFacts": [
+            "The Merkle root is a single hash that summarises every transaction in the block.",
+            "Each transaction is hashed; neighbouring hashes are paired, concatenated and hashed again.",
+            "Pairing and hashing repeat level by level until one hash, the Merkle root, remains.",
+            "Bitcoin's Merkle trees use double SHA256 (SHA256 applied twice).",
+            "If a level has an odd number of hashes, the last hash is duplicated.",
+            "The Merkle root is stored in the block header; changing any transaction changes the root."
+          ],
+          "misconceptions": [
+            "The Merkle root is stored in every transaction.",
+            "Changing a transaction doesn't change the Merkle root.",
+            "The odd hash out is discarded."
+          ],
+          "citeHeading": "Merkle Trees",
+          "difficulty": 2,
+          "exam": {
+            "question": "How is a block's Merkle root built from its transactions, where is it stored, and what happens to it if one transaction changes?",
+            "facts": [1, 2, 3, 6]
+          }
+        },
+        {
+          "title": "Merkle Trees and Lightweight Clients",
+          "summary": "Lightweight clients keep headers and verify a transaction's inclusion with a short Merkle path checked against the header's Merkle root.",
+          "keyFacts": [
+            "Lightweight clients, such as phone wallets, don't download every transaction; they mostly keep block headers.",
+            "To prove a transaction is in a block, a full node sends a Merkle path: the sibling hashes from that transaction up to the root.",
+            "A Merkle path needs about log2(N) hashes for N transactions, so it stays small as blocks grow.",
+            "The client hashes up the path and checks the result matches the Merkle root in the header it already has."
+          ],
+          "misconceptions": [
+            "A lightweight client must download every transaction to verify one.",
+            "Merkle proof size grows linearly with the number of transactions.",
+            "To prove inclusion you have to send the whole block."
+          ],
+          "citeHeading": "Merkle Trees and Lightweight Clients",
+          "difficulty": 3,
+          "exam": {
+            "question": "How can a lightweight client check that a transaction is in a block without downloading every transaction, and how big is the proof?",
+            "facts": [1, 2, 3, 4]
+          }
+        }
+      ]
+    }
+  ]
+}
