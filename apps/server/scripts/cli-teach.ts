@@ -116,6 +116,16 @@ if (prev) {
   }).catch(() => undefined);
 }
 
+const BUDGET_NOTES: Record<string, string> = {
+  warn: "Heads up: you've used 80% of this month's AI budget.",
+  degrade: "Budget nearly used: switching to lighter models, and fewer cadets react each turn.",
+  pause: "This month's AI budget is used up. Agents are paused.",
+  ok: "Budget OK again.",
+};
+meter.onStateChange((state, t) =>
+  console.log(dim(`  💡 ${BUDGET_NOTES[state]} ($${t.monthUsd.toFixed(2)} of $${t.capUsd})`)),
+);
+
 let session: ClassSession;
 const states = new Map<string, ReactionState>();
 try {
@@ -129,7 +139,7 @@ try {
       )?.id
     : undefined;
   session = ClassSession.open(
-    { handle, factory, game: cfg.game, embedder },
+    { handle, factory, game: cfg.game, embedder, budget: meter },
     { classroomId: room.id, conceptId, plannedMinutes: minutes },
     {
       onReaction: (id, st) => states.set(id, st),

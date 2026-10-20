@@ -68,7 +68,12 @@ export interface SessionDeps {
   now?: () => number;
   /** Director timeout before the one low-confidence retry (D3). */
   directorTimeoutMs?: number;
+  /** Budget guard (docs/03 §8): degrade shrinks the crowd, pause stops teaching. */
+  budget?: { budgetState(): string; assertCanCall(): void };
 }
+
+/** In budget-degrade mode only this many cadets react each turn (docs/03 §8). */
+export const DEGRADED_CROWD = 6;
 
 interface CadetState {
   id: string;
@@ -279,6 +284,8 @@ export class ClassSession {
   /** The teacher said something (T-1..T-6). */
   teach(text: string, opts: { conceptId?: string; replyToCadetId?: string } = {}): TurnHandle {
     if (this.closed) throw new Error("period has ended");
+    // Refuse up front when paused, so nothing is half-saved (BudgetPausedError).
+    this.deps.budget?.assertCanCall();
     this.interruptSpeaker();
     if (opts.conceptId) this.setConcept(opts.conceptId);
     const turnId = newId("turn");
@@ -305,7 +312,7 @@ export class ClassSession {
         runCrowdReactor(
           this.deps.factory,
           {
-            cards,
+            cards: this.crowdFor(cards, ord),
             conceptTitle: this.currentConcept.title,
             transcript,
             teacherMessage: text,
@@ -576,6 +583,17 @@ export class ClassSession {
       .where(eq(classrooms.id, this.classroomId))
       .run();
     this.events.onConceptChange?.(c.id, c.title);
+  }
+
+  /**
+   * The cadets who react this turn: everyone normally; in degrade mode a
+   * rotating window of DEGRADED_CROWD (the rest keep their last state).
+   */
+  private crowdFor(cards: CadetCard[], ord: number): CadetCard[] {
+    if (this.deps.budget?.budgetState() !== "degrade" || cards.length <= DEGRADED_CROWD)
+      return cards;
+    const start = ((ord - 1) * DEGRADED_CROWD) % cards.length;
+    return Array.from({ length: DEGRADED_CROWD }, (_, i) => cards[(start + i) % cards.length]!);
   }
 
   private cards(): CadetCard[] {

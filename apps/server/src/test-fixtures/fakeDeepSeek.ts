@@ -1,6 +1,8 @@
 import { ChatDeepSeek } from "@langchain/deepseek";
 import type { ModelsConfig } from "@lumen/shared";
 import { ModelFactory } from "../models/factory.js";
+import { UsageCallback } from "../models/usage-callback.js";
+import type { UsageMeter } from "../usage/meter.js";
 
 export interface FakeRequest {
   messages: Array<{ role: string; content: string }>;
@@ -30,6 +32,7 @@ const chunk = (delta: unknown, extra: Record<string, unknown> = {}) => ({
 export function fakeDeepSeekFactory(
   config: ModelsConfig,
   respond: (body: FakeRequest) => FakeReply | Promise<FakeReply>,
+  opts: { meter?: UsageMeter } = {},
 ) {
   const calls: FakeRequest[] = [];
   const fetch = async (_url: unknown, init?: { body?: unknown; signal?: AbortSignal }) => {
@@ -93,6 +96,7 @@ export function fakeDeepSeekFactory(
   const factory = new ModelFactory({
     config,
     env: { DEEPSEEK_API_KEY: "test" },
+    ...(opts.meter ? { meter: opts.meter } : {}),
     build: (spec) =>
       new ChatDeepSeek({
         model: spec.model,
@@ -100,6 +104,7 @@ export function fakeDeepSeekFactory(
         configuration: { fetch: fetch as typeof globalThis.fetch },
         modelKwargs: { thinking: { type: spec.thinking === "on" ? "enabled" : "disabled" } },
         maxRetries: 0,
+        ...(opts.meter ? { callbacks: [new UsageCallback(spec, opts.meter)] } : {}),
       }),
   });
   return { factory, calls };
