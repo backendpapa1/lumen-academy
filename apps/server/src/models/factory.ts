@@ -4,6 +4,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import type { AgentName, ModelsConfig } from "@lumen/shared";
 import { isProviderFailure } from "./errors.js";
 import { HealthRegistry } from "./health.js";
+import { UsageCallback, type UsageSink } from "./usage-callback.js";
 import {
   fallbackSpecs,
   resolveSpec,
@@ -20,6 +21,8 @@ export interface FactoryDeps {
   config: ModelsConfig;
   env: Record<string, string | undefined>;
   health?: HealthRegistry;
+  /** Usage meter + budget guard. Every built model reports to it. */
+  meter?: UsageSink & { budgetState(): string; assertCanCall(): void };
   /** Lets tests swap in fake models. */
   build?: (spec: ResolvedSpec) => BaseChatModel;
 }
@@ -48,6 +51,9 @@ export class ModelFactory {
 
   /** Primary first, then fallbacks; healthy providers are tried before unhealthy ones. */
   candidates(agent: AgentName, opts: ResolveOptions = {}): Candidate[] {
+    // Budget degrade: every role drops to the cheapest tier (docs/03 §8).
+    if (!opts.role && this.deps.meter?.budgetState() === "degrade")
+      opts = { ...opts, role: "fastest" };
     const primary = resolveSpec(this.deps.config, agent, opts);
     const all = [primary, ...fallbackSpecs(this.deps.config, primary, opts)];
     const healthy = all.filter((s) => this.health.isHealthy(s.provider));
@@ -57,6 +63,7 @@ export class ModelFactory {
 
   /** The model to use right now, for callers that manage their own retries. */
   getModel(agent: AgentName, opts: ResolveOptions = {}): Candidate {
+    this.deps.meter?.assertCanCall();
     const first = this.candidates(agent, opts)[0];
     if (!first) throw new Error(`no model candidates for ${agent}`);
     return first;
@@ -72,6 +79,7 @@ export class ModelFactory {
     fn: (candidate: Candidate) => Promise<T>,
     opts: ResolveOptions & { onAttempt?: (e: AttemptEvent) => void } = {},
   ): Promise<T> {
+    this.deps.meter?.assertCanCall();
     const errors: unknown[] = [];
     for (const candidate of this.candidates(agent, opts)) {
       const started = performance.now();
@@ -111,8 +119,9 @@ export class ModelFactory {
 
 export function buildModel(
   spec: ResolvedSpec,
-  deps: Pick<FactoryDeps, "config" | "env">,
+  deps: Pick<FactoryDeps, "config" | "env" | "meter">,
 ): BaseChatModel {
+  const callbacks = deps.meter ? [new UsageCallback(spec, deps.meter)] : undefined;
   const provider = deps.config.providers[spec.provider];
   const apiKey = deps.env[provider.apiKeyEnv];
   if (!apiKey) throw new Error(`${provider.apiKeyEnv} is not set (needed for ${specId(spec)})`);
@@ -128,6 +137,7 @@ export function buildModel(
       timeout: provider.timeoutMs,
       maxRetries: MAX_RETRIES,
       streamUsage: true,
+      callbacks,
     });
   }
   return new ChatDeepSeek({
@@ -141,5 +151,6 @@ export function buildModel(
     timeout: provider.timeoutMs,
     maxRetries: MAX_RETRIES,
     streamUsage: true,
+    callbacks,
   });
 }

@@ -250,3 +250,43 @@ describe("buildModel", () => {
     );
   });
 });
+
+describe("ModelFactory + budget guard", () => {
+  const fake = (spec: { model: string }) => ({ fakeId: spec.model }) as unknown as BaseChatModel;
+  const meterIn = (state: string) => ({
+    record: () => {},
+    budgetState: () => state,
+    assertCanCall: () => {
+      if (state === "pause") throw new Error("paused");
+    },
+  });
+
+  it("degrades every agent to the fastest role", () => {
+    const f = new ModelFactory({
+      config: configFor(),
+      env,
+      build: fake,
+      meter: meterIn("degrade"),
+    });
+    expect(f.getModel("curriculumArchitect").spec).toMatchObject({
+      role: "fastest",
+      model: "gpt-5.4-nano",
+    });
+  });
+
+  it("refuses to run when paused", async () => {
+    const f = new ModelFactory({ config: configFor(), env, build: fake, meter: meterIn("pause") });
+    await expect(f.run("cadetTalk", async () => 1)).rejects.toThrow("paused");
+    expect(() => f.getModel("cadetTalk")).toThrow("paused");
+  });
+
+  it("attaches the usage callback to built models", () => {
+    const cfg = configFor();
+    const model = buildModel(resolveSpec(cfg, "examiner"), {
+      config: cfg,
+      env,
+      meter: meterIn("ok"),
+    });
+    expect(model.callbacks).toHaveLength(1);
+  });
+});

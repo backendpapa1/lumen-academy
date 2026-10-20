@@ -21,6 +21,8 @@ export interface ResolveOptions {
    * reasoning_content, so thinking is forced off (ADR-004).
    */
   toolLoop?: boolean;
+  /** Replace the agent's role, e.g. "fastest" when the budget guard degrades. */
+  role?: TextRole;
 }
 
 // Used only when a fallback crosses providers and so can't inherit these from
@@ -47,11 +49,12 @@ export function resolveSpec(
   opts: ResolveOptions = {},
 ): ResolvedSpec {
   const override = cfg.agents[agent];
-  const base = cfg.profiles[cfg.profile][override.role];
+  const role = opts.role ?? override.role;
+  const base = cfg.profiles[cfg.profile][role];
   return finalize(
     {
       agent,
-      role: override.role,
+      role,
       provider: base.provider,
       model: base.model,
       thinking: base.thinking,

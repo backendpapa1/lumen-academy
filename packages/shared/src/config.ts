@@ -82,11 +82,14 @@ export const ProviderConfigZ = z.strictObject({
   timeoutMs: z.number().int().positive(),
 });
 
-export const BudgetZ = z.strictObject({
-  monthlyUsdCap: z.number().positive(),
-  softWarnAt: z.number().gt(0).lt(1),
-  onCap: z.enum(["degrade_then_pause", "pause"]),
-});
+export const BudgetZ = z
+  .strictObject({
+    monthlyUsdCap: z.number().positive(),
+    softWarnAt: z.number().gt(0).lt(1), // fraction of cap → toast
+    degradeAt: z.number().gt(0).max(1), // fraction of cap → all roles to fastest
+    onCap: z.enum(["degrade_then_pause", "pause"]), // at 100% of cap agents pause
+  })
+  .refine((b) => b.softWarnAt <= b.degradeAt, "softWarnAt must be <= degradeAt");
 
 export const ModelsConfigZ = z
   .strictObject({
