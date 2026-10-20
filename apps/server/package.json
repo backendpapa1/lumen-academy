@@ -7,6 +7,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@lumen/shared": "workspace:*"
+    "@langchain/core": "^1.2.18",
+    "@langchain/deepseek": "1.1.17",
+    "@langchain/langgraph": "^1.5.1",
+    "@langchain/openai": "1.6.2",
+    "@lumen/shared": "workspace:*",
+    "deepagents": "1.15.1",
+    "langchain": "1.5.18",
+    "zod": "^4.6.7"
   }
 }
