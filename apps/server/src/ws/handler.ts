@@ -29,18 +29,7 @@ export function parseClientFrame(
   return { ok: true, msg: msg.data };
 }
 
-export function handleClientMessage(msg: ClientMessage, now = () => new Date()): ServerMessage {
-  switch (msg.type) {
-    case "ping":
-      return {
-        type: "pong",
-        sessionId: msg.sessionId,
-        payload: { nonce: msg.payload.nonce, serverTime: now().toISOString() },
-      };
-  }
-}
-
-const wsError = (code: string, message: string): ServerMessage => ({
+export const wsError = (code: string, message: string): ServerMessage => ({
   type: "error",
   payload: { code, message },
 });

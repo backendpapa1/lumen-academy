@@ -3,17 +3,25 @@ import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance } from "fastify";
 import { APP_NAME, WS_PATH } from "@lumen/shared";
 import type { AppConfig } from "./config/load.js";
-import { handleClientMessage, parseClientFrame } from "./ws/handler.js";
+import { registerClassroomRoutes } from "./routes/classrooms.js";
+import { ClassroomConnection, type Runtime } from "./ws/classroomConnection.js";
+import { parseClientFrame, wsError } from "./ws/handler.js";
 
 // The Vite dev client is the only browser origin allowed to call the API.
 export const CLIENT_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"];
 
 export interface AppDeps {
   config: AppConfig;
+  /** DB, models and meter. Without it the server only answers health and ping. */
+  runtime?: Runtime;
   logger?: boolean;
 }
 
-export async function buildApp({ config, logger = false }: AppDeps): Promise<FastifyInstance> {
+export async function buildApp({
+  config,
+  runtime,
+  logger = false,
+}: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger });
 
   await app.register(cors, { origin: CLIENT_ORIGINS });
@@ -25,6 +33,13 @@ export async function buildApp({ config, logger = false }: AppDeps): Promise<Fas
     profile: config.models.profile,
     time: new Date().toISOString(),
   }));
+  if (runtime) registerClassroomRoutes(app, runtime.handle);
+
+  // Open periods must finish closing (DB writes) before the server shuts down.
+  const connections = new Set<ClassroomConnection>();
+  app.addHook("onClose", async () => {
+    await Promise.allSettled([...connections].map((c) => c.close()));
+  });
 
   app.get(WS_PATH, { websocket: true }, (socket, req) => {
     // Browsers always send Origin; reject cross-site pages (CORS doesn't cover WS).
@@ -33,10 +48,29 @@ export async function buildApp({ config, logger = false }: AppDeps): Promise<Fas
       socket.close(1008, "origin not allowed");
       return;
     }
+    const send = (frame: string) => {
+      if (socket.readyState === socket.OPEN) socket.send(frame);
+    };
+    const connection = runtime ? new ClassroomConnection(runtime, send) : null;
+    if (connection) connections.add(connection);
     socket.on("message", (data: Buffer) => {
       const parsed = parseClientFrame(data.toString("utf8"));
-      const reply = parsed.ok ? handleClientMessage(parsed.msg) : parsed.error;
-      socket.send(JSON.stringify(reply));
+      if (!parsed.ok) return send(JSON.stringify(parsed.error));
+      if (connection) return void connection.handle(parsed.msg);
+      if (parsed.msg.type === "ping") {
+        return send(
+          JSON.stringify({
+            type: "pong",
+            sessionId: parsed.msg.sessionId,
+            payload: { nonce: parsed.msg.payload.nonce, serverTime: new Date().toISOString() },
+          }),
+        );
+      }
+      send(JSON.stringify(wsError("unavailable", "the classroom runtime isn't running")));
+    });
+    socket.on("close", () => {
+      if (!connection) return;
+      void connection.close().finally(() => connections.delete(connection));
     });
   });
 
