@@ -19,6 +19,8 @@ export interface StructuredResult<T> {
   candidate: Candidate;
   /** True when the first answer failed validation and the re-ask fixed it. */
   reasked: boolean;
+  /** Why the first answer was rejected, when reasked. */
+  reaskReason?: string;
 }
 
 /** Output that parsed badly or failed the schema: worth one re-ask, not a fallback. */
@@ -54,13 +56,15 @@ export async function callStructured<T extends Record<string, unknown>>(
         return { data: await runnable.invoke(call.messages, opts), candidate, reasked: false };
       } catch (err) {
         if (!isValidationError(err)) throw err;
+        const reaskReason = describe(err);
         const fix = new HumanMessage(
-          `Your previous answer was invalid: ${describe(err)}. Reply again with corrected output only.`,
+          `Your previous answer was invalid: ${reaskReason}. Reply again with corrected output only.`,
         );
         return {
           data: await runnable.invoke([...call.messages, fix], opts),
           candidate,
           reasked: true,
+          reaskReason,
         };
       }
     },

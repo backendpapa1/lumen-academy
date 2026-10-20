@@ -297,7 +297,12 @@ describe("committed config (ADR-007: DeepSeek Flash only)", () => {
 
   it("differentiates roles by thinking and effort", () => {
     expect(resolveSpec(committed, "crowdReactor")).toMatchObject({ thinking: "off" });
+    // Spike M1-S1 moved the Director to thinking off (ADR-002).
     expect(resolveSpec(committed, "classDirector")).toMatchObject({
+      role: "fast",
+      thinking: "off",
+    });
+    expect(resolveSpec(committed, "cadetHomework")).toMatchObject({
       thinking: "on",
       reasoningEffort: "low",
     });

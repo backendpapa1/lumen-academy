@@ -70,13 +70,13 @@ describe("structured", () => {
     expect(messages[0]?.content).toContain('"word"');
   });
 
-  it("uses function calling when DeepSeek thinking is off", async () => {
+  it("uses JSON mode for DeepSeek with thinking off too (spike M1-S1)", async () => {
     const bodies: Array<Record<string, unknown>> = [];
     const out = await structured(deepseek("off", bodies), Ping, "ping").invoke([
       new HumanMessage("hi"),
     ]);
     expect(out).toEqual({ ok: true, word: "lumen" });
-    expect(bodies[0]?.tools).toBeDefined();
-    expect(bodies[0]?.response_format).toBeUndefined();
+    expect(bodies[0]?.response_format).toEqual({ type: "json_object" });
+    expect(bodies[0]?.tools).toBeUndefined();
   });
 });

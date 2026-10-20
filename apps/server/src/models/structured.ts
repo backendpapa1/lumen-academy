@@ -6,9 +6,10 @@ import type { ResolvedSpec } from "./spec.js";
 
 /**
  * Structured output that works on every provider/mode we use (ADR-004):
- * - DeepSeek with thinking on rejects forced tool_choice (function calling) and
- *   json_schema response formats. JSON mode works, but the model only sees the
- *   schema if we put it in the prompt, so we prepend it.
+ * - DeepSeek (any thinking mode) uses JSON mode with the schema in the prompt.
+ *   With thinking on, forced tool_choice and json_schema are rejected; with it
+ *   off, function calling sometimes returns no tool call at all (spike M1-S1),
+ *   while JSON mode always returns a JSON object.
  * - Everything else uses LangChain's default (function calling).
  * Output is always validated against the Zod schema.
  */
@@ -18,7 +19,7 @@ export function structured<T extends Record<string, unknown>>(
   name: string,
 ): Runnable<BaseMessage[], T> {
   const { model, spec } = candidate;
-  if (spec.provider === "deepseek" && spec.thinking === "on") {
+  if (spec.provider === "deepseek") {
     const instruction = new SystemMessage(
       `Respond with a single JSON object and nothing else. It must match this JSON Schema (name: ${name}):\n` +
         JSON.stringify(z.toJSONSchema(schema)),
