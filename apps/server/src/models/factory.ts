@@ -45,6 +45,11 @@ export class ModelFactory {
   readonly health: HealthRegistry;
   private readonly cache = new Map<string, BaseChatModel>();
 
+  /** The models config this factory routes with (read-only). */
+  get config(): ModelsConfig {
+    return this.deps.config;
+  }
+
   constructor(private readonly deps: FactoryDeps) {
     this.health = deps.health ?? new HealthRegistry();
   }

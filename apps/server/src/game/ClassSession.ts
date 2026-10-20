@@ -19,16 +19,21 @@ import {
 } from "../agents/realtime/context.js";
 import { runCrowdReactor, type ReactorResult } from "../agents/realtime/crowdReactor.js";
 import { runCadetTurn, type CadetTurnResult } from "../agents/realtime/cadet.js";
+import { guardUtterance, type GuardOutcome } from "../agents/realtime/leakGuard.js";
+import { untaughtTerms, vocabulary } from "./leakTerms.js";
 import type { DbHandle } from "../db/client.js";
 import { newId } from "../db/ids.js";
 import {
   cadets,
+  chunks,
   classrooms,
   concepts,
+  leakEvents,
   ledgerEntries,
   messages,
   modules,
   periods,
+  sources,
   teacherErrors,
   turns,
 } from "../db/schema.js";
@@ -50,7 +55,9 @@ export interface SessionEvents {
   onLedger?: (changes: LedgerChange[]) => void;
   onAnalysis?: (turnId: string, analysis: TeachingAnalysis, lowConfidence: boolean) => void;
   onConceptChange?: (conceptId: string, title: string) => void;
-  onError?: (stage: "reactor" | "director" | "embedding", err: unknown) => void;
+  onError?: (stage: "reactor" | "director" | "embedding" | "leakGuard", err: unknown) => void;
+  /** The Leak Guard replaced a cadet's words (client shows a "rephrasing" shimmer). */
+  onRewrite?: (messageId: string, cadetId: string, text: string) => void;
 }
 
 export interface SessionDeps {
@@ -79,6 +86,12 @@ interface ConceptInfo {
   title: string;
   keyFacts: string[];
   misconceptions: string[];
+}
+
+export interface SpokenTurn extends CadetTurnResult {
+  messageId: string;
+  /** Resolves when the Leak Guard has passed, skipped or rewritten the words. */
+  guard: Promise<GuardOutcome>;
 }
 
 export interface TurnHandle {
@@ -115,6 +128,9 @@ export class ClassSession {
   private closed = false;
   /** Overachievers who already used peek_ahead this period (once per period). */
   private readonly peeked = new Set<string>();
+  /** Leak Guard vocabularies (docs/03 §6.5): what was taught, and what only the source says. */
+  private taughtVocab = new Set<string>();
+  private sourceVocab = new Set<string>();
 
   private constructor(
     private readonly deps: SessionDeps,
@@ -201,7 +217,35 @@ export class ClassSession {
       .set({ currentConceptId: conceptId })
       .where(eq(classrooms.id, room.id))
       .run();
-    return new ClassSession(deps, room.id, states, curriculum, conceptId, periodId, events);
+    const session = new ClassSession(
+      deps,
+      room.id,
+      states,
+      curriculum,
+      conceptId,
+      periodId,
+      events,
+    );
+    const earlier = deps.handle.sqlite
+      .prepare(
+        `SELECT m.text FROM messages m JOIN periods p ON p.id = m.period_id
+         WHERE p.classroom_id = ? AND m.speaker = 'teacher'`,
+      )
+      .all(room.id) as { text: string }[];
+    session.taughtVocab = vocabulary([
+      ...earlier.map((m) => m.text),
+      ...curriculum.map((c) => c.title),
+      ...roster.flatMap((c) => [c.name, c.homeworld]),
+    ]);
+    const sourceText = deps.handle.db
+      .select({ text: chunks.text })
+      .from(chunks)
+      .innerJoin(sources, eq(sources.id, chunks.sourceId))
+      .where(eq(sources.schoolId, room.schoolId))
+      .all()
+      .map((r) => r.text);
+    session.sourceVocab = vocabulary(sourceText);
+    return session;
   }
 
   get currentConcept(): ConceptInfo {
@@ -227,6 +271,7 @@ export class ClassSession {
     if (opts.conceptId) this.setConcept(opts.conceptId);
     const turnId = newId("turn");
     const ord = ++this.turnOrd;
+    for (const w of vocabulary([text])) this.taughtVocab.add(w);
     const messageId = this.saveMessage(
       "teacher",
       opts.replyToCadetId ? "answer" : "lecture",
@@ -314,7 +359,7 @@ export class ClassSession {
   async speak(
     cadetId: string,
     opts: { onDelta?: (text: string) => void } = {},
-  ): Promise<CadetTurnResult | null> {
+  ): Promise<SpokenTurn | null> {
     const { signal, hand } = this.call(cadetId);
     const { handle, factory, embedder, game } = this.deps;
     const row = handle.db.select().from(cadets).where(eq(cadets.id, cadetId)).get()!;
@@ -366,16 +411,95 @@ export class ClassSession {
         result.utterance.kind === "answer"
           ? result.utterance.kind
           : "question";
-      this.recordCadetUtterance(cadetId, result.utterance.text, kind, {
+      const messageId = this.recordCadetUtterance(cadetId, result.utterance.text, kind, {
         mood: result.utterance.mood,
         confidence: result.utterance.confidence,
         tools: result.usedTools,
       });
-      return result;
+      const guard = this.guard(messageId, row, result);
+      this.background.push(guard);
+      return { ...result, messageId, guard };
     } catch (err) {
       if (signal.aborted) return null;
       throw err;
     }
+  }
+
+  /** Runs the Leak Guard on what a cadet just said, rewriting it in place if it leaked. */
+  private async guard(
+    messageId: string,
+    row: { id: string; name: string; voiceNotes: string },
+    result: CadetTurnResult,
+  ): Promise<GuardOutcome> {
+    const { game, handle, factory } = this.deps;
+    const text = result.utterance.text;
+    const skipped = (): GuardOutcome => ({
+      action: "skipped",
+      text,
+      flaggedTerms: [],
+      leakedTerms: [],
+      forced: false,
+    });
+    // A peek is the one sanctioned way to know more (framed as "I read ahead…").
+    if (!game.leakGuard.enabled || result.peeked) return skipped();
+    const terms = untaughtTerms(
+      text,
+      this.taughtVocab,
+      this.sourceVocab,
+      game.leakGuard.untaughtTermThreshold,
+    );
+    let outcome: GuardOutcome;
+    try {
+      outcome = await withUsageContext({ periodId: this.periodId }, () =>
+        guardUtterance(factory, {
+          utteranceId: messageId,
+          utterance: text,
+          taughtLines: this.transcript.filter((l) => l.speaker === "Headmaster").map((l) => l.text),
+          flaggedTerms: terms.untaught,
+          forced: terms.forceGuard,
+          sampleRate: this.deps.factory.config.agents.leakGuard.sampleRate ?? 0.5,
+          persona: { name: row.name, voiceNotes: row.voiceNotes },
+        }),
+      );
+    } catch (err) {
+      this.events.onError?.("leakGuard", err);
+      return skipped();
+    }
+    if (outcome.action !== "skipped") {
+      handle.db
+        .insert(leakEvents)
+        .values({
+          ts: new Date().toISOString(),
+          utteranceId: messageId,
+          cadetId: row.id,
+          flaggedTermsJson: JSON.stringify({
+            heuristic: outcome.flaggedTerms,
+            leaked: outcome.leakedTerms,
+            forced: outcome.forced,
+            reason: outcome.reason,
+          }),
+          action:
+            outcome.action === "rewrite"
+              ? "rewrite"
+              : outcome.action === "rewrite_failed"
+                ? "rewrite_failed"
+                : "pass",
+        })
+        .run();
+    }
+    if (outcome.action === "rewrite") {
+      handle.db
+        .update(messages)
+        .set({ text: outcome.text })
+        .where(eq(messages.id, messageId))
+        .run();
+      const line = [...this.transcript]
+        .reverse()
+        .find((l) => l.speaker === row.name && l.text === text);
+      if (line) line.text = outcome.text;
+      this.events.onRewrite?.(messageId, row.id, outcome.text);
+    }
+    return outcome;
   }
 
   async close(): Promise<void> {
