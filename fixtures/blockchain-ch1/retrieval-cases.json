@@ -1,0 +1,38 @@
+{
+  "description": "Query \u2192 section heading that must appear in the top 5 (M1-03). semanticOnly cases need real embeddings (pnpm --filter @lumen/server eval:retrieval); the offline bag-of-words test skips them.",
+  "cases": [
+    {
+      "query": "where is the merkle root stored",
+      "heading": "Merkle Trees"
+    },
+    {
+      "query": "how does a lightweight client verify a transaction is in a block",
+      "heading": "Merkle Trees and Lightweight Clients"
+    },
+    {
+      "query": "what is the first block ever mined",
+      "heading": "The Genesis Block"
+    },
+    {
+      "query": "fields in the 80 byte block header",
+      "heading": "Block Header"
+    },
+    {
+      "query": "how are blocks linked to the previous block",
+      "heading": "Linking Blocks in the Blockchain"
+    },
+    {
+      "query": "running a local test blockchain for development",
+      "heading": "Regtest: The Local Blockchain"
+    },
+    {
+      "query": "why is a merkle proof so small",
+      "heading": "Merkle Trees and Lightweight Clients",
+      "semanticOnly": true
+    },
+    {
+      "query": "what identifies a block besides its hash",
+      "heading": "Block Identifiers: Block Header Hash and Block Height"
+    }
+  ]
+}
