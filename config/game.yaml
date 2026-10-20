@@ -12,7 +12,7 @@ cadet:
 
 # The mirror (docs/03 §4.3, ADR-006 D4). Tuned by scripts/sim-comprehension (M1-S3).
 comprehension:
-  base: 0.22
+  base: 0.24 # tuned by pnpm sim:comprehension --search (spike M1-S3)
   styleBonus: 0.05
   directorAdjustBound: 0.10
   deltaMin: -0.3
@@ -20,6 +20,47 @@ comprehension:
   misconceptionAdoption: 0.6 # p = (1 - skepticism) × this
   lowConfidenceWeight: 0.5 # deltas from a Director fallback turn count at 50%
   understoodAt: 0.75
+
+# Archetype trait means (docs/03 §5.3); each cadet draws ± traitSpread around them (seeded).
+traitSpread: 0.12
+archetypes:
+  skeptic:
+    { attention: 0.7, skepticism: 0.9, curiosity: 0.6, verbosity: 0.5, confidence: 0.8, humor: 0.3 }
+  lost_signal:
+    {
+      attention: 0.45,
+      skepticism: 0.3,
+      curiosity: 0.6,
+      verbosity: 0.6,
+      confidence: 0.3,
+      humor: 0.5,
+    }
+  overachiever:
+    { attention: 0.9, skepticism: 0.5, curiosity: 0.9, verbosity: 0.7, confidence: 0.8, humor: 0.4 }
+  literalist:
+    {
+      attention: 0.65,
+      skepticism: 0.5,
+      curiosity: 0.5,
+      verbosity: 0.4,
+      confidence: 0.5,
+      humor: 0.3,
+    }
+  pragmatist:
+    { attention: 0.6, skepticism: 0.6, curiosity: 0.6, verbosity: 0.5, confidence: 0.6, humor: 0.5 }
+  connector:
+    { attention: 0.6, skepticism: 0.4, curiosity: 0.8, verbosity: 0.7, confidence: 0.6, humor: 0.7 }
+  quiet:
+    { attention: 0.5, skepticism: 0.5, curiosity: 0.4, verbosity: 0.1, confidence: 0.3, humor: 0.3 }
+  saboteur:
+    {
+      attention: 0.6,
+      skepticism: 0.2,
+      curiosity: 0.5,
+      verbosity: 0.7,
+      confidence: 0.95,
+      humor: 0.6,
+    }
 
 fatigue: # attention multiplier: 1.0 until onset, then declines per minute to floor
   onsetMinute: 10

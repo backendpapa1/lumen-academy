@@ -25,7 +25,7 @@ describe("loadConfig", () => {
     expect(cfg.models.profile).toBe("flash");
     expect(cfg.models.agents.crowdReactor.role).toBe("fastest");
     expect(cfg.models.agents.classDirector.role).toBe("fast"); // ADR-002 spike
-    expect(cfg.game.comprehension.base).toBe(0.22);
+    expect(cfg.game.comprehension.base).toBe(0.24);
     expect(cfg.pricing.deepseek.timeOfDay?.tz).toBe("Asia/Shanghai");
     expect(cfg.env.LUMEN_PORT).toBe(5174);
   });

@@ -220,6 +220,27 @@ export const GameConfigZ = z.strictObject({
     lowConfidenceWeight: unit,
     understoodAt: unit,
   }),
+  traitSpread: unit,
+  archetypes: z.record(
+    z.enum([
+      "skeptic",
+      "lost_signal",
+      "overachiever",
+      "literalist",
+      "pragmatist",
+      "connector",
+      "quiet",
+      "saboteur",
+    ]),
+    z.strictObject({
+      attention: unit,
+      skepticism: unit,
+      curiosity: unit,
+      verbosity: unit,
+      confidence: unit,
+      humor: unit,
+    }),
+  ),
   fatigue: z.strictObject({
     onsetMinute: z.number().nonnegative(),
     perMinute: z.number().nonnegative(),
