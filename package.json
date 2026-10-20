@@ -13,11 +13,15 @@
     "typecheck": "pnpm -r --parallel typecheck",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "db:migrate": "pnpm --filter @lumen/server db:migrate",
-    "models:check": "pnpm --filter @lumen/server models:check"
+    "models:check": "pnpm --filter @lumen/server models:check",
+    "dev": "concurrently -k -n server,client -c cyan,magenta \"pnpm --filter @lumen/server dev\" \"pnpm --filter @lumen/client dev\"",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
     "@types/node": "^24.19.2",
+    "concurrently": "10.0.6",
     "eslint": "10.13.0",
     "eslint-config-prettier": "10.1.8",
     "globals": "17.13.0",

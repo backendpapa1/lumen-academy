@@ -9,6 +9,10 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   prettier,
   {
+    files: ["apps/client/src/**"],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
     languageOptions: { globals: { ...globals.node } },
     rules: {
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
