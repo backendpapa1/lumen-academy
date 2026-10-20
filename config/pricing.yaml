@@ -1,0 +1,19 @@
+# USD per 1M tokens (images: USD per image). Fill from
+#   https://openai.com/api/pricing
+#   https://api-docs.deepseek.com/quick_start/pricing
+# Leave null if unknown; the meter shows "≈?" for that model.
+openai:
+  models:
+    gpt-5.6-terra: { input: null, cachedInput: null, output: null }
+    gpt-5.6-luna: { input: null, cachedInput: null, output: null }
+    gpt-5.4-nano: { input: null, cachedInput: null, output: null }
+    text-embedding-3-small: { input: null }
+    gpt-image-2: { perImage: { low: null, medium: null, high: null } }
+deepseek:
+  models:
+    deepseek-v4-flash: { input: null, cachedInput: null, output: null }
+    deepseek-v4-pro: { input: null, cachedInput: null, output: null }
+  timeOfDay: # multipliers, Beijing time
+    tz: Asia/Shanghai
+    peak: [["09:00", "12:00"], ["14:00", "18:00"]]
+    peakMultiplier: 2.0

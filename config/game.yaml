@@ -1,0 +1,70 @@
+# Game tunables. Server code reads these; never inline them.
+period:
+  defaultMinutes: 15
+  minMinutes: 5
+  maxMinutes: 45
+
+cohort: { min: 4, mode: 9, max: 15 } # triangular distribution (docs/03 §5.2)
+classroomsPerSchool: 6
+
+cadet:
+  maxWords: 60
+
+# The mirror (docs/03 §4.3, ADR-006 D4). Tuned by scripts/sim-comprehension (M1-S3).
+comprehension:
+  base: 0.22
+  styleBonus: 0.05
+  directorAdjustBound: 0.10
+  deltaMin: -0.3
+  deltaMax: 0.4
+  misconceptionAdoption: 0.6 # p = (1 - skepticism) × this
+  lowConfidenceWeight: 0.5 # deltas from a Director fallback turn count at 50%
+  understoodAt: 0.75
+
+fatigue: # attention multiplier: 1.0 until onset, then declines per minute to floor
+  onsetMinute: 10
+  perMinute: 0.03
+  floor: 0.6
+
+status: # concept status derivation (docs/06 §3)
+  weakScore: 0.6
+  weakComprehension: 0.5
+  weakMinExposures: 3
+  masteredScore: 0.7
+  masteredComprehension: 0.7
+
+exam:
+  passThreshold: 0.7
+  unlockTaughtFraction: 0.7
+
+buildingTiers: [0.25, 0.6, 1.0] # mastered fraction for tiers 2, 3, 4 (docs/02 §7.3)
+
+xp: # docs/02 §7.1
+  teachingMinute: 10
+  questionAnswered: 15
+  misconceptionCorrected: 30
+  submissionGraded: 10
+  exitTicketComplete: 25
+  examPassPerAvgScore: 200
+  glitchCaught: 50
+
+ranks: # placeholder thresholds; tune after M5
+  - { name: Cadet Instructor, minXp: 0 }
+  - { name: Lecturer, minXp: 500 }
+  - { name: Professor, minXp: 2000 }
+  - { name: Dean, minXp: 6000 }
+  - { name: Chancellor, minXp: 15000 }
+  - { name: Archon, minXp: 40000 }
+
+events:
+  enabled: true
+  maxPerPeriod: 1
+
+leakGuard:
+  enabled: true
+  untaughtTermThreshold: 2 # > this many untaught technical tokens forces a check
+
+hands:
+  autoPick: false
+  idleSeconds: 4
+  maxPerTurn: 3
