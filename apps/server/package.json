@@ -15,7 +15,8 @@
     "eval:retrieval": "tsx scripts/eval-retrieval.ts",
     "cli:curriculum": "tsx scripts/cli-curriculum.ts",
     "cli:register": "tsx scripts/cli-register.ts",
-    "eval:agents": "tsx scripts/eval-agents.ts"
+    "eval:agents": "tsx scripts/eval-agents.ts",
+    "cli:teach": "tsx scripts/cli-teach.ts"
   },
   "dependencies": {
     "@fastify/cors": "11.3.1",

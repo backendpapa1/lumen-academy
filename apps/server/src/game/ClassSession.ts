@@ -254,6 +254,16 @@ export class ClassSession {
     return this.curriculum.find((c) => c.id === this.conceptId)!;
   }
 
+  /** The School's concepts in teaching order. */
+  get concepts(): ReadonlyArray<Pick<ConceptInfo, "id" | "title">> {
+    return this.curriculum;
+  }
+
+  /** Everything said this period, oldest first. */
+  get lines(): ReadonlyArray<TranscriptLine> {
+    return this.transcript;
+  }
+
   get handQueue(): HandRaise[] {
     return [...this.hands];
   }
@@ -554,7 +564,8 @@ export class ClassSession {
     return h.urgency * Math.min(1, (since + 1) / FAIRNESS_TURNS);
   }
 
-  private setConcept(conceptId: string) {
+  /** Switches the current concept (T-6 explicit tag, CLI /concept). */
+  setConcept(conceptId: string) {
     const c = this.curriculum.find((x) => x.id === conceptId);
     if (!c || conceptId === this.conceptId) return;
     this.conceptId = conceptId;
