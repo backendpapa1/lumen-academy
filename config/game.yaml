@@ -143,7 +143,7 @@ fatigue: # attention multiplier: 1.0 until onset, then declines per minute to fl
 status: # concept status derivation (docs/06 §3)
   weakScore: 0.6
   weakComprehension: 0.5
-  weakMinExposures: 3
+  weakMinExposures: 7 # mean turns per cadet; an average cadet needs ~6 clear turns (sim M1-S3)
   masteredScore: 0.7
   masteredComprehension: 0.7
 
