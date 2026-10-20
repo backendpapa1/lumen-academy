@@ -18,5 +18,8 @@ Key facts:
 Known common misconceptions:
 {{knownMisconceptions}}
 
+Other concepts in this curriculum (if the message is clearly about one of these instead, tag its id; judge accuracy only against the key facts above):
+{{otherConcepts}}
+
 Cadets (id | name | archetype | attention | skepticism | style | comprehension | misconceptions):
 {{cadetTable}}
