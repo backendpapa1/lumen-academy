@@ -11,7 +11,8 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "pnpm -r --parallel typecheck",
-    "check": "pnpm typecheck && pnpm lint && pnpm test"
+    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "db:migrate": "pnpm --filter @lumen/server db:migrate"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
