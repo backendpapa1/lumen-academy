@@ -6,7 +6,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx scripts/db-migrate.ts",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "models:check": "tsx scripts/models-check.ts"
   },
   "dependencies": {
     "@langchain/core": "^1.2.18",
