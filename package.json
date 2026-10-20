@@ -15,7 +15,8 @@
     "db:migrate": "pnpm --filter @lumen/server db:migrate",
     "models:check": "pnpm --filter @lumen/server models:check",
     "dev": "concurrently -k -n server,client -c cyan,magenta \"pnpm --filter @lumen/server dev\" \"pnpm --filter @lumen/client dev\"",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "cli:ingest": "pnpm --filter @lumen/server cli:ingest"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
