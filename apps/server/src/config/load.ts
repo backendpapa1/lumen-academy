@@ -73,7 +73,14 @@ export function loadConfig(opts: { configDir?: string; env?: NodeJS.ProcessEnv }
   const env = envResult.data;
 
   const models = loadYaml(configDir, "models.yaml", ModelsConfigZ);
-  if (env.LUMEN_PROFILE) models.profile = env.LUMEN_PROFILE;
+  if (env.LUMEN_PROFILE) {
+    if (!models.profiles[env.LUMEN_PROFILE]) {
+      throw new ConfigError("environment", [
+        `LUMEN_PROFILE: "${env.LUMEN_PROFILE}" is not a profile in models.yaml (have: ${Object.keys(models.profiles).join(", ")})`,
+      ]);
+    }
+    models.profile = env.LUMEN_PROFILE;
+  }
 
   return {
     models,

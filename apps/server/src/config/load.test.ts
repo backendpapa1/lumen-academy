@@ -2,6 +2,7 @@ import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { MULTI_PROVIDER_CONFIG_DIR } from "../test-fixtures/index.js";
 import { ConfigError, findConfigDir, loadConfig } from "./load.js";
 
 const realConfigDir = findConfigDir(import.meta.dirname);
@@ -21,7 +22,7 @@ function tempConfig(edit?: (file: string, text: string) => string): string {
 describe("loadConfig", () => {
   it("loads and validates the committed config", () => {
     const cfg = loadConfig({ configDir: realConfigDir, env: {} });
-    expect(cfg.models.profile).toBe("hybrid");
+    expect(cfg.models.profile).toBe("flash");
     expect(cfg.models.agents.crowdReactor.role).toBe("fastest");
     expect(cfg.models.agents.classDirector.role).toBe("standard");
     expect(cfg.game.comprehension.base).toBe(0.22);
@@ -30,23 +31,51 @@ describe("loadConfig", () => {
   });
 
   it("lets LUMEN_PROFILE override the profile", () => {
-    const cfg = loadConfig({ configDir: realConfigDir, env: { LUMEN_PROFILE: "deepseek" } });
+    const cfg = loadConfig({
+      configDir: MULTI_PROVIDER_CONFIG_DIR,
+      env: { LUMEN_PROFILE: "deepseek" },
+    });
     expect(cfg.models.profile).toBe("deepseek");
   });
 
   it("rejects an unknown LUMEN_PROFILE with a readable error", () => {
     expect(() =>
       loadConfig({ configDir: realConfigDir, env: { LUMEN_PROFILE: "gemini" } }),
-    ).toThrow(/environment[\s\S]*LUMEN_PROFILE/);
+    ).toThrow(/environment[\s\S]*LUMEN_PROFILE: "gemini" is not a profile/);
+  });
+
+  it("rejects a profile that isn't defined", () => {
+    const dir = tempConfig((file, text) =>
+      file === "models.yaml" ? text.replace(/^profile: flash/m, "profile: turbo") : text,
+    );
+    expect(() => loadConfig({ configDir: dir, env: {} })).toThrow(
+      /profile: profile "turbo" is not defined under profiles \(have: flash\)/,
+    );
+  });
+
+  it("rejects a DeepSeek reasoning effort without thinking, or an unsupported one", () => {
+    const off = tempConfig((file, text) =>
+      file === "models.yaml"
+        ? text.replace("thinking: on, reasoningEffort: low", "thinking: off, reasoningEffort: low")
+        : text,
+    );
+    expect(() => loadConfig({ configDir: off, env: {} })).toThrow(
+      /profiles\.flash\.standard\.reasoningEffort: DeepSeek reasoningEffort needs thinking: on/,
+    );
+    const bad = tempConfig((file, text) =>
+      file === "models.yaml"
+        ? text.replace("thinking: on, reasoningEffort: low", "thinking: on, reasoningEffort: none")
+        : text,
+    );
+    expect(() => loadConfig({ configDir: bad, env: {} })).toThrow(
+      /DeepSeek supports low \| high \| max/,
+    );
   });
 
   it("names the file and path of an invalid value", () => {
     const dir = tempConfig((file, text) =>
       file === "models.yaml"
-        ? text.replace(
-            "provider: deepseek, model: deepseek-v4-pro",
-            "provider: anthropic, model: x",
-          )
+        ? text.replace("heavy: { provider: deepseek,", "heavy: { provider: anthropic,")
         : text,
     );
     try {
@@ -55,7 +84,7 @@ describe("loadConfig", () => {
     } catch (err) {
       expect(err).toBeInstanceOf(ConfigError);
       expect((err as ConfigError).file).toBe("models.yaml");
-      expect((err as Error).message).toContain("profiles.deepseek.heavy.provider");
+      expect((err as Error).message).toContain("profiles.flash.heavy.provider");
     }
   });
 
@@ -69,7 +98,7 @@ describe("loadConfig", () => {
   it("rejects a malformed fallback id", () => {
     const dir = tempConfig((file, text) =>
       file === "models.yaml"
-        ? text.replace("fastest: [openai:gpt-5.4-nano", "fastest: [gpt-5.4-nano")
+        ? text.replace("fastest: [deepseek:deepseek-flash]", "fastest: [deepseek-flash]")
         : text,
     );
     expect(() => loadConfig({ configDir: dir, env: {} })).toThrow(/fallbacks\.fastest\.0/);

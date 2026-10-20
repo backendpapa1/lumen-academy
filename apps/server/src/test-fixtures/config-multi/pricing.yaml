@@ -1,0 +1,30 @@
+# USD per 1M tokens (images: USD per image). Sources, checked 20 Oct 2026:
+#   OpenAI:   https://developers.openai.com/api/docs/pricing (Standard tier)
+#             https://developers.openai.com/api/docs/guides/image-generation ("Calculating costs")
+#   DeepSeek: https://api-docs.deepseek.com/quick_start/pricing/
+# Leave null if unknown; the meter shows "≈?" for that model.
+# Re-check these pages when models change; prices are not hard-coded anywhere else.
+openai:
+  models:
+    # ≤272K context rates. Above 272K, Terra is 4.00/0.40/18.00 and Luna 0.40/0.04/1.80.
+    # Our prompts are far below 272K, so long-context pricing isn't modelled.
+    gpt-5.6-terra: { input: 2.0, cachedInput: 0.2, output: 12.0 }
+    gpt-5.6-luna: { input: 0.2, cachedInput: 0.02, output: 1.2 }
+    gpt-5.4-nano: { input: 0.2, cachedInput: 0.02, output: 1.25 }
+    text-embedding-3-small: { input: 0.02 }
+    # Per image at 1024×1024 (output only; the text prompt adds a little).
+    # 1024×1536 / 1536×1024 are cheaper, so these are conservative for every size we use.
+    gpt-image-2: { perImage: { low: 0.006, medium: 0.053, high: 0.211 } }
+    gpt-image-1.5: { perImage: { low: 0.009, medium: 0.034, high: 0.133 } }
+    gpt-image-1-mini: { perImage: { low: 0.005, medium: 0.011, high: 0.036 } }
+deepseek:
+  models:
+    # Off-peak rates; timeOfDay doubles them in peak windows.
+    deepseek-flash: { input: 0.15, cachedInput: 0.003, output: 0.6 }
+    deepseek-v4-pro: { input: 0.66, cachedInput: 0.022, output: 1.98 }
+  timeOfDay:
+    tz: Asia/Shanghai
+    peak: [["09:00", "12:00"], ["14:00", "18:00"]] # = 01:00–04:00, 06:00–10:00 UTC
+    weekdaysOnly: true # Mon–Fri. Chinese public holidays are off-peak too; we don't
+    # model them, so holiday spend is slightly overestimated (safe for the cap).
+    peakMultiplier: 2.0

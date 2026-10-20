@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../config/load.js";
+import { MULTI_PROVIDER_CONFIG_DIR } from "../test-fixtures/index.js";
 import { checkModelIds, configuredModelIds } from "./check.js";
 
-const cfg = loadConfig({ env: {} }).models;
+const cfg = loadConfig({ configDir: MULTI_PROVIDER_CONFIG_DIR, env: {} }).models;
+const committed = loadConfig({ env: {} }).models;
 const env = { OPENAI_API_KEY: "k1", DEEPSEEK_API_KEY: "k2" };
 
 function modelsFetch(lists: Record<string, string[]>, seen: string[] = []) {
@@ -26,6 +28,12 @@ const OPENAI = [
 const DEEPSEEK = ["deepseek-flash", "deepseek-v4-pro"];
 
 describe("configuredModelIds", () => {
+  it("committed config uses only deepseek-flash, text-embedding-3-small and gpt-image-1-mini (ADR-007)", () => {
+    const ids = configuredModelIds(committed);
+    expect([...ids.deepseek]).toEqual(["deepseek-flash"]);
+    expect([...ids.openai].sort()).toEqual(["gpt-image-1-mini", "text-embedding-3-small"]);
+  });
+
   it("collects ids from every profile and fallback chain", () => {
     const ids = configuredModelIds(cfg);
     expect([...ids.openai].sort()).toEqual(OPENAI.filter((m) => m !== "extra").sort());

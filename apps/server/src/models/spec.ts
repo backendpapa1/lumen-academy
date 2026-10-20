@@ -1,4 +1,11 @@
-import type { AgentName, ModelSpec, ModelsConfig, Provider, TextRole } from "@lumen/shared";
+import {
+  activeProfile,
+  type AgentName,
+  type ModelSpec,
+  type ModelsConfig,
+  type Provider,
+  type TextRole,
+} from "@lumen/shared";
 
 export interface ResolvedSpec {
   agent: AgentName;
@@ -44,7 +51,7 @@ export function resolveSpec(
 ): ResolvedSpec {
   const override = cfg.agents[agent];
   const role = opts.role ?? override.role;
-  const base = cfg.profiles[cfg.profile][role];
+  const base = activeProfile(cfg)[role];
   return finalize({
     agent,
     role,
@@ -95,10 +102,11 @@ function splitId(id: string): [Provider, string] {
 function finalize(spec: ResolvedSpec): ResolvedSpec {
   const out = { ...spec };
   if (out.provider !== "deepseek") delete out.thinking;
-  if (out.provider !== "openai") delete out.reasoningEffort;
   if (out.provider === "deepseek") {
     // DeepSeek defaults to thinking on; always send the flag explicitly.
     out.thinking ??= ROLE_THINKING[out.role];
+    // DeepSeek only takes an effort with thinking on (ADR-007).
+    if (out.thinking !== "on") delete out.reasoningEffort;
     // Thinking mode ignores temperature; don't pretend we set it.
     if (out.thinking === "on") delete out.temperature;
   }

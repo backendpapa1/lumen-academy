@@ -5,7 +5,8 @@ import { z } from "zod";
 export const ProviderZ = z.enum(["openai", "deepseek"]);
 export type Provider = z.infer<typeof ProviderZ>;
 
-export const ProfileNameZ = z.enum(["openai", "deepseek", "hybrid"]);
+// Profiles are named in models.yaml; `profile` must name one of them (ADR-007).
+export const ProfileNameZ = z.string().min(1);
 export type ProfileName = z.infer<typeof ProfileNameZ>;
 
 export const TEXT_ROLES = ["fastest", "fast", "standard", "heavy"] as const;
@@ -45,14 +46,35 @@ export const ReasoningEffortZ = z.enum([
   "max",
 ]);
 
-export const ModelSpecZ = z.strictObject({
-  provider: ProviderZ,
-  model: z.string().min(1),
-  thinking: z.enum(["on", "off"]).optional(), // DeepSeek only (ADR-004)
-  reasoningEffort: ReasoningEffortZ.optional(), // OpenAI only
-  temperature: z.number().min(0).max(2).optional(),
-  maxOutputTokens: z.number().int().positive().optional(),
-});
+const DEEPSEEK_EFFORTS = ["low", "high", "max"];
+
+export const ModelSpecZ = z
+  .strictObject({
+    provider: ProviderZ,
+    model: z.string().min(1),
+    thinking: z.enum(["on", "off"]).optional(), // DeepSeek only (ADR-004)
+    // OpenAI: any effort. DeepSeek: low | high | max, thinking on only (ADR-007).
+    reasoningEffort: ReasoningEffortZ.optional(),
+    temperature: z.number().min(0).max(2).optional(),
+    maxOutputTokens: z.number().int().positive().optional(),
+  })
+  .superRefine((s, ctx) => {
+    if (s.provider !== "deepseek" || s.reasoningEffort === undefined) return;
+    if (!DEEPSEEK_EFFORTS.includes(s.reasoningEffort)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["reasoningEffort"],
+        message: `DeepSeek supports ${DEEPSEEK_EFFORTS.join(" | ")}`,
+      });
+    }
+    if (s.thinking !== "on") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["reasoningEffort"],
+        message: "DeepSeek reasoningEffort needs thinking: on",
+      });
+    }
+  });
 export type ModelSpec = z.infer<typeof ModelSpecZ>;
 
 export const ProfileZ = z.strictObject({
@@ -95,7 +117,7 @@ export const ModelsConfigZ = z
   .strictObject({
     profile: ProfileNameZ,
     providers: z.strictObject({ openai: ProviderConfigZ, deepseek: ProviderConfigZ }),
-    profiles: z.strictObject({ openai: ProfileZ, deepseek: ProfileZ, hybrid: ProfileZ }),
+    profiles: z.record(ProfileNameZ, ProfileZ),
     fallbacks: z.strictObject({
       fastest: z.array(FallbackIdZ).min(1),
       fast: z.array(FallbackIdZ).min(1),
@@ -106,6 +128,13 @@ export const ModelsConfigZ = z
     budget: BudgetZ,
   })
   .superRefine((cfg, ctx) => {
+    if (!cfg.profiles[cfg.profile]) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["profile"],
+        message: `profile "${cfg.profile}" is not defined under profiles (have: ${Object.keys(cfg.profiles).join(", ") || "none"})`,
+      });
+    }
     for (const [profileName, profile] of Object.entries(cfg.profiles)) {
       for (const role of ["embeddings", "image"] as const) {
         if (profile[role].provider !== "openai") {
@@ -119,6 +148,13 @@ export const ModelsConfigZ = z
     }
   });
 export type ModelsConfig = z.infer<typeof ModelsConfigZ>;
+
+/** The active profile. The schema guarantees it exists. */
+export function activeProfile(cfg: ModelsConfig): z.infer<typeof ProfileZ> {
+  const profile = cfg.profiles[cfg.profile];
+  if (!profile) throw new Error(`profile "${cfg.profile}" is not defined in models.yaml`);
+  return profile;
+}
 
 // ---------------------------------------------------------------- pricing.yaml
 

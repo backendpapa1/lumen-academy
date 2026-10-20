@@ -34,7 +34,7 @@ describe("http", () => {
   it("GET /api/health → 200", async () => {
     const res = await app.inject({ method: "GET", url: "/api/health" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ ok: true, profile: "hybrid" });
+    expect(res.json()).toMatchObject({ ok: true, profile: "flash" });
   });
 
   it("allows CORS only for the Vite origin", async () => {

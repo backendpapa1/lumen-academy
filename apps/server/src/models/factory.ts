@@ -146,8 +146,12 @@ export function buildModel(
     configuration: { baseURL: provider.baseURL },
     temperature: spec.temperature,
     maxTokens: spec.maxOutputTokens,
-    // DeepSeek's thinking toggle has no typed option (ADR-004).
-    modelKwargs: { thinking: { type: spec.thinking === "on" ? "enabled" : "disabled" } },
+    // DeepSeek's thinking toggle and effort have no typed options; ChatDeepSeek
+    // drops `reasoning`, so both go in the body (ADR-004, ADR-007).
+    modelKwargs: {
+      thinking: { type: spec.thinking === "on" ? "enabled" : "disabled" },
+      ...(spec.reasoningEffort ? { reasoning_effort: spec.reasoningEffort } : {}),
+    },
     timeout: provider.timeoutMs,
     maxRetries: MAX_RETRIES,
     streamUsage: true,

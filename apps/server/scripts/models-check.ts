@@ -35,6 +35,7 @@ if (idLines.every((l) => l.ok)) {
   const handle = openDb(dbPath(cfg));
   runMigrations(handle);
   const meter = new UsageMeter({ db: handle.db, pricing: cfg.pricing, budget: cfg.models.budget });
+  const before = meter.totals();
   const factory = new ModelFactory({ config: cfg.models, env, meter });
 
   const roleLines = await checkRoles(factory);
@@ -45,9 +46,11 @@ if (idLines.every((l) => l.ok)) {
   print("4. DeepSeek thinking + tool loop", [probe]);
   all.push(...roleLines, emb, probe);
 
-  const t = meter.totals();
+  const after = meter.totals();
+  const unpriced = after.unpricedCalls - before.unpricedCalls;
   console.log(
-    `\nCost of this check: logged to usage_log · month to date $${t.monthUsd.toFixed(4)}${t.unpricedCalls ? ` (+${t.unpricedCalls} unpriced calls: fill config/pricing.yaml)` : ""}`,
+    `\nCost of this check: $${(after.monthUsd - before.monthUsd).toFixed(4)}` +
+      (unpriced ? ` (+${unpriced} unpriced calls: add their prices to config/pricing.yaml)` : ""),
   );
   handle.close();
 } else {

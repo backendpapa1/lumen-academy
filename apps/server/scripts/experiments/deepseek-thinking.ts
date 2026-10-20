@@ -3,6 +3,7 @@ import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 import { tool } from "@langchain/core/tools";
 import { ChatDeepSeek } from "@langchain/deepseek";
 import { z } from "zod";
+import { activeProfile } from "@lumen/shared";
 import { loadConfig } from "../../src/config/load.js";
 import { loadDotEnv } from "../../src/config/paths.js";
 
@@ -10,7 +11,7 @@ loadDotEnv("../..");
 const cfg = loadConfig().models;
 const make = (thinking: "enabled" | "disabled") =>
   new ChatDeepSeek({
-    model: cfg.profiles.deepseek.fast.model,
+    model: activeProfile(cfg).fast.model,
     apiKey: process.env.DEEPSEEK_API_KEY,
     modelKwargs: { thinking: { type: thinking } },
     maxRetries: 0,

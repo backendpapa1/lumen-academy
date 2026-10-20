@@ -1,0 +1,68 @@
+# TEST FIXTURE: multi-provider config (pre-ADR-007) to exercise fallback/health
+# mechanics across providers. Not used by the app.
+# Model routing. See docs/04-MODELS-AND-PROVIDERS.md, ADR-002, ADR-004, ADR-006.
+# Never hard-code model IDs in code: everything goes through models/factory.ts.
+profile: hybrid # openai | deepseek | hybrid  (LUMEN_PROFILE overrides)
+
+providers:
+  openai:
+    apiKeyEnv: OPENAI_API_KEY
+    baseURL: https://api.openai.com/v1
+    timeoutMs: 20000
+  deepseek:
+    apiKeyEnv: DEEPSEEK_API_KEY
+    baseURL: https://api.deepseek.com
+    timeoutMs: 20000
+
+profiles:
+  hybrid:
+    fastest: { provider: openai, model: gpt-5.4-nano }
+    fast: { provider: deepseek, model: deepseek-flash, thinking: off, temperature: 0.8 }
+    standard: { provider: deepseek, model: deepseek-flash, thinking: on }
+    heavy: { provider: openai, model: gpt-5.6-terra, reasoningEffort: medium }
+    embeddings: { provider: openai, model: text-embedding-3-small }
+    image: { provider: openai, model: gpt-image-2 }
+  openai:
+    fastest: { provider: openai, model: gpt-5.4-nano }
+    fast: { provider: openai, model: gpt-5.6-luna, reasoningEffort: none, temperature: 0.8 }
+    standard: { provider: openai, model: gpt-5.6-luna, reasoningEffort: low }
+    heavy: { provider: openai, model: gpt-5.6-terra, reasoningEffort: medium }
+    embeddings: { provider: openai, model: text-embedding-3-small }
+    image: { provider: openai, model: gpt-image-2 }
+  deepseek:
+    fastest: { provider: deepseek, model: deepseek-flash, thinking: off }
+    fast: { provider: deepseek, model: deepseek-flash, thinking: off, temperature: 0.8 }
+    standard: { provider: deepseek, model: deepseek-flash, thinking: on }
+    heavy: { provider: deepseek, model: deepseek-v4-pro, thinking: on }
+    embeddings: { provider: openai, model: text-embedding-3-small }
+    image: { provider: openai, model: gpt-image-2 }
+
+fallbacks:
+  fastest: [openai:gpt-5.4-nano, deepseek:deepseek-flash]
+  fast: [deepseek:deepseek-flash, openai:gpt-5.6-luna, openai:gpt-5.4-nano]
+  standard: [deepseek:deepseek-flash, openai:gpt-5.6-luna]
+  heavy: [openai:gpt-5.6-terra, deepseek:deepseek-v4-pro, openai:gpt-5.6-luna]
+
+# Per-agent overrides beat the role mapping.
+agents:
+  crowdReactor: { role: fastest, maxOutputTokens: 300 } # ADR-002
+  classDirector: { role: standard, maxOutputTokens: 800 } # ADR-006 D3
+  cadetTalk: { role: fast, maxOutputTokens: 220, temperature: 0.9 }
+  cadetHomework: { role: standard, maxOutputTokens: 600 }
+  notesRewriter: { role: fast, maxOutputTokens: 450 }
+  leakGuard: { role: fastest, maxOutputTokens: 60, sampleRate: 0.5 }
+  registrar: { role: standard }
+  curriculumArchitect: { role: heavy }
+  examiner: { role: heavy }
+  grader: { role: heavy, temperature: 0 }
+  dean: { role: standard }
+  debriefAnalyst: { role: standard }
+  recapWriter: { role: fast }
+  yearbookEditor: { role: standard }
+  alumniPinger: { role: fast }
+
+budget:
+  monthlyUsdCap: 20
+  softWarnAt: 0.8 # 80% → toast
+  degradeAt: 0.95 # 95% → all roles degrade to fastest (degrade_then_pause only)
+  onCap: degrade_then_pause # at 100% agents pause; the cap is hard

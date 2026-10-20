@@ -3,14 +3,20 @@ import { ChatDeepSeek } from "@langchain/deepseek";
 import { ChatOpenAI } from "@langchain/openai";
 import { beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../config/load.js";
+import { MULTI_PROVIDER_CONFIG_DIR } from "../test-fixtures/index.js";
 import { buildModel, ModelFactory, type Candidate } from "./factory.js";
 import { HealthRegistry } from "./health.js";
 import { isProviderFailure } from "./errors.js";
 import { fallbackSpecs, resolveSpec, specId } from "./spec.js";
 
 const env = { OPENAI_API_KEY: "test-openai", DEEPSEEK_API_KEY: "test-deepseek" };
+// Fallback/health mechanics need several providers, so these tests use the
+// multi-provider fixture, not the committed single-model config (ADR-007).
 const configFor = (profile?: "openai" | "deepseek" | "hybrid") =>
-  loadConfig({ env: profile ? { LUMEN_PROFILE: profile } : {} }).models;
+  loadConfig({
+    configDir: MULTI_PROVIDER_CONFIG_DIR,
+    env: profile ? { LUMEN_PROFILE: profile } : {},
+  }).models;
 
 const httpError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { status });
 
@@ -275,5 +281,42 @@ describe("ModelFactory + budget guard", () => {
       meter: meterIn("ok"),
     });
     expect(model.callbacks).toHaveLength(1);
+  });
+});
+
+describe("committed config (ADR-007: DeepSeek Flash only)", () => {
+  const committed = loadConfig({ env: {} }).models;
+
+  it("routes every agent to deepseek-flash with no cross-provider fallback", () => {
+    for (const agent of Object.keys(committed.agents) as Array<keyof typeof committed.agents>) {
+      const spec = resolveSpec(committed, agent);
+      expect(specId(spec), agent).toBe("deepseek:deepseek-flash");
+      expect(fallbackSpecs(committed, spec), agent).toEqual([]);
+    }
+  });
+
+  it("differentiates roles by thinking and effort", () => {
+    expect(resolveSpec(committed, "crowdReactor")).toMatchObject({ thinking: "off" });
+    expect(resolveSpec(committed, "classDirector")).toMatchObject({
+      thinking: "on",
+      reasoningEffort: "low",
+    });
+    expect(resolveSpec(committed, "grader")).toMatchObject({
+      thinking: "on",
+      reasoningEffort: "high",
+    });
+  });
+
+  it("sends reasoning_effort in the DeepSeek body only when thinking", () => {
+    const heavy = buildModel(resolveSpec(committed, "examiner"), {
+      config: committed,
+      env,
+    }) as ChatDeepSeek;
+    expect(heavy.modelKwargs).toEqual({ thinking: { type: "enabled" }, reasoning_effort: "high" });
+    const fast = buildModel(resolveSpec(committed, "cadetTalk"), {
+      config: committed,
+      env,
+    }) as ChatDeepSeek;
+    expect(fast.modelKwargs).toEqual({ thinking: { type: "disabled" } });
   });
 });

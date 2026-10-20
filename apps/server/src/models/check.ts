@@ -2,7 +2,7 @@ import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 import { tool } from "@langchain/core/tools";
 import { ChatDeepSeek } from "@langchain/deepseek";
 import { OpenAIEmbeddings } from "@langchain/openai";
-import { TEXT_ROLES, type ModelsConfig, type Provider } from "@lumen/shared";
+import { activeProfile, TEXT_ROLES, type ModelsConfig, type Provider } from "@lumen/shared";
 import { z } from "zod";
 import type { ModelFactory } from "./factory.js";
 import { structured } from "./structured.js";
@@ -132,7 +132,7 @@ export async function checkEmbeddings(
   env: Record<string, string | undefined>,
   expectedDims = 1536,
 ): Promise<CheckLine> {
-  const spec = cfg.profiles[cfg.profile].embeddings;
+  const spec = activeProfile(cfg).embeddings;
   const label = `embeddings ${spec.model}`;
   try {
     const embeddings = new OpenAIEmbeddings({
@@ -162,14 +162,26 @@ export async function probeDeepSeekThinkingToolLoop(
   const label = "probe deepseek thinking + tool loop";
   const apiKey = env[cfg.providers.deepseek.apiKeyEnv];
   if (!apiKey) return { ok: true, info: true, label, detail: "skipped (no DeepSeek key)" };
+  const profile = activeProfile(cfg);
+  const thinkingSpec = TEXT_ROLES.map((r) => profile[r]).find(
+    (s) => s.provider === "deepseek" && s.thinking === "on",
+  );
+  if (!thinkingSpec) {
+    return {
+      ok: true,
+      info: true,
+      label,
+      detail: "skipped (no DeepSeek thinking role in profile)",
+    };
+  }
   const add = tool(async ({ a, b }: { a: number; b: number }) => String(a + b), {
     name: "add",
     description: "Add two numbers.",
     schema: z.object({ a: z.number(), b: z.number() }),
   });
-  // The DeepSeek profile's fast model, so no id is hard-coded here.
+  // Same model the profile's thinking roles use, so no id is hard-coded here.
   const model = new ChatDeepSeek({
-    model: cfg.profiles.deepseek.fast.model,
+    model: thinkingSpec.model,
     apiKey,
     configuration: { baseURL: cfg.providers.deepseek.baseURL },
     modelKwargs: { thinking: { type: "enabled" } },
