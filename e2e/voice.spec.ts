@@ -62,7 +62,11 @@ test("hold Space to teach by voice; tap to call; students speak their lines", as
     r.fulfill({ json: { stt: "ready", tts: "ready", sttProblem: null, ttsProblem: null } }),
   );
   await page.route("**/api/speech/transcribe**", (r) =>
-    r.fulfill({ json: { text: "The Merkle root lives in the block header.", ms: 410 } }),
+    r.fulfill({ json: { text: "The market route lives in the block edda.", ms: 410 } }),
+  );
+  // The fixer turns the accent's mishearings back into the lesson's terms.
+  await page.route("**/api/speech/fix", (r) =>
+    r.fulfill({ json: { text: "The Merkle root lives in the block header.", fixMs: 900 } }),
   );
   await page.route("**/api/speech/say", (r) => {
     said.push((r.request().postDataJSON() as { text: string }).text);
@@ -76,7 +80,17 @@ test("hold Space to teach by voice; tap to call; students speak their lines", as
   await page.evaluate(() => window.__lumen!.voice.refreshStatus());
   await expect(page.locator(".hud .lectern .mic")).toBeVisible();
 
-  // Hold Space in the empty lectern: listening, then the transcript is taught.
+  // Review first (the default): what was heard shows, then the fixed words replace it.
+  await page.locator("#lectern").focus();
+  await page.keyboard.down(" ");
+  await expect(page.locator(".hud .lectern.listening")).toHaveCount(1);
+  await page.waitForTimeout(600);
+  await page.keyboard.up(" ");
+  await expect(page.locator("#lectern")).toHaveValue("The Merkle root lives in the block header.");
+  await page.locator("#lectern").fill("");
+
+  // Send on release: hold Space in the empty lectern, the fixed transcript is taught.
+  await page.evaluate(() => window.__lumen!.voice.setPrefs({ autoSend: true }));
   await page.locator("#lectern").focus();
   await page.keyboard.down(" ");
   await expect(page.locator(".hud .lectern.listening")).toHaveCount(1);

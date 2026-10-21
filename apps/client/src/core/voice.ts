@@ -23,14 +23,15 @@ export interface VoicePrefs {
 
 function readPrefs(): VoicePrefs {
   try {
+    // Review first by default: on Paul's accent Whisper still slips (gates/V1-spikes.md).
     return {
       speak: true,
-      autoSend: true,
+      autoSend: false,
       volume: 0.9,
       ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}"),
     };
   } catch {
-    return { speak: true, autoSend: true, volume: 0.9 };
+    return { speak: true, autoSend: false, volume: 0.9 };
   }
 }
 
@@ -202,13 +203,38 @@ class Voice {
       form.append("file", blob, "speech.webm");
       const room = store.getState().classroom.classroom?.id;
       const res = await fetch(
-        `${SERVER_HTTP}/api/speech/transcribe${room ? `?classroomId=${room}` : ""}`,
+        `${SERVER_HTTP}/api/speech/transcribe?fix=0${room ? `&classroomId=${room}` : ""}`,
         { method: "POST", body: form },
       );
       const body = (await res.json()) as { text?: string; error?: string };
       if (!res.ok) throw new Error(body.error ?? "I couldn't hear that.");
       this.metrics.sttMs = Math.round(performance.now() - sentAt);
       return body.text ?? "";
+    } finally {
+      this.state.transcribing = false;
+      this.emit();
+    }
+  }
+
+  /**
+   * Fix clear mishearings with the School's terms (a second, short step, so the
+   * raw words can show first). Falls back to what was heard.
+   */
+  async fix(text: string): Promise<string> {
+    const room = store.getState().classroom.classroom?.id;
+    if (!room || !text) return text;
+    this.state.transcribing = true;
+    this.emit();
+    try {
+      const res = await fetch(`${SERVER_HTTP}/api/speech/fix`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ classroomId: room, text }),
+      });
+      if (!res.ok) return text;
+      return ((await res.json()) as { text?: string }).text ?? text;
+    } catch {
+      return text;
     } finally {
       this.state.transcribing = false;
       this.emit();

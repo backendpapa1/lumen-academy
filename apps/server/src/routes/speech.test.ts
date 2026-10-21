@@ -47,14 +47,16 @@ const fakeTts = (): Speaker & { said: Array<[string, string, number]> } => {
   };
 };
 
-async function boot() {
+async function boot(
+  reply: (body: { messages: Array<{ role: string; content: string }> }) => string = () => "{}",
+) {
   const w = await smallWorld([
     { attention: 0.5, skepticism: 0.5 },
     { attention: 0.6, skepticism: 0.2 },
   ]);
   h = w.handle;
   const meter = new UsageMeter({ db: h.db, pricing: cfg.pricing, budget: cfg.models.budget });
-  const { factory } = fakeDeepSeekFactory(cfg.models, () => "{}", { meter });
+  const { factory } = fakeDeepSeekFactory(cfg.models, reply, { meter });
   const stt = fakeStt();
   const tts = fakeTts();
   app = await buildApp({
@@ -107,6 +109,27 @@ describe("speech routes", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ text: "The root lives in the header." });
     expect(stt.prompts[0]).toMatch(/^Glossary:/);
+  });
+
+  it("fixes clear mishearings with the School's terms, and keeps what was heard", async () => {
+    let seen = "";
+    const { w, app } = await boot((body) => {
+      seen = body.messages.map((m) => m.content).join("\n");
+      return JSON.stringify({ text: "The Merkle root lives in the header." });
+    });
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(4000)], { type: "audio/webm" }), "a.webm");
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/speech/transcribe?classroomId=${w.classroomId}`,
+      payload: form,
+    });
+    expect(res.json()).toMatchObject({
+      text: "The Merkle root lives in the header.",
+      heard: "The root lives in the header.",
+    });
+    expect(seen).toContain("speech-recognition mistakes");
+    expect(seen).toContain("Glossary:");
   });
 
   it("ignores a click that's too short to be speech", async () => {

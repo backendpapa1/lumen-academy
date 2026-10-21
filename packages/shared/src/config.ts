@@ -34,6 +34,7 @@ export const AGENT_NAMES = [
   "yearbookEditor",
   "alumniPinger",
   "artDirector",
+  "transcriptFixer",
 ] as const;
 export const AgentNameZ = z.enum(AGENT_NAMES);
 export type AgentName = z.infer<typeof AgentNameZ>;
@@ -131,6 +132,10 @@ export const SpeechConfigZ = z.strictObject({
     /** Whisper's initial prompt is built from the School's terms, up to this many characters. */
     glossaryChars: z.number().int().positive().default(600),
     timeoutMs: z.number().int().positive().default(20000),
+    /** Whisper's language; multilingual models guess otherwise. */
+    language: z.string().min(2).default("en"),
+    /** Fix clear mishearings with the School's glossary (DeepSeek, budget-guarded). */
+    correct: z.boolean().default(true),
   }),
   tts: z.strictObject({
     engine: z.literal("kokoro"),

@@ -682,3 +682,12 @@
     animation: none;
   }
 }
+/* The fixed transcript lands: a brief marigold wash so the change is visible. */
+#lectern.in-hud.fixed {
+  animation: fixed-wash 1.2s var(--ease);
+}
+@keyframes fixed-wash {
+  from {
+    background: var(--marigold-wash);
+  }
+}

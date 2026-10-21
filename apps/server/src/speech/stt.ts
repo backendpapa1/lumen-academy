@@ -66,6 +66,8 @@ export class WhisperSidecar implements Transcriber {
             String(this.cfg.port),
             "-t",
             String(this.cfg.threads),
+            "-l",
+            this.cfg.language,
             "--convert",
           ],
           { stdio: "ignore" },

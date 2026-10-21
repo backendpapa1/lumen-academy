@@ -2,7 +2,9 @@ import type { FastifyInstance } from "fastify";
 import multipart from "@fastify/multipart";
 import { z } from "zod";
 import type { SpeechConfig } from "@lumen/shared";
+import { fixTranscript } from "../agents/realtime/transcriptFixer.js";
 import type { DbHandle } from "../db/client.js";
+import type { ModelFactory } from "../models/factory.js";
 import { glossaryFor } from "../speech/glossary.js";
 import type { Speaker } from "../speech/tts.js";
 import type { Transcriber } from "../speech/stt.js";
@@ -26,7 +28,7 @@ const SayZ = z.strictObject({
 
 export async function registerSpeechRoutes(
   app: FastifyInstance,
-  deps: { handle: DbHandle; meter: UsageMeter; speech: SpeechRuntime },
+  deps: { handle: DbHandle; meter: UsageMeter; factory: ModelFactory; speech: SpeechRuntime },
 ) {
   const { sqlite } = deps.handle;
   const { speech } = deps;
@@ -54,7 +56,24 @@ export async function registerSpeechRoutes(
     ttsProblem: speech.tts.problem,
   }));
 
-  app.post<{ Querystring: { classroomId?: string } }>(
+  const FixZ = z.strictObject({
+    classroomId: z.string().min(1),
+    text: z.string().trim().min(1).max(2000),
+  });
+  /** Second step for the lectern: fix what was heard (it shows the raw words meanwhile). */
+  app.post("/api/speech/fix", async (req, reply) => {
+    const body = FixZ.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: "Fix what?" });
+    const t = performance.now();
+    const text = await fixTranscript(deps.factory, {
+      text: body.data.text,
+      glossary: glossary(body.data.classroomId),
+      ...lessonContext(body.data.classroomId),
+    }).catch(() => body.data.text);
+    return { text, fixMs: Math.round(performance.now() - t) };
+  });
+
+  app.post<{ Querystring: { classroomId?: string; fix?: string } }>(
     "/api/speech/transcribe",
     async (req, reply) => {
       if (speech.stt.problem) return reply.code(503).send({ error: speech.stt.problem });
@@ -66,7 +85,18 @@ export async function registerSpeechRoutes(
         const prompt = req.query.classroomId ? glossary(req.query.classroomId) : "";
         const r = await speech.stt.transcribe(audio, file.mimetype, prompt);
         deps.meter.record({ agent: "stt", provider: "local", model: "whisper", latencyMs: r.ms });
-        return { text: r.text, ms: Math.round(r.ms) };
+        let text = r.text;
+        let fixMs = 0;
+        if (text && speech.cfg.stt.correct && req.query.classroomId && req.query.fix !== "0") {
+          const t = performance.now();
+          text = await fixTranscript(deps.factory, {
+            text,
+            glossary: prompt,
+            ...lessonContext(req.query.classroomId),
+          }).catch(() => r.text); // the fix is a nicety: what was heard still goes
+          fixMs = performance.now() - t;
+        }
+        return { text, heard: r.text, ms: Math.round(r.ms), fixMs: Math.round(fixMs) };
       } catch (e) {
         req.log.warn({ err: e }, "transcription failed");
         return reply.code(502).send({ error: "I couldn't hear that. Try again, or type it." });
@@ -90,6 +120,28 @@ export async function registerSpeechRoutes(
       return reply.code(502).send({ error: "That student lost their voice for a moment." });
     }
   });
+
+  /** The School, the concept on the board, and my last two lines in this class. */
+  function lessonContext(classroomId: string) {
+    const room = sqlite
+      .prepare(
+        `SELECT s.name AS school, c.title AS concept FROM classrooms r JOIN schools s ON s.id = r.school_id
+         LEFT JOIN concepts c ON c.id = r.current_concept_id WHERE r.id = ?`,
+      )
+      .get(classroomId) as { school: string; concept: string | null } | undefined;
+    const recent = (
+      sqlite
+        .prepare(
+          `SELECT m.text FROM messages m JOIN periods p ON p.id = m.period_id
+           WHERE p.classroom_id = ? AND m.speaker = 'teacher' AND m.kind IN ('lecture','answer')
+           ORDER BY m.created_at DESC, m.rowid DESC LIMIT 2`,
+        )
+        .all(classroomId) as Array<{ text: string }>
+    )
+      .map((r) => r.text)
+      .reverse();
+    return { schoolName: room?.school ?? "", conceptTitle: room?.concept ?? "", recent };
+  }
 
   function voiceOf(cadetId: string): StudentVoice | null {
     const row = sqlite

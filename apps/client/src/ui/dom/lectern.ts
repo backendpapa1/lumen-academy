@@ -79,15 +79,24 @@ export const talk = {
     if (!talk.held) return;
     talk.held = false;
     try {
-      const text = await voice.stopRecording(cancel);
-      if (!text) {
+      const heard = await voice.stopRecording(cancel);
+      if (!heard) {
         if (!cancel) app.notify("I didn't catch that. Hold Space a little longer, or type it.");
         return;
       }
-      if (voice.prefs.autoSend) app.teach(text);
-      else {
-        el.value = text;
-        el.focus();
+      if (voice.prefs.autoSend) {
+        app.teach(await voice.fix(heard));
+        return;
+      }
+      // Review first: the raw words now, the fixed ones when they land (unless I've edited).
+      el.value = heard;
+      el.focus();
+      const fixed = await voice.fix(heard);
+      if (el.value === heard && fixed !== heard) {
+        el.value = fixed;
+        el.classList.remove("fixed");
+        void el.offsetWidth;
+        el.classList.add("fixed");
       }
     } catch (err) {
       app.notify((err as Error).message, "warn");

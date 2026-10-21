@@ -79,6 +79,7 @@ agents:
   yearbookEditor: { role: standard }
   alumniPinger: { role: fast }
   artDirector: { role: fast, maxOutputTokens: 120 } # emblem motifs (docs/07 §2.2)
+  transcriptFixer: { role: fastest, maxOutputTokens: 200, temperature: 0 } # V1: mishearings only
 
 budget:
   monthlyUsdCap: 20
@@ -93,7 +94,11 @@ speech:
   stt:
     engine: whispercpp
     binary: ~/.cache/lumen/whisper.cpp/build-vk/bin/whisper-server # Vulkan build (Radeon 780M)
-    model: ~/.cache/lumen/whisper.cpp/models/ggml-small.en.bin # 0.55 s p50, 0% WER with a glossary
+    # On Paul's own voice: small.en 31% WER, large-v3-turbo 19% (0.62 s p50); the
+    # fixer pass below takes it to ~17% and fixes the jargon (gates/V1-spikes.md).
+    model: ~/.cache/lumen/whisper.cpp/models/ggml-large-v3-turbo-q5_0.bin
+    language: en
+    correct: true
     port: 8092
     threads: 4
     glossaryChars: 600
