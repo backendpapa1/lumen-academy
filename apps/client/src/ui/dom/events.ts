@@ -3,7 +3,8 @@ import { app } from "../../core/app";
 import type { EventState } from "../../core/classroom";
 import { store } from "../../core/store";
 import { portrait, rankInsignia } from "../screens/common";
-import { fill, h } from "../screens/dom";
+import { fill, h, icon, ICONS } from "../screens/dom";
+import { voice } from "../../core/voice";
 
 // Random events (docs/02 §6, M6-01). Pop quiz: explain the concept in a few
 // sentences, graded against the source. Mix-up (the "glitch" kind): a student
@@ -103,11 +104,46 @@ function render(e: EventState | undefined) {
           send();
         }
       });
+      // V1-09: answer aloud. Hold the button (or press and hold it with Space).
+      const mic = h(
+        "button",
+        {
+          class: "btn small",
+          type: "button",
+          hidden: !voice.canListen || !!e.sent,
+          title: "Hold to answer aloud",
+        },
+        icon(ICONS.mic),
+        "Hold to say it",
+      );
+      const begin = () =>
+        void voice.startRecording().catch((err: Error) => app.notify(err.message, "warn"));
+      const end = () =>
+        void voice
+          .stopRecording()
+          .then((text) => {
+            if (text) box.value = `${box.value ? `${box.value} ` : ""}${text}`;
+            box.focus();
+          })
+          .catch((err: Error) => app.notify(err.message, "warn"));
+      mic.addEventListener("pointerdown", begin);
+      mic.addEventListener("pointerup", end);
+      mic.addEventListener("pointerleave", () => voice.state.recording && end());
+      mic.addEventListener("keydown", (ev) => {
+        if (ev.key === " " && !ev.repeat) {
+          ev.preventDefault();
+          begin();
+        }
+      });
+      mic.addEventListener("keyup", (ev) => {
+        if (ev.key === " ") end();
+      });
       parts.push(
         box,
         h(
           "div",
           { class: "actions" },
+          mic,
           h(
             "span",
             { class: "dim", style: "font-size:12px" },

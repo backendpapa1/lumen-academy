@@ -9,6 +9,7 @@ import { registerCampusRoutes } from "./routes/campus.js";
 import { registerClassroomRoutes } from "./routes/classrooms.js";
 import { registerSchoolRoutes } from "./routes/schools.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
+import { registerSpeechRoutes } from "./routes/speech.js";
 import { EventBus } from "./events.js";
 import { backfillEmblems } from "./jobs.js";
 import { ClassroomConnection, type Runtime } from "./ws/classroomConnection.js";
@@ -70,6 +71,11 @@ export async function buildApp({
       const jobs = { ...runtime, bus: runtime.bus, art: config.artPrompts, dataDir };
       await registerSchoolRoutes(app, jobs);
       backfillEmblems(jobs);
+    }
+    if (runtime.speech) {
+      await registerSpeechRoutes(app, { ...runtime, speech: runtime.speech });
+      const { stt } = runtime.speech;
+      app.addHook("onClose", async () => stt.close());
     }
   }
 

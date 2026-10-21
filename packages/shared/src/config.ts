@@ -119,6 +119,37 @@ export const BudgetZ = z
   })
   .refine((b) => b.softWarnAt <= b.degradeAt, "softWarnAt must be <= degradeAt");
 
+/** V1 voice (VD1–VD4): local speech-to-text and text-to-speech, never in the cloud by default. */
+export const SpeechConfigZ = z.strictObject({
+  stt: z.strictObject({
+    engine: z.literal("whispercpp"),
+    /** Paths are per machine: env vars override these defaults (~ expands to $HOME). */
+    binary: z.string().min(1),
+    model: z.string().min(1),
+    port: z.number().int().positive(),
+    threads: z.number().int().positive().default(4),
+    /** Whisper's initial prompt is built from the School's terms, up to this many characters. */
+    glossaryChars: z.number().int().positive().default(600),
+    timeoutMs: z.number().int().positive().default(20000),
+  }),
+  tts: z.strictObject({
+    engine: z.literal("kokoro"),
+    model: z.string().min(1),
+    dtype: z.enum(["fp32", "fp16", "q8", "q4"]),
+    cacheDir: z.string().min(1),
+    /** Voices by register; a student keeps theirs for good (stored on first use). */
+    voices: z.strictObject({
+      female: z.array(z.string()).min(1),
+      male: z.array(z.string()).min(1),
+    }),
+    /** Speaking rate per archetype (1 = normal). */
+    speed: z.record(z.string(), z.number().min(0.5).max(2)),
+    /** The first chunk ends at the first comma or after this many words (V1-S2). */
+    firstChunkWords: z.number().int().min(2).default(6),
+  }),
+});
+export type SpeechConfig = z.infer<typeof SpeechConfigZ>;
+
 export const ModelsConfigZ = z
   .strictObject({
     profile: ProfileNameZ,
@@ -136,6 +167,7 @@ export const ModelsConfigZ = z
     }),
     agents: z.record(AgentNameZ, AgentOverrideZ), // zod 4: enum-keyed records require every key
     budget: BudgetZ,
+    speech: SpeechConfigZ.optional(),
   })
   .superRefine((cfg, ctx) => {
     if (!cfg.profiles[cfg.profile]) {

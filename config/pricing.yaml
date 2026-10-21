@@ -25,3 +25,5 @@ deepseek:
 local:
   models:
     qwen3-4b-instruct-2507: { input: 0, output: 0 }
+    whisper: { input: 0 } # V1 speech to text
+    kokoro: { input: 0 } # V1 student voices

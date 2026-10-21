@@ -7,10 +7,11 @@ import "../dom/exitTickets";
 import "../dom/events";
 import "../dom/rankUp";
 import "../dom/speech";
-import { lectern } from "../dom/lectern";
+import { lectern, talk } from "../dom/lectern";
+import { voice } from "../../core/voice";
 import { transcript } from "../dom/transcript";
 import { lookFor, peepSvg, restingFace } from "../peeps/peep";
-import { fill, h } from "../screens/dom";
+import { fill, h, icon, ICONS } from "../screens/dom";
 import "./hud.css";
 
 // The classroom HUD (docs/02 §3.3, ADR-009), in the DOM over the drawn room.
@@ -62,6 +63,7 @@ export class ClassroomHud {
   private readonly unsubscribe: () => void;
   private readonly interval: ReturnType<typeof setInterval>;
   private readonly onKey = (e: KeyboardEvent) => this.bellKeys(e);
+  private offVoice: (() => void) | null = null;
 
   constructor(stage: HTMLElement) {
     this.roster.hidden = true;
@@ -346,16 +348,34 @@ export class ClassroomHud {
       "Teach",
       h("kbd", {}, "⏎"),
     );
+    const mic = h(
+      "button",
+      {
+        class: "mic",
+        title: "Talk to the class (or hold Space in the empty lectern)",
+        "aria-label": "Talk to the class",
+        onclick: () => talk.toggle(),
+      },
+      icon(ICONS.mic),
+      h("span", { class: "level", "aria-hidden": "true" }),
+    );
+    const syncMic = () => {
+      mic.hidden = !voice.canListen;
+      mic.classList.toggle("on", voice.state.recording);
+      mic.setAttribute("aria-pressed", String(voice.state.recording));
+    };
+    syncMic();
+    this.offVoice = voice.on(syncMic);
     fill(
       this.bottom,
-      h("div", { class: "lectern card" }, lectern.el, send),
+      h("div", { class: "lectern card" }, mic, lectern.el, send),
       h(
         "div",
         { class: "hints" },
         ...[
           ["Enter", "teach"],
+          ["Space", "call a hand · hold to talk"],
           ["Tab", "pick a hand"],
-          ["Space", "call"],
           ["1–5", "call by number"],
           ["R", "roster"],
           ["`", "transcript"],
@@ -574,6 +594,7 @@ export class ClassroomHud {
 
   dispose() {
     this.unsubscribe();
+    this.offVoice?.();
     clearInterval(this.interval);
     if (this.recapTimer) clearTimeout(this.recapTimer);
     window.removeEventListener("keydown", this.onKey, { capture: true });

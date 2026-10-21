@@ -1,5 +1,6 @@
 import type { FrameStats } from "../../core/frames";
 import { store } from "../../core/store";
+import { voice } from "../../core/voice";
 import "./overlay.css";
 
 // Perf overlay (M2-10): FPS, frame time, DPR and the last send → first
@@ -21,6 +22,7 @@ function render() {
     `${document.querySelectorAll("#stage *").length} nodes`,
     `dpr ${source.dpr.toFixed(2)}`,
     `reaction ${c.lastReactionMs === undefined ? "–" : `${c.lastReactionMs} ms`}`,
+    `voice in ${voice.metrics.sttMs ?? "–"} ms · out ${voice.metrics.firstAudioMs ?? "–"} ms`,
   ].join("\n");
 }
 

@@ -24,7 +24,8 @@
     "assets:gen": "pnpm --filter @lumen/server assets:gen",
     "assets:preview": "pnpm --filter @lumen/server assets:gen --preview",
     "eval:assessment": "pnpm --filter @lumen/server eval:assessment",
-    "local:llm": "bash scripts/local-llm.sh"
+    "local:llm": "bash scripts/local-llm.sh",
+    "speech:check": "pnpm --filter @lumen/server speech:check"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

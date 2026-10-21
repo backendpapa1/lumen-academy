@@ -10,6 +10,8 @@ import { loadSavedSettings } from "./settings.js";
 import { OpenAIEmbedder } from "./ingest/embed.js";
 import { ModelFactory } from "./models/factory.js";
 import { UsageMeter } from "./usage/meter.js";
+import { WhisperSidecar } from "./speech/stt.js";
+import { KokoroSpeaker } from "./speech/tts.js";
 
 // Local-only: never bind beyond loopback (CLAUDE.md hard rule).
 const HOST = "127.0.0.1";
@@ -39,12 +41,22 @@ const assets = process.env[config.models.providers.openai.apiKeyEnv]
     })
   : undefined;
 
+// V1 voice: both run on this machine; the sidecar and the model load on first use.
+const speechCfg = config.models.speech;
+const speech = speechCfg
+  ? {
+      cfg: speechCfg,
+      stt: new WhisperSidecar(speechCfg.stt),
+      tts: new KokoroSpeaker(speechCfg.tts),
+    }
+  : undefined;
+
 const app = await buildApp({
   config,
   logger: true,
   assetsDir,
   dataDir: dataDir(config),
-  runtime: { handle, factory, meter, embedder, assets, game: config.game },
+  runtime: { handle, factory, meter, embedder, assets, game: config.game, speech },
 });
 await app.listen({ host: HOST, port: config.env.LUMEN_PORT });
 

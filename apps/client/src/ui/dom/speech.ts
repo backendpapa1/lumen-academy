@@ -1,5 +1,6 @@
 import type { Speech } from "../../core/classroom";
 import { store } from "../../core/store";
+import { voice } from "../../core/voice";
 import { anchors } from "../../world/anchors";
 import { accentCss, reducedMotion } from "../theme";
 import { lingerMs, revealStep } from "./typewriter";
@@ -74,14 +75,17 @@ function frame(now: number) {
   const dt = Math.min(0.25, (now - last) / 1000); // slow frames still keep pace
   last = now;
   const anchor = anchors.speaker;
+  // With voice on, the bubble keeps pace with the audio and stays until they've finished.
+  const talking = !!speech && voice.isSpeaking(speech.streamId);
+  if (talking && doneAt) doneAt = now;
   const expired = doneAt > 0 && now - doneAt > lingerMs(speech?.text ?? "");
   const visible = !!speech && !!anchor && !expired;
   panel.classList.toggle("shown", visible);
   line.classList.toggle("shown", visible);
   if (speech && anchor) {
-    shown = reducedMotion()
-      ? speech.text.length
-      : revealStep(shown, speech.text.length, dt, speech.done);
+    const cap = voice.revealCap(speech.streamId);
+    const target = cap === null ? speech.text.length : Math.min(cap, speech.text.length);
+    shown = reducedMotion() ? target : Math.min(target, revealStep(shown, target, dt, speech.done));
     const n = Math.floor(shown);
     const typed = speech.text.slice(0, n);
     if (body.textContent !== typed) body.textContent = typed;

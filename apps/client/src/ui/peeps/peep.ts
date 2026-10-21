@@ -1,4 +1,4 @@
-import type { Archetype, ReactionState } from "@lumen/shared";
+import { voiceRegister, type Archetype, type ReactionState } from "@lumen/shared";
 import { PEEPS } from "./parts.generated";
 
 // Students drawn as Open Peeps (ADR-009): a stable look per student from their
@@ -105,7 +105,8 @@ export function lookFor(id: string, hair = ""): Look {
   return {
     head,
     body: pick(EVERYDAY),
-    beard: r() < 0.16 ? pick(BEARDS) : undefined,
+    // Beards only on students with a lower voice, so look and voice agree (V1-04).
+    beard: r() < 0.3 && voiceRegister(id) === "male" ? pick(BEARDS) : undefined,
     accessory: r() < 0.24 ? pick(GLASSES) : undefined,
     skin: pick(SKIN),
     top,

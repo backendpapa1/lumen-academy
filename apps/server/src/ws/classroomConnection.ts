@@ -43,6 +43,8 @@ export interface Runtime {
   bus?: EventBus;
   /** Recaps and notes are on by default; tests switch them off. */
   extras?: { recaps?: boolean; notes?: boolean };
+  /** V1 voice: local speech in and out; absent when speech isn't configured. */
+  speech?: import("../routes/speech.js").SpeechRuntime;
 }
 
 export const assetUrl = (id: string) => `/api/assets/${id}`;

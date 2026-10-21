@@ -2,6 +2,7 @@ import { REACTION_GLYPHS, type ReactionState } from "@lumen/shared";
 import type { CadetState, ClassroomState } from "../../core/classroom";
 import { app } from "../../core/app";
 import { store } from "../../core/store";
+import { voice } from "../../core/voice";
 import { anchors, world } from "../../world/anchors";
 import { dayPhase } from "../../world/lighting";
 import { FACE_FOR, lookFor, peepSvg, restingFace, type Look, type Pose } from "../peeps/peep";
@@ -256,6 +257,7 @@ export class Room {
   private readonly boardText: HTMLElement;
   private readonly seats = new Map<string, Seat>();
   private readonly unsubscribe: () => void;
+  private readonly offVoice: () => void;
   private layoutKey = "";
   private raf = 0;
   private flickerTimer: ReturnType<typeof setTimeout> | null = null;
@@ -292,6 +294,7 @@ export class Room {
         this.highlight(s.hoveredId, s.selectedId);
     });
     this.sync(store.getState().classroom);
+    this.offVoice = voice.on(() => this.sync(store.getState().classroom));
     if (opts.interactive !== false) this.wirePointer();
     world.pick = this.pick;
     this.tick();
@@ -319,9 +322,12 @@ export class Room {
               : st.state === "skeptical"
                 ? "arms"
                 : "idle";
+      // With voice on, the mouth follows the audio (lip-sync lite, V1-07).
       const face =
         speaking === st.id
-          ? "Explaining"
+          ? voice.state.speaking === st.id && !voice.state.mouthOpen
+            ? "Calm"
+            : "Explaining"
           : st.state === "attentive"
             ? restingFace(st.archetype)
             : FACE_FOR[st.state];
@@ -535,6 +541,7 @@ export class Room {
     cancelAnimationFrame(this.raf);
     if (this.flickerTimer) clearTimeout(this.flickerTimer);
     this.unsubscribe();
+    this.offVoice();
     if (world.pick === this.pick) world.pick = null;
     anchors.speaker = null;
     this.el.remove();

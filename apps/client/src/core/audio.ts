@@ -8,6 +8,7 @@ import { store, type AppState } from "./store";
 // as browsers require. Hyperfocus drops the pads to a slow ~60 BPM pulse.
 
 type Bed = "campus" | "classroom" | "exam" | null;
+type Ambience = "room" | "rain" | null;
 const MUTE_KEY = "lumen.muted";
 const LEVEL = 0.22;
 
@@ -39,6 +40,7 @@ class Sound {
     this.master.gain.value = LEVEL;
     this.master.connect(this.ctx.destination);
     this.setBed(this.wanted);
+    this.setAmbience(this.wantedAmbience);
   }
 
   toggleMute(): boolean {
@@ -51,6 +53,7 @@ class Sound {
     if (this.muted) {
       this.bed?.stop();
       this.bed = null;
+      this.ambience = null; // the context closes under it
       void this.ctx?.close();
       this.ctx = null;
       this.master = null;
@@ -140,6 +143,83 @@ class Sound {
     o.stop(t + attack + decay + 0.05);
   }
 
+  private ambience: { name: Ambience; stop: () => void } | null = null;
+  private wantedAmbience: Ambience = null;
+
+  /**
+   * A layer under the pad (V1-08): room tone in class, rain on the campus when
+   * the streak weather says so. Noise, shaped; no samples.
+   */
+  setAmbience(name: Ambience) {
+    this.wantedAmbience = name;
+    const ctx = this.ctx;
+    if (!ctx || !this.master || this.ambience?.name === name) return;
+    this.ambience?.stop();
+    this.ambience = null;
+    if (!name) return;
+    const len = ctx.sampleRate * 4;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    // Brownish noise: each sample drifts from the last (soft, low).
+    let last = 0;
+    for (let i = 0; i < len; i++) {
+      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+      d[i] = last * 3.5;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const f = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    if (name === "room") {
+      f.type = "lowpass";
+      f.frequency.value = 420;
+      g.gain.setTargetAtTime(0.18, ctx.currentTime, 2);
+    } else {
+      // Rain: brighter, with a slow swell, plus droplets.
+      f.type = "bandpass";
+      f.frequency.value = 1400;
+      f.Q.value = 0.5;
+      g.gain.setTargetAtTime(0.55, ctx.currentTime, 2);
+    }
+    src.connect(f).connect(g).connect(this.master);
+    src.start();
+    const drops =
+      name === "rain"
+        ? setInterval(() => this.blip(2200 + Math.random() * 1800, 0.012, 0.002, "sine", 0.05), 140)
+        : null;
+    this.ambience = {
+      name,
+      stop: () => {
+        g.gain.setTargetAtTime(0, ctx.currentTime, 0.6);
+        if (drops) clearInterval(drops);
+        setTimeout(() => src.stop(), 2500);
+      },
+    };
+  }
+
+  /** A chair scraping back: someone's hand goes up. */
+  private scrape() {
+    const ctx = this.ctx;
+    if (!ctx || !this.master) return;
+    const len = ctx.sampleRate * 0.28;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.sin((Math.PI * i) / len);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = "bandpass";
+    f.Q.value = 6;
+    f.frequency.setValueAtTime(700, ctx.currentTime);
+    f.frequency.exponentialRampToValueAtTime(260, ctx.currentTime + 0.26);
+    const g = ctx.createGain();
+    g.gain.value = 0.16;
+    src.connect(f).connect(g).connect(this.master);
+    src.start();
+  }
+
   /** Filtered noise sweep (arrivals). */
   private whoosh() {
     const ctx = this.ctx;
@@ -165,8 +245,9 @@ class Sound {
     if (!this.ctx) return;
     switch (name) {
       case "hand":
-        this.blip(659.25, 0.12, 0.01, "sine", 0.18);
-        this.blip(987.77, 0.1, 0.01, "sine", 0.25, 0.08);
+        this.scrape();
+        this.blip(659.25, 0.07, 0.01, "sine", 0.18, 0.12);
+        this.blip(987.77, 0.06, 0.01, "sine", 0.25, 0.2);
         break;
       case "bell":
         for (const [f, p] of [
@@ -244,9 +325,17 @@ export function installSound() {
       return;
     sound.toggleMute();
   });
+  const ambienceFor = (s: AppState): Ambience => {
+    const bed = bedFor(s);
+    if (bed === "classroom") return "room";
+    if (bed === "campus" && (s.setup.campus?.streak.missedDays ?? 0) >= 3) return "rain";
+    return null;
+  };
   sound.setBed(bedFor(store.getState()));
+  sound.setAmbience(ambienceFor(store.getState()));
   store.subscribe((s, p) => {
     if (s.route !== p.route) sound.setBed(bedFor(s));
+    if (s.route !== p.route || s.setup.campus !== p.setup.campus) sound.setAmbience(ambienceFor(s));
     if (s.classroom.hyperfocus !== p.classroom.hyperfocus)
       sound.applyHyperfocus(s.classroom.hyperfocus);
     if (s.classroom.hands.length > p.classroom.hands.length) sound.cue("hand");

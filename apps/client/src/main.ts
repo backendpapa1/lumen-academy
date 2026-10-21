@@ -6,6 +6,7 @@ import { loadDemoClassroom } from "./core/demo";
 import { frames } from "./core/frames";
 import { installKeyboard } from "./core/input";
 import { store } from "./core/store";
+import { voice } from "./core/voice";
 import { Campus } from "./ui/campus/Campus";
 import { statsOverlay } from "./ui/dom/stats";
 import { loadFonts } from "./ui/fonts";
@@ -112,6 +113,7 @@ declare global {
       world: typeof world;
       app: typeof app;
       sound: typeof sound;
+      voice: typeof voice;
     };
   }
 }
@@ -122,5 +124,6 @@ window.__lumen = {
   world,
   app,
   sound,
+  voice,
   receive: (m) => store.setState((s) => ({ classroom: applyServerMessage(s.classroom, m) })),
 };

@@ -1,0 +1,1 @@
+ALTER TABLE `cadets` ADD `voice_json` text;

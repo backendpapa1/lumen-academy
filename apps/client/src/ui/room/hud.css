@@ -624,3 +624,61 @@
     width: 260px;
   }
 }
+
+/* --- voice (V1): the mic in the lectern ------------------------------------------- */
+.hud .lectern .mic {
+  --level: 0;
+  position: relative;
+  width: 58px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-right: var(--line);
+  background: var(--paper);
+  color: var(--cobalt);
+  cursor: pointer;
+}
+.hud .lectern .mic .icon {
+  width: 24px;
+  height: 24px;
+}
+.hud .lectern .mic:hover {
+  background: var(--cobalt-wash);
+}
+.hud .lectern .mic.on {
+  background: var(--coral);
+  color: #fff;
+}
+.hud .lectern .mic .level {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  height: 4px;
+  background: #fff;
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.hud .lectern.listening .mic .level {
+  transform: scaleX(var(--level));
+}
+.hud .lectern.listening {
+  outline: 3px solid var(--coral);
+  outline-offset: 2px;
+}
+.hud .lectern.hearing #lectern.in-hud {
+  background: repeating-linear-gradient(-45deg, #fff 0 10px, var(--paper-2) 10px 20px);
+  background-size: 200% 100%;
+  animation: hearing 1.2s linear infinite;
+}
+@keyframes hearing {
+  to {
+    background-position: 28px 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud .lectern.hearing #lectern.in-hud {
+    animation: none;
+  }
+}

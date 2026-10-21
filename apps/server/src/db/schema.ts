@@ -157,6 +157,8 @@ export const cadets = sqliteTable(
     backstory: text("backstory"),
     portraitAssetId: text("portrait_asset_id"),
     notesMd: text("notes_md").notNull().default(""),
+    /** V1-04: the Kokoro voice and pace, picked on first speech and kept. */
+    voiceJson: text("voice_json"),
     status: text("status", { enum: ["enrolled", "transferred_in", "expelled", "alumni"] })
       .notNull()
       .default("enrolled"),
