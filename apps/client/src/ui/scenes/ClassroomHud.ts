@@ -102,6 +102,7 @@ export class ClassroomHud extends Phaser.Scene {
       c.concept !== p.concept ||
       c.school !== p.school ||
       c.cost.state !== p.cost.state ||
+      c.hyperfocus !== p.hyperfocus ||
       st.net !== prev.net ||
       c.status !== p.status
     )
@@ -186,6 +187,13 @@ export class ClassroomHud extends Phaser.Scene {
         .on("pointerdown", () => this.toggleConceptMenu(c));
     }
     g.add(concept);
+    if (c.hyperfocus)
+      g.add(
+        label(this, concept.x + concept.width + 16 * s, concept.y + 6 * s, "HYPERFOCUS", "micro", {
+          scale: s,
+          color: css.lumen,
+        }),
+      );
 
     // Right: timer, this period's cost (tap for day/month), end class.
     const right = width - pad;

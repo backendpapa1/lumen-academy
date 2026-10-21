@@ -116,6 +116,10 @@ export class ClassroomConnection {
             payload: { paused: session.paused, elapsedMs: session.elapsedMs() },
           });
         }
+        case "focus.toggle": {
+          this.requireSession().hyperfocus = msg.payload.on;
+          return this.send({ type: "focus.changed", payload: { on: msg.payload.on } });
+        }
         case "board.set": {
           const text = this.requireSession().setBoard(msg.payload.text);
           return this.send({ type: "board.updated", payload: { text } });

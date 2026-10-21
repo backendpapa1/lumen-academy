@@ -9,7 +9,7 @@ import { ClassroomHud } from "./ui/scenes/ClassroomHud";
 import { GalleryScene } from "./ui/scenes/GalleryScene";
 import { installScreens } from "./ui/screens";
 import { CampusScene } from "./world/scenes/CampusScene";
-import { campusView } from "./world/anchors";
+import { campusView, fx } from "./world/anchors";
 import { ClassroomScene } from "./world/scenes/ClassroomScene";
 import { world } from "./world/anchors";
 import { WorldDirector } from "./world/WorldDirector";
@@ -139,6 +139,7 @@ declare global {
   }
 }
 statsOverlay.attach(director.stats);
+fx.setBloom = (i) => director.setBloomIntensity(i);
 window.__lumen = {
   store,
   phaserVersion: Phaser.VERSION,

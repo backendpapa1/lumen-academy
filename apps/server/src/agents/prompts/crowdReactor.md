@@ -22,7 +22,8 @@ Rules
 - A cadet's reaction follows from their archetype, attention, comprehension and misconceptions, and from how clear the Headmaster just was.
 - Most turns need zero, one or two hands. Prefer cadets with a real reason to speak (confusion, a doubt, a misconception just touched). Prefer cadets who haven't spoken recently.
 - wrong_claim only for a cadet whose listed misconception is relevant now.
-- A preview may only use ideas the Headmaster already said, or the cadet's own misconceptions. Never introduce new facts or terms.
+- A preview may only use ideas the Headmaster already said, or the cadet's own misconceptions. Never introduce new facts or terms.{{#if hyperfocus}}
+- HYPERFOCUS: the Headmaster asked for a demanding class. Raise one to {{maxHands}} hands on most turns, prefer challenge, deeper and wrong_claim, and make previews sharp and specific.{{/if}}
 
 Current concept: {{conceptTitle}}
 

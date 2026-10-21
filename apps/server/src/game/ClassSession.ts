@@ -328,6 +328,9 @@ export class ClassSession {
     return this.planned;
   }
 
+  /** T-10 Hyperfocus: sharper, more frequent questions (lighting is the client's). */
+  hyperfocus = false;
+
   /** T-9: the chalkboard block for this period ("" = clear). Cadets see it in the transcript. */
   get board(): string {
     const row = this.deps.handle.sqlite
@@ -442,6 +445,7 @@ export class ClassSession {
             transcript,
             teacherMessage: text,
             maxHands: this.deps.game.hands.maxPerTurn,
+            hyperfocus: this.hyperfocus,
           },
           { onReaction: (id, state) => this.events.onReaction?.(id, state) },
         )
@@ -543,6 +547,7 @@ export class ClassSession {
             intent: hand?.intent ?? "clarify",
             preview: hand?.preview ?? "(the Headmaster called on you)",
             canPeek,
+            hyperfocus: this.hyperfocus,
             maxWords: game.cadet.maxWords,
           },
           { signal, onDelta: opts.onDelta },

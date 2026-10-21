@@ -93,6 +93,8 @@ export interface ClassroomState {
   ended?: Omit<ServerMessageOf<"period.ended">["payload"], "periodId">;
   /** T-9: the chalkboard block on the holo-board. */
   board: string;
+  /** T-10: Hyperfocus mode for this period. */
+  hyperfocus: boolean;
   /** The exit-ticket minigame at the bell (M4-05). */
   exit?: ExitTicketsState;
 }
@@ -113,6 +115,7 @@ export const initialClassroom = (): ClassroomState => ({
   toasts: [],
   xp: null,
   board: "",
+  hyperfocus: false,
 });
 
 let toastSeq = 0;
@@ -188,6 +191,8 @@ export function applyServerMessage(
         xp: m.payload.standing,
         xpGain: { delta: m.payload.delta, reason: m.payload.reason, at: now },
       };
+    case "focus.changed":
+      return { ...s, hyperfocus: m.payload.on };
     case "board.updated":
       return { ...s, board: m.payload.text };
     case "period.extended":

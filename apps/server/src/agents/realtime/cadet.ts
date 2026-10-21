@@ -38,6 +38,8 @@ export interface CadetPersona {
 }
 
 export interface CadetTurnInput {
+  /** T-10: a Hyperfocus class asks sharper questions. */
+  hyperfocus?: boolean;
   persona: CadetPersona;
   classroomId: string;
   concept: { id: string; title: string; nextId?: string };
@@ -196,6 +198,7 @@ export async function runCadetTurn(
     preview: input.preview,
     comprehension: input.comprehension.toFixed(2),
     comprehensionWord: comprehensionWord(input.comprehension),
+    hyperfocus: !!input.hyperfocus,
     misconceptions: input.misconceptions.length
       ? input.misconceptions.join("; ")
       : "nothing in particular",

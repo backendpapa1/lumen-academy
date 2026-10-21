@@ -58,6 +58,8 @@ export interface ReactorInput {
   transcript: TranscriptLine[];
   teacherMessage: string;
   maxHands: number;
+  /** T-10: sharper, more frequent questions. */
+  hyperfocus?: boolean;
 }
 
 export interface ReactorEvents {
@@ -78,6 +80,7 @@ export interface ReactorResult {
 export function reactorMessages(input: ReactorInput): BaseMessage[] {
   const system = loadPrompt("crowdReactor", {
     maxHands: input.maxHands,
+    hyperfocus: !!input.hyperfocus,
     conceptTitle: input.conceptTitle,
     cadetTable: cadetTable(input.cards.map((c, i) => ({ ...c, id: String(i + 1) }))),
   });

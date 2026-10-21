@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { ClassroomState } from "../../core/classroom";
 import { store } from "../../core/store";
 import { accentOf } from "../../ui/theme";
-import { anchors, world } from "../anchors";
+import { anchors, fx, world } from "../anchors";
 import { dayPhase, PHASES } from "../lighting";
 import { Amphitheater, seatPose } from "../objects/Amphitheater";
 import { CadetLayer } from "../objects/CadetLayer";
@@ -35,6 +35,12 @@ export class ClassroomScene implements WorldScene {
   private readonly size = { w: 1, h: 1 };
   private readonly head = new THREE.Vector3();
   private readonly ray = new THREE.Raycaster();
+  private key!: THREE.DirectionalLight;
+  private fill!: THREE.HemisphereLight;
+  private hyperfocus = false;
+  /** 0..1 ease toward Hyperfocus lighting. */
+  private focusMix = 0;
+  private readonly day = PHASES[dayPhase()];
 
   /** arrivals: cadets materialize as they join (registration). */
   constructor(opts: { arrivals?: boolean } = {}) {
@@ -46,9 +52,13 @@ export class ClassroomScene implements WorldScene {
     this.windowView = new WindowView(this.camera);
 
     const phase = PHASES[dayPhase()];
-    const key = new THREE.DirectionalLight(phase.key, phase.keyIntensity * 1.3);
+    const key = (this.key = new THREE.DirectionalLight(phase.key, phase.keyIntensity * 1.3));
     key.position.set(-6, 9, 4); // from the window side
-    const fill = new THREE.HemisphereLight(phase.ambient, 0x0b1020, phase.ambientIntensity * 2);
+    const fill = (this.fill = new THREE.HemisphereLight(
+      phase.ambient,
+      0x0b1020,
+      phase.ambientIntensity * 2,
+    ));
     const front = new THREE.PointLight(0xbfefff, 9, 18, 1.6); // the lectern's soft glow on the class
     front.position.set(0, 2.2, -1);
     this.scene.add(key, fill, front);
@@ -126,6 +136,7 @@ export class ClassroomScene implements WorldScene {
   }
 
   private sync(c: ClassroomState, prev: ClassroomState | null): void {
+    this.hyperfocus = c.hyperfocus;
     if (!prev || c.cadets !== prev.cadets) {
       this.amphitheater.setOccupancy(
         new Map(Object.values(c.cadets).map((x) => [x.seat, accentOf(x.archetype)])),
@@ -159,7 +170,25 @@ export class ClassroomScene implements WorldScene {
       CAMERA_POS.z,
     );
     this.camera.lookAt(LOOK_AT);
-    this.floor.update(dt);
+    // Hyperfocus (docs/08 §1): ease to Night lighting, bloom −40%, slower motion.
+    const target = this.hyperfocus ? 1 : 0;
+    if (Math.abs(this.focusMix - target) > 0.001) {
+      this.focusMix += (target - this.focusMix) * Math.min(1, dt * 1.5);
+      const night = PHASES.night;
+      this.key.color.set(this.day.key).lerp(new THREE.Color(night.key), this.focusMix);
+      this.key.intensity = THREE.MathUtils.lerp(
+        this.day.keyIntensity * 1.3,
+        night.keyIntensity * 0.9,
+        this.focusMix,
+      );
+      this.fill.intensity = THREE.MathUtils.lerp(
+        this.day.ambientIntensity * 2,
+        night.ambientIntensity * 1.4,
+        this.focusMix,
+      );
+      fx.setBloom?.(THREE.MathUtils.lerp(0.9, 0.55, this.focusMix));
+    }
+    this.floor.update(dt * (1 - this.focusMix * 0.5));
     this.cadetLayer.update(dt, this.camera);
     this.windowView.update(dt);
     this.projectSpeaker();
@@ -196,6 +225,7 @@ export class ClassroomScene implements WorldScene {
 
   dispose(): void {
     anchors.speaker = null;
+    fx.setBloom?.(0.9);
     if (world.pick === this.pick) world.pick = null; // a newer scene may already own it
     this.unsubscribe();
     this.floor.dispose();

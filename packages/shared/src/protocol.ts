@@ -89,6 +89,8 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
   msg("concept.set", z.strictObject({ conceptId: z.string() })),
   /** T-9: the chalkboard block; empty text clears it. */
   msg("board.set", z.strictObject({ text: z.string().max(600) })),
+  /** T-10 Hyperfocus mode (docs/05 §5: focus.toggle). */
+  msg("focus.toggle", z.strictObject({ on: z.boolean() })),
   msg("period.pause", empty),
   /** T-7: more time after the bell. */
   msg("period.extend", z.strictObject({ minutes: z.number().int().min(1).max(30) })),
@@ -255,6 +257,7 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
   msg("period.paused", z.strictObject({ paused: z.boolean(), elapsedMs: z.number() })),
   msg("period.extended", z.strictObject({ plannedMinutes: z.number() })),
   msg("board.updated", z.strictObject({ text: z.string() })),
+  msg("focus.changed", z.strictObject({ on: z.boolean() })),
   /** "Last time…" arrives after period.started so starting a class never waits on it. */
   msg("period.recap", z.strictObject({ periodId: z.string(), text: z.string() })),
   msg("turn.started", z.strictObject({ turnId: z.string(), text: z.string() })),

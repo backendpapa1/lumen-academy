@@ -181,6 +181,10 @@ export const app = {
         );
     }
   },
+  setHyperfocus(on: boolean) {
+    ensureNet().send("focus.toggle", { on });
+    this.notify(on ? "Hyperfocus on: lights down, sharper questions." : "Hyperfocus off.");
+  },
   /** T-7: more time after the bell. */
   extend(minutes = 5) {
     if (store.getState().classroom.status === "live")
