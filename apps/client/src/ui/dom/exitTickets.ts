@@ -51,7 +51,11 @@ function render(e: ExitTicketsState | undefined) {
           h("div", { class: "h2" }, e.conceptTitle),
         ),
         h("span", { class: "spacer" }),
-        h("div", { class: "mono", "aria-live": "off" }, done ? "Done" : `${Math.ceil(left)}s`),
+        h(
+          "div",
+          { class: "mono exit-clock", "aria-live": "off" },
+          done ? "Done" : `${Math.ceil(left)}s`,
+        ),
       ),
       h(
         "p",
@@ -62,7 +66,7 @@ function render(e: ExitTicketsState | undefined) {
       ),
       h(
         "div",
-        { class: "progress", style: "width:100%;margin-bottom:14px" },
+        { class: "progress exit-bar", style: "width:100%;margin-bottom:14px" },
         h("span", { style: `width:${(left / e.seconds) * 100}%;background:var(--aurum)` }),
       ),
       h(
@@ -158,8 +162,18 @@ function summaryLine(e: ExitTicketsState, caught: number, falseOnes: number) {
     : `You marked ${right} of ${e.tickets.length} right. No misconceptions this time.`;
 }
 
-const startTimer = () =>
-  (timer ??= setInterval(() => render(store.getState().classroom.exit), 1000));
+/** Each second only the clock moves; the cards are rebuilt only when time runs out. */
+function tick() {
+  const e = store.getState().classroom.exit;
+  if (!e) return stopTimer();
+  const left = Math.max(0, e.seconds - (Date.now() - e.at) / 1000);
+  if (left <= 0) return render(e);
+  const clock = root.querySelector(".exit-clock");
+  if (clock) clock.textContent = `${Math.ceil(left)}s`;
+  const bar = root.querySelector<HTMLElement>(".exit-bar > span");
+  if (bar) bar.style.width = `${(left / e.seconds) * 100}%`;
+}
+const startTimer = () => (timer ??= setInterval(tick, 1000));
 function stopTimer() {
   if (timer) clearInterval(timer);
   timer = null;

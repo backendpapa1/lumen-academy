@@ -152,12 +152,14 @@ export function mountArena(
   };
 
   /** The room: these cadets in their seats, reacting as their answers are marked. */
-  const seat = (list: CadetView[]) =>
+  const seat = (list: CadetView[], title: string) =>
     store.setState((s) => ({
       classroom: {
         ...initialClassroom(),
         cost: s.classroom.cost,
         classroom: { id: classroomId, name: "" },
+        // The holo-board names the exam.
+        concept: { id: examId, title: `Exam: ${title}` },
         cadets: Object.fromEntries(list.map((c) => [c.id, { ...c }])),
       },
     }));
@@ -213,8 +215,8 @@ export function mountArena(
   void (async () => {
     const room = await api.get<{ cadets: CadetView[] }>(`/api/classrooms/${classroomId}`);
     cadets = room.cadets.map((c) => ({ ...c, comprehension: 0, state: "attentive" }));
-    seat(cadets);
     await refresh();
+    seat(cadets, (exam as ExamInfo | null)?.moduleTitle ?? "Module exam");
     const loaded = exam as ExamInfo | null; // assigned by refresh()
     if (loaded?.status === "ready")
       await api

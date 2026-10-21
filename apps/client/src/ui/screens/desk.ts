@@ -421,11 +421,14 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
             h("div", { class: "q" }, q.prompt),
             h("div", { class: "ans" }, ans?.answer ?? "(no answer)"),
             ans?.refScore != null &&
-              h(
-                "div",
-                { class: "ref", title: ans.refRationale },
-                `Grader: ${ans.refScore}/5${ans.refRationale ? ` · ${ans.refRationale}` : ""}`,
-              ),
+              (ans.refRationale
+                ? h(
+                    "details",
+                    { class: "ref" },
+                    h("summary", {}, `Grader: ${ans.refScore}/5`),
+                    ans.refRationale,
+                  )
+                : h("div", { class: "ref" }, `Grader: ${ans.refScore}/5`)),
           );
         }),
       ),
