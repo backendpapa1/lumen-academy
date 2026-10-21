@@ -14,6 +14,9 @@ el.placeholder = "Teach your next idea. Keep it short.";
 el.setAttribute("aria-label", "Teach the class");
 document.querySelector("#stage")!.appendChild(el);
 
+/** The recogniser's words as last placed in the lectern (to learn from my edits). */
+let suggested: string | null = null;
+
 // Space in an empty lectern: a tap calls the selected hand (v1), a hold talks.
 const HOLD_MS = 250;
 let spaceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -43,6 +46,18 @@ el.addEventListener("keydown", (e) => {
     void talk.stop(true);
   } else if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
+    // If I fixed what it heard, learn the swaps for next time.
+    if (suggested && el.value.trim() && el.value.trim() !== suggested.trim()) {
+      const from = suggested;
+      const to = el.value;
+      void voice.learn(from, to).then((learned) => {
+        if (learned.length)
+          app.notify(
+            `Got it: I'll listen for ${learned.map((l) => `“${l.meant}”`).join(", ")} next time.`,
+          );
+      });
+    }
+    suggested = null;
     app.teach(el.value);
     el.value = "";
   } else if (e.key === "Escape") {
@@ -90,10 +105,12 @@ export const talk = {
       }
       // Review first: the raw words now, the fixed ones when they land (unless I've edited).
       el.value = heard;
+      suggested = heard;
       el.focus();
       const fixed = await voice.fix(heard);
       if (el.value === heard && fixed !== heard) {
         el.value = fixed;
+        suggested = fixed;
         el.classList.remove("fixed");
         void el.offsetWidth;
         el.classList.add("fixed");

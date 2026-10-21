@@ -66,3 +66,55 @@ export function voiceRegister(id: string): "female" | "male" {
   for (const ch of `voice:${id}`) h = Math.imul(h ^ ch.codePointAt(0)!, 16777619);
   return (h >>> 0) % 100 < 55 ? "female" : "male";
 }
+
+/**
+ * Word swaps between what the recogniser gave me and what I actually sent
+ * ("ash" → "hash"), for learning my mishearings. Only short swaps (1–3 words a
+ * side) count; if I rewrote much of the line it's a change of mind, not a fix.
+ */
+export function wordSwaps(
+  suggested: string,
+  sent: string,
+): Array<{ heard: string; meant: string }> {
+  const tok = (s: string) =>
+    s
+      .split(/\s+/)
+      .map((w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
+      .filter(Boolean);
+  const a = tok(suggested);
+  const b = tok(sent);
+  if (!a.length || !b.length) return [];
+  const key = (w: string) => w.toLowerCase();
+  // Longest common subsequence on words, then read off the gaps.
+  const dp = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0));
+  for (let i = a.length - 1; i >= 0; i--)
+    for (let j = b.length - 1; j >= 0; j--)
+      dp[i]![j] =
+        key(a[i]!) === key(b[j]!)
+          ? dp[i + 1]![j + 1]! + 1
+          : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!);
+  const kept = dp[0]![0]!;
+  if (kept < Math.max(a.length, b.length) * 0.6) return [];
+  const out: Array<{ heard: string; meant: string }> = [];
+  let i = 0;
+  let j = 0;
+  let ga: string[] = [];
+  let gb: string[] = [];
+  const flush = () => {
+    if (ga.length && gb.length && ga.length <= 3 && gb.length <= 3)
+      out.push({ heard: ga.join(" ").toLowerCase(), meant: gb.join(" ") });
+    ga = [];
+    gb = [];
+  };
+  while (i < a.length || j < b.length) {
+    if (i < a.length && j < b.length && key(a[i]!) === key(b[j]!)) {
+      flush();
+      i++;
+      j++;
+    } else if (j < b.length && (i >= a.length || dp[i]![j + 1]! >= dp[i + 1]![j]!))
+      gb.push(b[j++]!);
+    else ga.push(a[i++]!);
+  }
+  flush();
+  return out;
+}

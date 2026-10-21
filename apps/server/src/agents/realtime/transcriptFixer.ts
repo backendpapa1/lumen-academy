@@ -18,6 +18,7 @@ export async function fixTranscript(
     conceptTitle: string;
     glossary: string;
     recent: string[];
+    mishearings?: Array<{ heard: string; meant: string; count: number }>;
   },
 ): Promise<string> {
   const res = await callStructured(factory, "transcriptFixer", {
@@ -30,6 +31,9 @@ export async function fixTranscript(
           conceptTitle: input.conceptTitle,
           glossary: input.glossary,
           recent: input.recent.map((r) => `- ${r}`).join("\n"),
+          mishearings: (input.mishearings ?? [])
+            .map((m) => `- "${m.heard}" → "${m.meant}" (${m.count}×)`)
+            .join("\n"),
         }),
       ),
       new HumanMessage(`Transcript: ${input.text}`),

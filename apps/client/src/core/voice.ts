@@ -241,6 +241,24 @@ class Voice {
     }
   }
 
+  /** I fixed the recogniser's words before sending: let the server learn the swaps. */
+  async learn(suggested: string, sent: string): Promise<Array<{ heard: string; meant: string }>> {
+    const room = store.getState().classroom.classroom?.id;
+    if (!room || suggested.trim() === sent.trim()) return [];
+    try {
+      const res = await fetch(`${SERVER_HTTP}/api/speech/corrections`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ classroomId: room, suggested, sent }),
+      });
+      return res.ok
+        ? ((await res.json()) as { learned: Array<{ heard: string; meant: string }> }).learned
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
   // --- students speaking -----------------------------------------------------
 
   /** Called as a student's line streams in (and again when it's rephrased). */

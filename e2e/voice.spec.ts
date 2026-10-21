@@ -64,6 +64,12 @@ test("hold Space to teach by voice; tap to call; students speak their lines", as
   await page.route("**/api/speech/transcribe**", (r) =>
     r.fulfill({ json: { text: "The market route lives in the block edda.", ms: 410 } }),
   );
+  const learned: unknown[] = [];
+  await page.route("**/api/speech/corrections", (r) => {
+    const { suggested, sent } = r.request().postDataJSON() as { suggested: string; sent: string };
+    learned.push({ suggested, sent });
+    return r.fulfill({ json: { learned: [{ heard: "the", meant: "each" }] } });
+  });
   // The fixer turns the accent's mishearings back into the lesson's terms.
   await page.route("**/api/speech/fix", (r) =>
     r.fulfill({ json: { text: "The Merkle root lives in the block header.", fixMs: 900 } }),
@@ -87,7 +93,18 @@ test("hold Space to teach by voice; tap to call; students speak their lines", as
   await page.waitForTimeout(600);
   await page.keyboard.up(" ");
   await expect(page.locator("#lectern")).toHaveValue("The Merkle root lives in the block header.");
-  await page.locator("#lectern").fill("");
+  // I fix one more word and send: the swap is learned and I'm told so.
+  await page.locator("#lectern").fill("The Merkle root lives in each block header.");
+  await page.keyboard.press("Enter");
+  await expect
+    .poll(() => learned)
+    .toEqual([
+      {
+        suggested: "The Merkle root lives in the block header.",
+        sent: "The Merkle root lives in each block header.",
+      },
+    ]);
+  await expect(page.locator(".hud .toast", { hasText: "Got it" })).toBeVisible();
 
   // Send on release: hold Space in the empty lectern, the fixed transcript is taught.
   await page.evaluate(() => window.__lumen!.voice.setPrefs({ autoSend: true }));
@@ -106,7 +123,10 @@ test("hold Space to teach by voice; tap to call; students speak their lines", as
           .map((m) => m.payload.text),
       ),
     )
-    .toEqual(["The Merkle root lives in the block header."]);
+    .toEqual([
+      "The Merkle root lives in each block header.",
+      "The Merkle root lives in the block header.",
+    ]);
 
   // A quick tap still calls the top hand (the demo has two hands up).
   await page.keyboard.press(" ");

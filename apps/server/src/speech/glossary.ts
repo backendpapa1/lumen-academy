@@ -1,4 +1,5 @@
 import type { DbHandle } from "../db/client.js";
+import { knownMishearings } from "./corrections.js";
 
 // Whisper's initial prompt (V1-S1): the School's own terms, so "Merkle root"
 // isn't heard as "Merkel route". Concept titles first, then distinctive words
@@ -16,6 +17,8 @@ export function glossaryFor(handle: DbHandle, schoolId: string, maxChars: number
     const k = t.toLowerCase();
     if (t.length > 2 && !terms.has(k)) terms.set(k, t);
   };
+  // Words I've had to fix before come first: they're the ones it keeps missing.
+  for (const m of knownMishearings(handle, schoolId, 12)) add(m.meant);
   for (const r of rows) add(r.title.replace(/[:(].*$/, "").trim());
   for (const r of rows) {
     let facts: string[] = [];

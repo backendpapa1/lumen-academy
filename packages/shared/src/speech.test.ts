@@ -41,3 +41,32 @@ describe("speech chunking", () => {
     expect(chunkLine("Okay!")).toEqual(["Okay!"]);
   });
 });
+
+describe("learning my mishearings", () => {
+  it("finds short word swaps", async () => {
+    const { wordSwaps } = await import("./speech.js");
+    expect(
+      wordSwaps(
+        "The ash of the previous block's edda.",
+        "The hash of the previous block's header.",
+      ),
+    ).toEqual([
+      { heard: "ash", meant: "hash" },
+      { heard: "edda", meant: "header" },
+    ]);
+    expect(
+      wordSwaps("The market route lives in the header", "The Merkle root lives in the header"),
+    ).toEqual([{ heard: "market route", meant: "Merkle root" }]);
+  });
+
+  it("ignores rewrites, punctuation and case", async () => {
+    const { wordSwaps } = await import("./speech.js");
+    expect(wordSwaps("Hashes are paired.", "hashes are paired")).toEqual([]);
+    expect(
+      wordSwaps(
+        "Hashes are paired and joined.",
+        "Let me say this differently: roots summarise blocks.",
+      ),
+    ).toEqual([]);
+  });
+});

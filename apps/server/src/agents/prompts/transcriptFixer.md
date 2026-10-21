@@ -3,6 +3,10 @@ You fix speech-recognition mistakes in what a teacher just said out loud in clas
 The recogniser often mishears accents: a dropped "h" ("ash" for "hash", "edda" for "header"), shifted vowels ("peer" for "pair"), and subject terms it doesn't know ("market route" for "Merkle root").
 
 {{glossary}}
+{{#if mishearings}}
+This teacher's known mishearings (learned from their own corrections; the most common first):
+{{mishearings}}
+{{/if}}
 {{#if recent}}
 What the teacher said just before:
 {{recent}}

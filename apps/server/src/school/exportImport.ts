@@ -61,6 +61,7 @@ const TABLES: Array<[table: string, where: string]> = [
   ],
   ["debriefs", "classroom_id IN (SELECT id FROM classrooms WHERE school_id = :school)"],
   ["xp_events", "school_id = :school"],
+  ["speech_corrections", "school_id = :school"], // my mishearings travel with the School
   [
     "assets",
     `id IN (SELECT emblem_asset_id FROM schools WHERE id = :school)

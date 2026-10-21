@@ -456,3 +456,18 @@ export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   valueJson: text("value_json").notNull(),
 });
+
+/** V1 voice: what Whisper heard vs what I meant, learned from my edits, per School. */
+export const speechCorrections = sqliteTable(
+  "speech_corrections",
+  {
+    schoolId: text("school_id")
+      .notNull()
+      .references(() => schools.id),
+    heard: text("heard").notNull(), // lower-case, 1–3 words
+    meant: text("meant").notNull(), // as I typed it, 1–3 words
+    count: integer("count").notNull().default(1),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("speech_corrections_pair").on(t.schoolId, t.heard, t.meant)],
+);

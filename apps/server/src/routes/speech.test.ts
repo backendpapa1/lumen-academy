@@ -132,6 +132,45 @@ describe("speech routes", () => {
     expect(seen).toContain("Glossary:");
   });
 
+  it("learns my fixes per School and feeds them back to Whisper and the fixer", async () => {
+    let fixerPrompt = "";
+    const { w, app, stt } = await boot((body) => {
+      fixerPrompt = body.messages.map((m) => m.content).join("\n");
+      return JSON.stringify({ text: "Nodes follow the chain with the most work." });
+    });
+    const learn = await app.inject({
+      method: "POST",
+      url: "/api/speech/corrections",
+      payload: {
+        classroomId: w.classroomId,
+        suggested: "Not follow the chain with the most work.",
+        sent: "Nodes follow the chain with the most work.",
+      },
+    });
+    expect(learn.json()).toEqual({ learned: [{ heard: "not", meant: "Nodes" }] });
+    // A rewrite isn't a fix: nothing learned.
+    const rewrite = await app.inject({
+      method: "POST",
+      url: "/api/speech/corrections",
+      payload: {
+        classroomId: w.classroomId,
+        suggested: "Pairs are hashed.",
+        sent: "Let me start again on roots and headers.",
+      },
+    });
+    expect(rewrite.json()).toEqual({ learned: [] });
+
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(4000)], { type: "audio/webm" }), "a.webm");
+    await app.inject({
+      method: "POST",
+      url: `/api/speech/transcribe?classroomId=${w.classroomId}`,
+      payload: form,
+    });
+    expect(stt.prompts.at(-1)).toMatch(/^Glossary: Nodes/);
+    expect(fixerPrompt).toContain('"not" → "Nodes" (1×)');
+  });
+
   it("ignores a click that's too short to be speech", async () => {
     const { w, app, stt } = await boot();
     const form = new FormData();

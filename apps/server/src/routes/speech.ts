@@ -3,6 +3,7 @@ import multipart from "@fastify/multipart";
 import { z } from "zod";
 import type { SpeechConfig } from "@lumen/shared";
 import { fixTranscript } from "../agents/realtime/transcriptFixer.js";
+import { knownMishearings, recordCorrections } from "../speech/corrections.js";
 import type { DbHandle } from "../db/client.js";
 import type { ModelFactory } from "../models/factory.js";
 import { glossaryFor } from "../speech/glossary.js";
@@ -55,6 +56,24 @@ export async function registerSpeechRoutes(
     sttProblem: speech.stt.problem,
     ttsProblem: speech.tts.problem,
   }));
+
+  const CorrectionZ = z.strictObject({
+    classroomId: z.string().min(1),
+    suggested: z.string().trim().min(1).max(2000),
+    sent: z.string().trim().min(1).max(2000),
+  });
+  /** I edited the recogniser's words before sending: learn the swaps for this School. */
+  app.post("/api/speech/corrections", async (req, reply) => {
+    const body = CorrectionZ.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: "What changed?" });
+    const row = sqlite
+      .prepare("SELECT school_id AS s FROM classrooms WHERE id = ?")
+      .get(body.data.classroomId) as { s: string } | undefined;
+    if (!row) return reply.code(404).send({ error: "no such classroom" });
+    const learned = recordCorrections(deps.handle, row.s, body.data.suggested, body.data.sent);
+    if (learned.length) glossaries.delete(row.s);
+    return { learned };
+  });
 
   const FixZ = z.strictObject({
     classroomId: z.string().min(1),
@@ -140,7 +159,15 @@ export async function registerSpeechRoutes(
     )
       .map((r) => r.text)
       .reverse();
-    return { schoolName: room?.school ?? "", conceptTitle: room?.concept ?? "", recent };
+    const school = sqlite
+      .prepare("SELECT school_id AS s FROM classrooms WHERE id = ?")
+      .get(classroomId) as { s: string } | undefined;
+    return {
+      schoolName: room?.school ?? "",
+      conceptTitle: room?.concept ?? "",
+      recent,
+      mishearings: school ? knownMishearings(deps.handle, school.s) : [],
+    };
   }
 
   function voiceOf(cadetId: string): StudentVoice | null {
