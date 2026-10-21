@@ -16,10 +16,12 @@
     "cli:curriculum": "tsx scripts/cli-curriculum.ts",
     "cli:register": "tsx scripts/cli-register.ts",
     "eval:agents": "tsx scripts/eval-agents.ts",
-    "cli:teach": "tsx scripts/cli-teach.ts"
+    "cli:teach": "tsx scripts/cli-teach.ts",
+    "images:probe": "tsx scripts/images-probe.ts"
   },
   "dependencies": {
     "@fastify/cors": "11.3.1",
+    "@fastify/multipart": "10.1.3",
     "@fastify/websocket": "11.3.4",
     "@langchain/core": "^1.2.18",
     "@langchain/deepseek": "1.1.17",
@@ -33,6 +35,7 @@
     "handlebars": "^4.7.10",
     "langchain": "1.5.18",
     "openai": "7.39.0",
+    "sharp": "0.35.5",
     "sqlite-vec": "0.1.9",
     "ulidx": "2.4.1",
     "unpdf": "1.9.1",
