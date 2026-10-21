@@ -183,7 +183,7 @@ export class EliLadder {
     if (!r) return null;
     const c = this.session.currentConcept;
     let score = 0;
-    let feedback = "";
+    let feedback: string;
     try {
       const res = await usage(this.session, () =>
         callStructured(this.host.factory, "modeJudge", {
