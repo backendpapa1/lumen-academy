@@ -1,7 +1,9 @@
 /*
  * lumen-sigsys: runs a command under ptrace and turns Android's seccomp traps
  * (SIGSYS) into -ENOSYS, so glibc and Node fall back to calls Android allows.
- * It only wakes on signals, never on ordinary system calls.
+ * It only wakes on signals, never on ordinary system calls. SIGTERM, SIGINT and
+ * SIGHUP sent to it are passed on to the program, so it can close cleanly
+ * (if the supervisor itself dies, PTRACE_O_EXITKILL takes the program with it).
  * Usage: libsigsys.so <program> [args...]
  */
 #include <errno.h>
@@ -16,9 +18,15 @@
 #include <unistd.h>
 #include <asm/ptrace.h>
 
+static volatile pid_t child = 0;
+
+static void forward(int sig) {
+  if (child > 0) kill(child, sig);
+}
+
 int main(int argc, char **argv) {
   if (argc < 2) { fprintf(stderr, "usage: %s program [args]\n", argv[0]); return 2; }
-  pid_t child = fork();
+  child = fork();
   if (child == 0) {
     ptrace(PTRACE_TRACEME, 0, 0, 0);
     raise(SIGSTOP);
@@ -32,11 +40,21 @@ int main(int argc, char **argv) {
          PTRACE_O_EXITKILL | PTRACE_O_TRACECLONE | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK |
              PTRACE_O_TRACEEXEC);
   ptrace(PTRACE_CONT, child, 0, 0);
+  struct sigaction sa;
+  memset(&sa, 0, sizeof sa);
+  sa.sa_handler = forward;
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGTERM, &sa, NULL);
+  sigaction(SIGINT, &sa, NULL);
+  sigaction(SIGHUP, &sa, NULL);
   static unsigned char seen[1024];
   int code = 0;
   for (;;) {
     pid_t w = waitpid(-1, &status, __WALL);
-    if (w < 0) break;
+    if (w < 0) {
+      if (errno == EINTR) continue; /* a forwarded signal */
+      break;                        /* no children left */
+    }
     if (WIFEXITED(status) || WIFSIGNALED(status)) {
       if (w == child) {
         code = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);

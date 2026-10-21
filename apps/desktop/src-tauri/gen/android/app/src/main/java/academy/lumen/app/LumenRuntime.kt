@@ -87,13 +87,40 @@ object LumenRuntime {
   }
 
   fun stop() {
-    synchronized(this) {
+    val old = synchronized(this) {
       generation++
-      process?.destroy()
-      process = null
       status = "stopped"
       busy = null
+      process.also { process = null }
     }
+    old?.let { Thread({ shutDown(it) }, "lumen-server-stop").start() }
+  }
+
+  /**
+   * Asks the server to close (SIGTERM to the supervisor, which passes it on), so
+   * a running period is saved; kills it if it hasn't gone within a few seconds.
+   */
+  private fun shutDown(proc: Process) {
+    // The process's pid isn't public API before Android 13's Process.pid(): try the
+    // implementation's field, else find our supervisor in /proc (our own uid's).
+    val pid = runCatching {
+      proc.javaClass.getDeclaredField("pid").apply { isAccessible = true }.getInt(proc)
+    }.getOrNull() ?: runCatching {
+      File("/proc").listFiles()?.firstOrNull { d ->
+        d.name.all(Char::isDigit) && File(d, "cmdline").readText().startsWith(
+          app.applicationInfo.nativeLibraryDir + "/libsigsys.so",
+        )
+      }?.name?.toInt()
+    }.getOrNull()
+    if (pid != null && pid > 0) {
+      android.os.Process.sendSignal(pid, 15)
+      val deadline = System.currentTimeMillis() + 4000
+      while (System.currentTimeMillis() < deadline) {
+        if (runCatching { proc.exitValue() }.isSuccess) return
+        Thread.sleep(100)
+      }
+    }
+    proc.destroy()
   }
 
   private fun fail(gen: Int, msg: String) {
@@ -105,10 +132,7 @@ object LumenRuntime {
   }
 
   private fun boot(gen: Int) {
-    synchronized(this) {
-      process?.destroy()
-      process = null
-    }
+    synchronized(this) { process.also { process = null } }?.let { shutDown(it) }
     unpackIfNeeded()
     if (gen != generation) return
     status = "starting"
