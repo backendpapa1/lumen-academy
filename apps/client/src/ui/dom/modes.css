@@ -1,0 +1,85 @@
+/* Teaching modes in class (V5). */
+.mode-banner {
+  position: absolute;
+  left: 50%;
+  top: 86px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 14px;
+  max-width: min(720px, calc(100vw - 32px));
+  background: var(--navy);
+  color: #fff;
+  border-color: var(--navy);
+  box-shadow: 4px 4px 0 var(--marigold);
+  font: 400 14px var(--font-body);
+}
+.mode-banner b {
+  font: 400 15px var(--font-display);
+  color: var(--marigold);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.mode-panel {
+  position: absolute;
+  right: 16px;
+  top: 150px;
+  z-index: 6;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 320px);
+  overflow: auto;
+  padding: 16px;
+}
+.tb-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.tb-line {
+  all: unset;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: var(--line);
+  background: var(--paper);
+  font: 400 15px/1.4 var(--font-body);
+  color: var(--ink);
+  cursor: pointer;
+}
+.tb-line:hover:not(:disabled) {
+  background: var(--cobalt-wash);
+}
+.tb-line:focus-visible {
+  outline: 3px solid var(--marigold);
+  outline-offset: 2px;
+}
+.tb-line.marked {
+  background: var(--coral-wash);
+  border-color: var(--coral);
+  text-decoration: line-through;
+  text-decoration-color: var(--coral);
+}
+.tb-line small {
+  display: block;
+  margin-top: 4px;
+  font: 700 11px var(--font-ui);
+  text-decoration: none;
+}
+.tb-line.true small {
+  color: var(--leaf);
+}
+.tb-line.false small {
+  color: var(--coral);
+}
+.tb-line.false:not(.marked) {
+  border-color: var(--coral);
+  border-style: dashed;
+}
+.tb-line:disabled {
+  cursor: default;
+}

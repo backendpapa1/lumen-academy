@@ -222,6 +222,52 @@ describe("classroom over WebSocket", () => {
     ws.close();
   });
 
+  it("Socratic: statements are refused, questions get the hot seat's answer (V5-02)", async () => {
+    const { w, send, until, inbox, ws } = await boot();
+    send("period.start", { classroomId: w.classroomId, kind: "socratic" });
+    const started = await until("period.started");
+    expect(started.payload).toMatchObject({ kind: "socratic" });
+    const seat = started.payload.hotSeat!;
+    expect(started.payload.cadets.map((c) => c.id)).toContain(seat);
+    send("teach.message", { text: "The root goes in the header." });
+    expect((await until("toast")).payload.text).toMatch(/Try asking/);
+    expect(inbox.some((m) => m.type === "turn.started")).toBe(false);
+    send("teach.message", { text: "Where do you think the root is kept?" });
+    await until("turn.started");
+    const answer = await until("cadet.done");
+    expect(answer.payload.cadetId).toBe(seat);
+    await until("ledger.update");
+    send("period.end", {});
+    const ended = await until("period.ended");
+    expect(ended.payload.mode).toMatchObject({ kind: "socratic", title: "Socratic" });
+    ws.close();
+  });
+
+  it("teach-back: the student explains it back, I mark, it's scored (V5-03)", async () => {
+    const { w, send, until, ws } = await boot();
+    for (const c of w.cadets)
+      h!.sqlite
+        .prepare(
+          "INSERT INTO ledger_entries (cadet_id, concept_id, comprehension, exposures, misconceptions_json) VALUES (?, ?, 0.2, 2, ?)",
+        )
+        .run(
+          c.id,
+          w.conceptIds[0],
+          JSON.stringify([{ text: SECRET_ERROR, source: "teacher_error", since: "" }]),
+        );
+    send("period.start", { classroomId: w.classroomId, kind: "teach_back" });
+    await until("period.started");
+    const ready = await until("teachback.ready");
+    expect(ready.payload.sentences.length).toBeGreaterThan(0);
+    send("teachback.mark", { wrong: [0] });
+    const result = await until("teachback.result");
+    expect(result.payload.lines).toHaveLength(ready.payload.sentences.length);
+    expect(result.payload.lines[0]!.marked).toBe(true);
+    send("period.end", {});
+    expect((await until("period.ended")).payload.mode).toMatchObject({ kind: "teach_back" });
+    ws.close();
+  });
+
   it("extends the period after the bell, and the extension is saved (T-7)", async () => {
     const { w, send, until, ws } = await boot();
     send("period.start", { classroomId: w.classroomId, minutes: 5 });

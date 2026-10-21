@@ -12,7 +12,12 @@ Output
 - teaching.errors: claims that contradict the key facts, each with the correction and a citation (the key fact's id, e.g. "kf3").
 - ledgerDeltas: for each student whose understanding plausibly changed, a comprehensionDelta (-0.3..0.4). Base it on accuracy, clarity, the student's attention and learning style. A confused student whose question was answered well gains more. Errors can lower comprehension. Add newMisconception if this student would likely absorb a stated error; add resolvedMisconception if the teacher corrected one of theirs.
 
-Current concept ({{conceptId}}): {{conceptTitle}}
+{{#if socratic}}SOCRATIC CLASS: the teacher teaches only by asking questions; the student in the hot seat answers.
+- Judge accuracy by what the question presupposes or steers toward ("Isn't the root in every transaction?" steers toward an error: record it).
+- Give coverage for key facts the question leads the class toward correctly. A good question can teach as much as a statement.
+- Also output question.kind: "diagnostic" (finds out what the student believes), "leading" (guides them to the right idea step by step), "closed" (yes/no or a recall check), or "statement" (not really a question).
+
+{{/if}}Current concept ({{conceptId}}): {{conceptTitle}}
 Key facts:
 {{keyFacts}}
 Known common misconceptions:

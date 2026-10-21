@@ -181,6 +181,16 @@ streak:
   freezeEveryDays: 7 # V3-07: a week of streak earns a freeze (covers one missed day)
   maxFreezes: 2
 
+modes: # V5 (VD11): each teaching mode behind its own flag
+  socratic: true
+  teach_back: true
+  analogy_lab: true
+  eli_ladder: true
+  substitute: true
+  guest: true # guest lecturer (sources only, with citations)
+  parentMeeting: true
+  guestPerWeek: 5
+
 micro: # V3-01: one idea, one student, one exit question
   minutes: 3
 
@@ -196,6 +206,7 @@ xp: # docs/02 §7.1
   glitchCaught: 50
   popQuizPerPoint: 6 # pop quiz: Grader score 0–5 × this
   microLesson: 25 # V3-01: flat, instead of teachingMinute (a reduced rate)
+  teachBackCatch: 20 # V5-03: per mistake caught in a teach-back
 
 ranks: # placeholder thresholds; tune after M5
   - { name: Student Teacher, minXp: 0 }

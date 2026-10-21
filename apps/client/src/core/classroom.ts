@@ -5,6 +5,7 @@ import type {
   ReactionState,
   ServerMessage,
   ServerMessageOf,
+  PeriodKind,
   StickerView,
   XpStanding,
 } from "@lumen/shared";
@@ -120,7 +121,7 @@ export interface ClassroomState {
   /** V2-04: days since this concept was last taught in this class (null: new). */
   lastTaughtDays: number | null;
   /** V3-01/02: a micro-lesson, and how I said I felt at the start. */
-  kind: "class" | "micro";
+  kind: PeriodKind;
   energy: "low" | "ok" | "high" | null;
   /** V3-04: open parked thoughts in this School; this period's, at the bell. */
   parking: { open: number; items: ParkedItem[] };
@@ -130,6 +131,14 @@ export interface ClassroomState {
   peer: { speakerId: string; listenerId: string } | null;
   /** V4-06: the corkboard, latest first. */
   stickers: StickerView[];
+  /** V5: the student at the centre of a Socratic or teach-back period. */
+  hotSeat: string | null;
+  /** V5-03: the teach-back to mark, then its result. */
+  teachBack: {
+    cadetId: string;
+    sentences: string[];
+    result?: ServerMessageOf<"teachback.result">["payload"];
+  } | null;
   /** T-10: Hyperfocus mode for this period. */
   hyperfocus: boolean;
   /** The exit-ticket minigame at the bell (M4-05). */
@@ -160,6 +169,8 @@ export const initialClassroom = (): ClassroomState => ({
   breakUntil: null,
   peer: null,
   stickers: [],
+  hotSeat: null,
+  teachBack: null,
   hyperfocus: false,
 });
 
@@ -191,6 +202,7 @@ export function applyServerMessage(
         lastTaughtDays: m.payload.lastTaughtDays ?? null,
         kind: m.payload.kind ?? "class",
         stickers: m.payload.stickers ?? [],
+        hotSeat: m.payload.hotSeat ?? null,
         energy: m.payload.energy ?? null,
         transcript: m.payload.transcript.map((t) => ({
           speaker: t.cadetId ? "cadet" : "headmaster",
@@ -279,6 +291,10 @@ export function applyServerMessage(
         thinking: false,
         breakUntil: m.payload.paused ? s.breakUntil : null,
       };
+    case "teachback.ready":
+      return { ...s, teachBack: { ...m.payload } };
+    case "teachback.result":
+      return s.teachBack ? { ...s, teachBack: { ...s.teachBack, result: m.payload } } : s;
     case "cadet.arc": {
       const c = s.cadets[m.payload.cadetId];
       if (!c?.arc) return s;
@@ -400,6 +416,7 @@ export function applyServerMessage(
           costUsd: m.payload.costUsd,
           recapOut: m.payload.recapOut,
           xp: m.payload.xp,
+          ...(m.payload.mode ? { mode: m.payload.mode } : {}),
         },
         xp: m.payload.xp.standing,
         speech: null,

@@ -168,3 +168,25 @@ export function applyTurnToLedger(
     return changes;
   })();
 }
+
+/** V5-03: misconceptions I caught out loud are cleared for that student. Returns how many. */
+export function resolveMisconceptions(
+  handle: DbHandle,
+  cadetId: string,
+  conceptId: string,
+  ideas: string[],
+): number {
+  const row = handle.sqlite
+    .prepare("SELECT misconceptions_json FROM ledger_entries WHERE cadet_id = ? AND concept_id = ?")
+    .get(cadetId, conceptId) as { misconceptions_json: string } | undefined;
+  if (!row) return 0;
+  const held = JSON.parse(row.misconceptions_json) as Misconception[];
+  const kept = held.filter((m) => !ideas.some((i) => sameIdea(i, m.text)));
+  if (kept.length === held.length) return 0;
+  handle.sqlite
+    .prepare(
+      "UPDATE ledger_entries SET misconceptions_json = ? WHERE cadet_id = ? AND concept_id = ?",
+    )
+    .run(JSON.stringify(kept), cadetId, conceptId);
+  return held.length - kept.length;
+}

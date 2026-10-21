@@ -112,6 +112,9 @@ export const PeerVerdictZ = z.object({
 });
 export type PeerVerdict = z.infer<typeof PeerVerdictZ>;
 
+/** V5-03: the student's own statements, phrased as an explanation (same count, same order). */
+export const TeachBackPhrasingZ = z.object({ sentences: z.array(z.string().min(1).max(300)) });
+
 /**
  * Slow path: how well I taught, and how each cadet's understanding moves (role `standard`).
  * Deliberately lenient on ranges and lengths: a re-ask costs seconds, and the
@@ -126,6 +129,8 @@ export const TeachingAnalysisZ = z.object({
     coverage: z.array(z.string()), // key facts covered this turn (verbatim from the list)
     errors: z.array(z.object({ claim: z.string(), correction: z.string(), citation: z.string() })),
   }),
+  /** V5-02: in a Socratic class, what kind of question I asked. */
+  question: z.object({ kind: z.enum(["diagnostic", "leading", "closed", "statement"]) }).optional(),
   ledgerDeltas: z.array(
     z.object({
       cadetId: z.string(),
@@ -149,6 +154,7 @@ export function normalizeTeachingAnalysis(a: TeachingAnalysis): TeachingAnalysis
       coverage: a.teaching.coverage,
       errors: a.teaching.errors.slice(0, 3),
     },
+    ...(a.question ? { question: a.question } : {}),
     ledgerDeltas: a.ledgerDeltas.map((d) => ({
       ...d,
       comprehensionDelta: clamp(d.comprehensionDelta, -0.3, 0.4),

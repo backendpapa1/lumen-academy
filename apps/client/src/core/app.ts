@@ -1,4 +1,4 @@
-import type { ServerMessage } from "@lumen/shared";
+import type { PeriodKind, ServerMessage } from "@lumen/shared";
 import {
   api,
   type ArchivedSchool,
@@ -215,7 +215,7 @@ export const app = {
     opts: {
       minutes?: number;
       conceptId?: string;
-      kind?: "class" | "micro";
+      kind?: PeriodKind;
       cadetId?: string;
       energy?: "low" | "ok" | "high";
       ask?: boolean;
@@ -391,6 +391,10 @@ export const app = {
       delete classroom.event;
       return { classroom };
     });
+  },
+  /** V5-03: the teach-back sentences I think are wrong. */
+  markTeachBack(wrong: number[]) {
+    ensureNet().send("teachback.mark", { wrong });
   },
   finishExitTickets(periodId: string) {
     ensureNet().send("exit.done", { periodId });

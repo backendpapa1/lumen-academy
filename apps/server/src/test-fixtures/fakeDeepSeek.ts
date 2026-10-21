@@ -133,7 +133,7 @@ export const agentOf = (body: FakeRequest) => {
     return "cadetAnswer";
   if (
     /You are .+, a student at Lumen Academy/.test(sys) &&
-    sys.includes("The teacher just called on you")
+    (sys.includes("The teacher just called on you") || sys.includes("You're in the hot seat"))
   ) {
     return "cadet";
   }

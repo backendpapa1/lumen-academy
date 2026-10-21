@@ -6,6 +6,7 @@ import "../dom/cadetTag";
 import "../dom/exitTickets";
 import "../dom/events";
 import "../dom/rankUp";
+import "../dom/modes";
 import "../dom/speech";
 import { lectern, talk } from "../dom/lectern";
 import { voice } from "../../core/voice";
@@ -644,6 +645,20 @@ export class ClassroomHud {
           xp.rankedUp ? `New rank: ${xp.standing.rank}` : xp.standing.rank,
         ),
       ),
+      // V5: what the mode found.
+      e.mode
+        ? h(
+            "div",
+            { class: "next mode-result" },
+            h(
+              "div",
+              { class: "micro" },
+              e.mode.title,
+              e.mode.score !== undefined ? ` · ${Math.round(e.mode.score * 100)}%` : "",
+            ),
+            ...e.mode.lines.map((l) => h("p", {}, l)),
+          )
+        : null,
       recap
         ? h("div", { class: "next" }, h("div", { class: "micro" }, "Next time…"), h("p", {}, recap))
         : null,

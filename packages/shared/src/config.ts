@@ -37,6 +37,11 @@ export const AGENT_NAMES = [
   "transcriptFixer",
   "knowledgeReporter",
   "peerGrader",
+  "teachBack",
+  "modeJudge",
+  "substitute",
+  "guestLecturer",
+  "parent",
 ] as const;
 export const AgentNameZ = z.enum(AGENT_NAMES);
 export type AgentName = z.infer<typeof AgentNameZ>;
@@ -368,6 +373,29 @@ export const GameConfigZ = z.strictObject({
     freezeEveryDays: z.number().int().positive().default(7),
     maxFreezes: z.number().int().nonnegative().default(2),
   }),
+  /** V5 (VD11): each teaching mode behind its own flag. */
+  modes: z
+    .strictObject({
+      socratic: z.boolean(),
+      teach_back: z.boolean(),
+      analogy_lab: z.boolean(),
+      eli_ladder: z.boolean(),
+      substitute: z.boolean(),
+      guest: z.boolean(),
+      parentMeeting: z.boolean(),
+      /** Guest lecturer visits per week (it costs a little). */
+      guestPerWeek: z.number().int().nonnegative(),
+    })
+    .default({
+      socratic: true,
+      teach_back: true,
+      analogy_lab: true,
+      eli_ladder: true,
+      substitute: true,
+      guest: true,
+      parentMeeting: true,
+      guestPerWeek: 5,
+    }),
   /** V3-01: one idea, one student, one question. XP is a flat xp.microLesson, not per minute. */
   micro: z.strictObject({ minutes: z.number().int().min(1).max(10) }).default({ minutes: 3 }),
   buildingTiers: z.array(unit).length(3), // mastered fraction for tiers 2, 3, 4

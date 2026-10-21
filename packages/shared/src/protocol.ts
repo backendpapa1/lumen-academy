@@ -1,3 +1,4 @@
+import { PERIOD_KINDS } from "./modes.js";
 import { z } from "zod";
 import { ArchetypeZ, HandIntentZ, MOODS, ReactionStateZ, UTTERANCE_KINDS } from "./agents.js";
 
@@ -71,7 +72,7 @@ export const XpStandingZ = z.object({
 export type XpStanding = z.infer<typeof XpStandingZ>;
 
 export const BudgetStateZ = z.enum(["ok", "warn", "degrade", "pause"]);
-export const PeriodKindZ = z.enum(["class", "micro"]);
+export const PeriodKindZ = z.enum(PERIOD_KINDS);
 export const StickerViewZ = z.strictObject({
   id: z.string(),
   cadetId: z.string(),
@@ -128,6 +129,8 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
   /** Exit ticket (M4-05): ✓ = true, ✗ = false. */
   msg("exit.mark", z.strictObject({ ticketId: z.string(), verdict: z.boolean() })),
   msg("exit.done", z.strictObject({ periodId: z.string() })),
+  /** V5-03: the sentences of a teach-back I think are wrong (indexes). */
+  msg("teachback.mark", z.strictObject({ wrong: z.array(z.number().int().min(0).max(20)) })),
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageZ>;
 
@@ -162,6 +165,8 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       energy: EnergyZ.nullable().optional(),
       /** V4-06: the corkboard, latest first. */
       stickers: z.array(StickerViewZ).optional(),
+      /** V5: the student at the centre of a Socratic or teach-back period. */
+      hotSeat: z.string().nullable().optional(),
     }),
   ),
   /** XP just earned (e.g. answering a cadet's question). */
@@ -366,6 +371,18 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
   /** V4-01: one student turns to another; their lines follow as cadet.stream/done. */
   msg("peer.started", z.strictObject({ speakerId: z.string(), listenerId: z.string() })),
   msg("peer.ended", z.strictObject({ speakerId: z.string(), listenerId: z.string() })),
+  /** V5-03: a student explained it back; mark the wrong sentences. */
+  msg("teachback.ready", z.strictObject({ cadetId: z.string(), sentences: z.array(z.string()) })),
+  msg(
+    "teachback.result",
+    z.strictObject({
+      lines: z.array(z.strictObject({ text: z.string(), true: z.boolean(), marked: z.boolean() })),
+      caught: z.number(),
+      missed: z.number(),
+      falseAlarms: z.number(),
+      score: z.number(),
+    }),
+  ),
   /** V4-03: a student moved on in their growth arc. */
   msg(
     "cadet.arc",
@@ -400,6 +417,15 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       minutes: z.number(),
       costUsd: z.number(),
       recapOut: z.string().optional(),
+      /** V5: what the mode found (Socratic questions, teach-back catches…). */
+      mode: z
+        .strictObject({
+          kind: PeriodKindZ,
+          title: z.string(),
+          lines: z.array(z.string()),
+          score: z.number().optional(),
+        })
+        .optional(),
       xp: z.strictObject({
         earned: z.number(),
         breakdown: z.array(z.object({ kind: z.string(), amount: z.number() })),

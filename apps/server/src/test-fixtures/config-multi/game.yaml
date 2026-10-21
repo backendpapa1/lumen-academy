@@ -167,6 +167,7 @@ xp: # docs/02 §7.1
   glitchCaught: 50
   popQuizPerPoint: 6 # pop quiz: Grader score 0–5 × this
   microLesson: 25
+  teachBackCatch: 20 # V5-03: per mistake caught in a teach-back
 
 ranks: # placeholder thresholds; tune after M5
   - { name: Cadet Instructor, minXp: 0 }

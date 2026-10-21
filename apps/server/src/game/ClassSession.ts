@@ -1,3 +1,4 @@
+import { modeInfo, type PeriodKind } from "@lumen/shared";
 import { arcMoment, arcPrompt, arcStep, parseArc, type ArcSignal } from "./arcs.js";
 import { interestsOf } from "./interests.js";
 import type { ArcState } from "@lumen/shared";
@@ -238,12 +239,16 @@ export class ClassSession {
     const open = settleOpenPeriods(deps, room.id, input.resume === true);
     // A resumed period keeps what it was; a new one takes what was asked for.
     const kind: PeriodKind = open?.kind ?? input.kind ?? "class";
+    const flag = (deps.game.modes as Record<string, boolean | number>)[kind];
+    if (!open && flag === false)
+      throw new Error(`${modeInfo(kind).label} is switched off in game.yaml`);
     const energy = open ? open.energy : (input.energy ?? null);
-    const focusId =
-      kind === "micro"
-        ? (open?.focusCadetId ?? input.cadetId ?? microStudent(deps, roster, conceptId))
-        : null;
-    const seated = focusId ? roster.filter((c) => c.id === focusId) : roster;
+    // One student at the centre: alone in a micro-lesson, in the hot seat in Socratic
+    // and teach-back (V5), whoever knows the concept least unless I picked them.
+    const focusId = ["micro", "socratic", "teach_back"].includes(kind)
+      ? (open?.focusCadetId ?? input.cadetId ?? microStudent(deps, roster, conceptId))
+      : null;
+    const seated = kind === "micro" && focusId ? roster.filter((c) => c.id === focusId) : roster;
     if (!seated.length) throw new Error(`cadet ${focusId} is not in this class`);
     const states: CadetState[] = seated.map((c) => {
       const traits = JSON.parse(c.traitsJson) as { attention: number; skepticism: number };
@@ -264,7 +269,7 @@ export class ClassSession {
     const periodId = open?.id ?? newId("period");
     const plannedMinutes =
       open?.plannedMinutes ??
-      (kind === "micro" ? deps.game.micro.minutes : undefined) ??
+      (kind === "micro" ? deps.game.micro.minutes : (modeInfo(kind).minutes ?? undefined)) ??
       input.plannedMinutes ??
       deps.game.period.defaultMinutes;
     if (!open)
@@ -296,6 +301,16 @@ export class ClassSession {
       open?.elapsedMs ?? 0,
     );
     session.kind = kind;
+    session.hotSeat = focusId;
+    session.hotSeatStart = focusId
+      ? ((
+          deps.handle.sqlite
+            .prepare(
+              "SELECT comprehension c FROM ledger_entries WHERE cadet_id = ? AND concept_id = ?",
+            )
+            .get(focusId, conceptId) as { c: number } | undefined
+        )?.c ?? 0)
+      : 0;
     session.energy = energy;
     // Low energy (V3-02): a gentler crowd and shorter questions, whatever the class's usual difficulty.
     session.difficulty = energy === "low" ? "gentle" : (room.difficulty ?? "standard");
@@ -339,6 +354,24 @@ export class ClassSession {
   /** Everything said this period, oldest first. */
   get lines(): ReadonlyArray<TranscriptLine> {
     return this.transcript;
+  }
+
+  /** V5-03: true if a phrasing uses terms that neither I nor the raw statement used. */
+  addsTerms(phrased: string, raw: string): boolean {
+    const allowed = new Set([...this.taughtVocab, ...vocabulary([raw])]);
+    return (
+      untaughtTerms(
+        phrased,
+        allowed,
+        this.sourceVocab,
+        this.deps.game.leakGuard.untaughtTermThreshold,
+      ).untaught.length > 0
+    );
+  }
+
+  /** V5-03: record what the hot-seat student said as their teach-back. */
+  recordTeachBack(cadetId: string, text: string): string {
+    return this.recordCadetUtterance(cadetId, text, "answer", { teachBack: true });
   }
 
   /** V4-03/04: each student's interests and arc, for views and sticker rules. */
@@ -387,6 +420,9 @@ export class ClassSession {
   /** T-10 Hyperfocus: sharper, more frequent questions (lighting is the client's). */
   hyperfocus = false;
   kind: PeriodKind = "class";
+  /** V5: the student at the centre of a Socratic or teach-back period. */
+  hotSeat: string | null = null;
+  hotSeatStart = 0;
   private peerCount = 0;
   private lastPeerTurn = -Infinity;
   /**
@@ -407,7 +443,8 @@ export class ClassSession {
   energy: Energy | null = null;
   /** V3-01/02: no surprise events in a micro-lesson or on a low-energy day. */
   get quiet(): boolean {
-    return this.kind === "micro" || this.energy === "low";
+    // Every mode but the lecture is its own exercise: no surprises, no peer talk (V5).
+    return this.kind !== "class" || this.energy === "low";
   }
   /** R-6: the class's difficulty also sets how sharp its questions are. */
   difficulty: "gentle" | "standard" | "ruthless" = "standard";
@@ -607,6 +644,8 @@ export class ClassSession {
       onDelta?: (text: string) => void;
       /** V4-01: talk to a classmate (explain, or reply to what they said). */
       peer?: { role: "explain" | "reply"; toId: string; preview?: string; said?: string };
+      /** V5-02: answer the teacher's Socratic question. */
+      answer?: string;
     } = {},
   ): Promise<SpokenTurn | null> {
     const to = opts.peer && this.cadetStates.find((c) => c.id === opts.peer!.toId);
@@ -664,6 +703,7 @@ export class ClassSession {
             ...(to
               ? { peer: { role: opts.peer!.role, name: to.name, said: opts.peer!.said } }
               : {}),
+            ...(opts.answer ? { answering: opts.answer } : {}),
             canPeek: canPeek && !opts.peer,
             pastClaims: this.pastClaims,
             hyperfocus: this.hyperfocus,
@@ -677,11 +717,13 @@ export class ClassSession {
       if (result.peeked) this.peeked.add(cadetId);
       const kind = opts.peer
         ? "peer"
-        : result.utterance.kind === "objection" ||
-            result.utterance.kind === "claim" ||
-            result.utterance.kind === "answer"
-          ? result.utterance.kind
-          : "question";
+        : opts.answer
+          ? "answer"
+          : result.utterance.kind === "objection" ||
+              result.utterance.kind === "claim" ||
+              result.utterance.kind === "answer"
+            ? result.utterance.kind
+            : "question";
       const messageId = this.recordCadetUtterance(
         cadetId,
         result.utterance.text,
@@ -1038,6 +1080,7 @@ export class ClassSession {
         .map((x) => `- ${x.id}: ${x.title}`)
         .join("\n"),
       cadetTable: cadetTable(cards, { withSpoke: false }),
+      socratic: this.kind === "socratic",
     });
     return [
       new SystemMessage(system),
@@ -1265,7 +1308,7 @@ function settleOpenPeriods(
   };
 }
 
-export type PeriodKind = "class" | "micro";
+export type { PeriodKind };
 export type Energy = "low" | "ok" | "high";
 
 /** V3-01: the student who understands this concept least comes to the front (ties: by seat). */

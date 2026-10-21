@@ -1,3 +1,4 @@
+import type { PeriodKind } from "@lumen/shared";
 import type { Archetype, EditableCurriculum } from "@lumen/shared";
 import { SERVER_HTTP } from "./net";
 
@@ -148,6 +149,8 @@ export interface CampusView {
     freezes: number;
     frozenDays: number;
   };
+  /** V5: teaching modes switched on. */
+  modes?: PeriodKind[];
   /** V3-03: the one class to teach now, and why. */
   best: {
     classroomId: string;

@@ -64,6 +64,11 @@ agents:
   transcriptFixer: { role: fastest, maxOutputTokens: 200, temperature: 0 }
   knowledgeReporter: { role: fast, maxOutputTokens: 400 } # V2-07: a summary of the numbers only
   peerGrader: { role: fastest, maxOutputTokens: 120, temperature: 0 }
+  teachBack: { role: fast, maxOutputTokens: 500 } # V5-03: phrases the student's own statements
+  modeJudge: { role: fast, maxOutputTokens: 400, temperature: 0 } # V5: analogy reasons, ELI fit, parent verdicts
+  substitute: { role: fast, maxOutputTokens: 900 } # V5-08: a lesson with planted errors the server chose
+  guestLecturer: { role: fast, maxOutputTokens: 600 } # V5-09: answers from my sources, with citations
+  parent: { role: fast, maxOutputTokens: 300, temperature: 0.7 } # V5-10
 
 budget:
   monthlyUsdCap: 20

@@ -1,7 +1,7 @@
 import { bestClass } from "../game/bestClass.js";
 import { fadingTarget } from "../game/fading.js";
 import type { FastifyInstance } from "fastify";
-import type { GameConfig } from "@lumen/shared";
+import { MODES, type GameConfig } from "@lumen/shared";
 import type { AssetService } from "../assets/service.js";
 import type { DbHandle } from "../db/client.js";
 import {
@@ -47,6 +47,10 @@ export function registerCampusRoutes(
       resume: resumeTarget(deps.handle),
       fading: fadingTarget(deps.handle, deps.game),
       best: bestClass(deps.handle, deps.game),
+      // V5: the teaching modes switched on in game.yaml.
+      modes: MODES.map((m) => m.kind).filter(
+        (k) => (deps.game.modes as Record<string, boolean | number>)[k] !== false,
+      ),
     };
   });
 }

@@ -1,3 +1,16 @@
+import { withUsageContext } from "../usage/meter.js";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { TeachBackPhrasingZ } from "@lumen/shared";
+import { callStructured } from "../agents/harness.js";
+import { loadPrompt } from "../agents/prompts/load.js";
+import {
+  planTeachBack,
+  scoreTeachBack,
+  type TeachBackLine,
+  type TeachBackScore,
+} from "../game/teachBack.js";
+import { resolveMisconceptions } from "../game/ledger.js";
+import { isQuestion, socraticResult, type ModeResult } from "../game/modes.js";
 import { ARCS, type Archetype, type ArcState } from "@lumen/shared";
 import { interestsOf } from "../game/interests.js";
 import { awardStickers, recentStickers } from "../game/stickers.js";
@@ -82,6 +95,14 @@ export class ClassroomConnection {
   /** The random event waiting for my answer (M6-01). */
   private event: PendingEvent | null = null;
   /** The Dean's visit: the explanations watched so far. */
+  /** V5-03: the teach-back in this period, and its marks once I've checked it. */
+  private teachBack: {
+    session: ClassSession;
+    lines: TeachBackLine[];
+    sentences: string[];
+    scored: boolean;
+    result?: TeachBackScore;
+  } | null = null;
   private inspection: {
     ev: PendingEvent;
     session: ClassSession;
@@ -177,6 +198,8 @@ export class ClassroomConnection {
             this.send({ type: "exit.result", payload: { ticketId: msg.payload.ticketId, ...r } });
           return;
         }
+        case "teachback.mark":
+          return this.markTeachBack(msg.payload.wrong);
         case "exit.done": {
           const e = this.ended;
           if (!e || e.periodId !== msg.payload.periodId) return;
@@ -314,10 +337,12 @@ export class ClassroomConnection {
         kind: session.kind,
         energy: session.energy,
         stickers: recentStickers(handle, room.id),
+        hotSeat: session.hotSeat,
       },
     });
     this.sendCost();
     if (this.rt.extras?.recaps !== false && !session.resumed) void this.sendRecap(session, room.id);
+    if (session.kind === "teach_back") void this.runTeachBack(session).catch(() => undefined);
   }
 
   private async sendRecap(session: ClassSession, classroomId: string) {
@@ -351,6 +376,12 @@ export class ClassroomConnection {
 
   private async teach(text: string, replyTo?: string) {
     const session = this.requireSession();
+    // V5-02: a Socratic class takes questions only. Nothing is saved or charged.
+    if (session.kind === "socratic" && !isQuestion(text))
+      return this.send({
+        type: "toast",
+        payload: { level: "info", text: "Try asking instead: turn that into a question." },
+      });
     // Speaking right after a cadet counts as answering them (as in cli:teach).
     const reply =
       replyTo ??
@@ -381,6 +412,9 @@ export class ClassroomConnection {
       type: "crowd.done",
       payload: { turnId: turn.turnId, firstReactionMs: reaction?.firstReactionMs ?? null },
     });
+    // V5-02: the student in the hot seat answers my question straight away.
+    if (session.kind === "socratic" && session.hotSeat && this.turnId === turn.turnId)
+      void this.call(session.hotSeat, { answer: text }).catch(() => undefined);
     const done = await turn.committed;
     // V4-06: stickers for great moments, by server rules on the Director's report.
     if (this.scope)
@@ -497,10 +531,11 @@ export class ClassroomConnection {
     this.sendCost();
   }
 
-  private async call(cadetId: string) {
+  private async call(cadetId: string, opts: { answer?: string } = {}) {
     const session = this.requireSession();
     const streamId = `str_${++this.streamSeq}`;
     const spoken = await session.speak(cadetId, {
+      ...opts,
       onDelta: (delta) =>
         this.send({ type: "cadet.stream", payload: { cadetId, streamId, delta } }),
     });
@@ -575,6 +610,143 @@ export class ClassroomConnection {
     }
   }
 
+  /**
+   * V5-03: the hot-seat student explains the concept back. The statements come
+   * from their own pack (true = retained, false = misconception); the LLM only
+   * phrases them, and any phrasing that adds terms falls back to the statement.
+   */
+  private async runTeachBack(session: ClassSession) {
+    const cadetId = session.hotSeat;
+    if (!cadetId) return;
+    const c = session.currentConcept;
+    const row = this.rt.handle.db.select().from(cadets).where(eq(cadets.id, cadetId)).get()!;
+    const lines = planTeachBack(this.rt.handle, this.rt.game, {
+      classroomId: session.classroomId,
+      cadetId,
+      periodId: session.periodId,
+      concept: c,
+    });
+    if (!lines.length) {
+      // Nothing taught, nothing to explain back: the student says so, honestly.
+      const text = `We haven't really done "${c.title}" yet. Could you teach it first?`;
+      const messageId = session.recordTeachBack(cadetId, text);
+      const streamId = `str_${++this.streamSeq}`;
+      this.send({ type: "cadet.stream", payload: { cadetId, streamId, delta: text } });
+      this.send({
+        type: "cadet.done",
+        payload: { cadetId, streamId, messageId, text, kind: "answer", mood: "sheepish" },
+      });
+      return;
+    }
+    let sentences = lines.map((l) => l.text);
+    try {
+      const res = await withUsageContext({ periodId: session.periodId }, () =>
+        callStructured(this.rt.factory, "teachBack", {
+          schema: TeachBackPhrasingZ,
+          name: "teach_back",
+          messages: [
+            new SystemMessage(
+              loadPrompt("teachBack", {
+                name: row.name,
+                voiceNotes: row.voiceNotes,
+                conceptTitle: c.title,
+                count: lines.length,
+                statements: lines.map((l, i) => `${i + 1}. ${l.text}`).join("\n"),
+              }),
+            ),
+            new HumanMessage("Explain it back."),
+          ],
+        }),
+      );
+      if (res.data.sentences.length === lines.length)
+        sentences = res.data.sentences.map((s, i) =>
+          session.addsTerms(s, lines[i]!.text) ? lines[i]!.text : s,
+        );
+    } catch {
+      /* the plain statements still make a teach-back */
+    }
+    if (this.session !== session) return;
+    this.teachBack = { session, lines, sentences, scored: false };
+    const text = sentences.join(" ");
+    const messageId = session.recordTeachBack(cadetId, text);
+    const streamId = `str_${++this.streamSeq}`;
+    this.send({ type: "cadet.stream", payload: { cadetId, streamId, delta: text } });
+    this.send({
+      type: "cadet.done",
+      payload: { cadetId, streamId, messageId, text, kind: "answer", mood: "curious" },
+    });
+    this.send({ type: "teachback.ready", payload: { cadetId, sentences } });
+    this.sendCost();
+  }
+
+  private markTeachBack(wrong: number[]) {
+    const tb = this.teachBack;
+    if (!tb || tb.session !== this.session || tb.scored) return;
+    tb.scored = true;
+    const s = scoreTeachBack(tb.lines, wrong);
+    tb.result = s;
+    const marked = new Set(wrong);
+    // The misconceptions I caught are corrected for that student.
+    const caught = tb.lines.filter((l, i) => !l.true && marked.has(i)).map((l) => l.text);
+    if (caught.length && tb.session.hotSeat)
+      resolveMisconceptions(
+        this.rt.handle,
+        tb.session.hotSeat,
+        tb.session.currentConcept.id,
+        caught,
+      );
+    if (this.scope && s.caught)
+      awardXp(this.rt.handle, this.rt.game, this.scope, "teachBackCatch", s.caught);
+    this.send({
+      type: "teachback.result",
+      payload: {
+        lines: tb.lines.map((l, i) => ({
+          text: tb.sentences[i]!,
+          true: l.true,
+          marked: marked.has(i),
+        })),
+        ...s,
+      },
+    });
+  }
+
+  /** V5: the mode's own result for the bell card. */
+  private modeResult(session: ClassSession): ModeResult | null {
+    if (session.kind === "socratic") {
+      const seat = session.hotSeat ? session.roster.find((r) => r.id === session.hotSeat) : null;
+      const now = seat ? this.comprehensionOf(seat.id, session.currentConcept.id) : 0;
+      return socraticResult(
+        this.rt.handle,
+        session.periodId,
+        seat ? { name: seat.name, before: session.hotSeatStart, after: now } : null,
+      );
+    }
+    if (session.kind === "teach_back") {
+      const r = this.teachBack?.session === session ? this.teachBack.result : undefined;
+      return {
+        kind: "teach_back",
+        title: "Teach-back",
+        lines: r
+          ? [
+              `You caught ${r.caught} of ${r.caught + r.missed} mistake${r.caught + r.missed === 1 ? "" : "s"}${r.falseAlarms ? `, with ${r.falseAlarms} false alarm${r.falseAlarms === 1 ? "" : "s"}` : ", with no false alarms"}.`,
+              r.missed
+                ? "The ones you missed are mix-ups your class still holds."
+                : "Nothing slipped past you.",
+            ]
+          : ["The teach-back wasn't marked this time."],
+        ...(r ? { score: r.score } : {}),
+      };
+    }
+    return null;
+  }
+
+  private comprehensionOf(cadetId: string, conceptId: string): number {
+    const row = this.rt.handle.sqlite
+      .prepare("SELECT comprehension c FROM ledger_entries WHERE cadet_id = ? AND concept_id = ?")
+      .get(cadetId, conceptId) as { c: number } | undefined;
+    return row?.c ?? 0;
+  }
+
   private async end() {
     const session = this.requireSession();
     this.session = null;
@@ -615,6 +787,7 @@ export class ClassroomConnection {
       sqlite
         .prepare("UPDATE periods SET recap_out = ? WHERE id = ?")
         .run(recapOut, session.periodId);
+    const mode = this.modeResult(session);
     const turns = (
       sqlite.prepare("SELECT count(*) n FROM turns WHERE period_id = ?").get(session.periodId) as {
         n: number;
@@ -628,6 +801,7 @@ export class ClassroomConnection {
         minutes: Math.round(session.periodMinute()),
         costUsd: this.rt.meter.totals(session.periodId).periodUsd ?? 0,
         ...(recapOut ? { recapOut } : {}),
+        ...(mode ? { mode } : {}),
         xp: {
           earned: breakdown.reduce((a, b) => a + b.amount, 0),
           breakdown,

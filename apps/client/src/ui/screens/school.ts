@@ -1,3 +1,4 @@
+import { openModePicker } from "./modePicker";
 import { api, ApiError, type SchoolDetail, type SourceRow } from "../../core/api";
 import { SERVER_HTTP } from "../../core/net";
 import { app } from "../../core/app";
@@ -492,6 +493,12 @@ function mountClasses(root: HTMLElement, schoolId: string): () => void {
                 { class: "btn primary", onclick: () => app.startClass(c.id) },
                 icon(ICONS.play),
                 "Teach",
+              ),
+            !graduated &&
+              h(
+                "button",
+                { class: "btn", onclick: () => openModePicker(c.id) },
+                "Other ways to teach",
               ),
             h(
               "button",

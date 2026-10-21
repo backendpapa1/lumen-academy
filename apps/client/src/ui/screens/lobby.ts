@@ -1,3 +1,4 @@
+import { openModePicker } from "./modePicker";
 import {
   api,
   ApiError,
@@ -243,7 +244,14 @@ function bestCard(b: NonNullable<CampusView["best"]>): HTMLElement {
         },
         "Micro-lesson · 3 min",
       ),
-      h("span", { class: "dim small" }, "One student, one idea, one question."),
+      h(
+        "button",
+        {
+          class: "btn quiet",
+          onclick: () => openModePicker(b.classroomId, b.conceptId),
+        },
+        "Other ways to teach",
+      ),
     ),
   );
 }
