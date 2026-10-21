@@ -75,8 +75,13 @@ class Voice {
   private analyser: AnalyserNode | null = null;
   // Recording
   private stream: MediaStream | null = null;
-  private recorder: MediaRecorder | null = null;
-  private chunks: Blob[] = [];
+  /** Push-to-talk capture: raw samples from the mic, sent as a WAV. */
+  private recorder: {
+    proc: ScriptProcessorNode;
+    src: MediaStreamAudioSourceNode;
+    mute: GainNode;
+  } | null = null;
+  private chunks: Float32Array[] = [];
   private micAnalyser: AnalyserNode | null = null;
   private levelRaf = 0;
   // Playback of the current line
@@ -169,10 +174,19 @@ class Voice {
     this.micAnalyser = ctx.createAnalyser();
     this.micAnalyser.fftSize = 256;
     src.connect(this.micAnalyser);
+    // The desktop app's WebKitGTK has no MediaRecorder, so take the samples
+    // ourselves (ScriptProcessor: it works there; AudioWorklet is untested) and
+    // send a 16 kHz WAV, which whisper reads without ffmpeg.
     this.chunks = [];
-    this.recorder = new MediaRecorder(this.stream, { mimeType: "audio/webm;codecs=opus" });
-    this.recorder.ondataavailable = (e) => e.data.size && this.chunks.push(e.data);
-    this.recorder.start();
+    const proc = ctx.createScriptProcessor(4096, 1, 1);
+    const mute = ctx.createGain();
+    mute.gain.value = 0;
+    proc.onaudioprocess = (e) =>
+      this.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    src.connect(proc);
+    proc.connect(mute);
+    mute.connect(ctx.destination);
+    this.recorder = { proc, src, mute };
     this.state.recording = true;
     const buf = new Uint8Array(this.micAnalyser.fftSize);
     const tick = () => {
@@ -196,17 +210,18 @@ class Voice {
     this.recorder = null;
     this.state.recording = false;
     this.state.level = 0;
-    const stopped = new Promise<void>((r) => (rec.onstop = () => r()));
-    rec.stop();
-    await stopped;
+    rec.proc.onaudioprocess = null;
+    rec.src.disconnect();
+    rec.proc.disconnect();
+    rec.mute.disconnect();
     if (cancel) return (this.emit(), "");
     this.state.transcribing = true;
     this.emit();
     const sentAt = performance.now();
     try {
-      const blob = new Blob(this.chunks, { type: "audio/webm" });
+      const blob = wavOf(this.chunks, rec.proc.context.sampleRate);
       const form = new FormData();
-      form.append("file", blob, "speech.webm");
+      form.append("file", blob, "speech.wav");
       const room = store.getState().classroom.classroom?.id;
       const res = await fetch(
         `${SERVER_HTTP}/api/speech/transcribe?fix=0${room ? `&classroomId=${room}` : ""}`,
@@ -494,3 +509,40 @@ store.subscribe((s, p) => {
   if (s.classroom.status === "live" && p.classroom.status !== "live") void voice.refreshStatus();
   if (s.classroom.status === "ended" && p.classroom.status !== "ended") voice.stopSpeaking();
 });
+
+/** Mono samples → a 16-bit, 16 kHz WAV (what whisper reads natively). */
+export function wavOf(chunks: Float32Array[], rate: number, outRate = 16_000): Blob {
+  const total = chunks.reduce((n, c) => n + c.length, 0);
+  const input = new Float32Array(total);
+  let at = 0;
+  for (const c of chunks) (input.set(c, at), (at += c.length));
+  // Average each output sample's window (a plain low-pass while downsampling).
+  const step = rate / outRate;
+  const n = Math.floor(total / step);
+  const pcm = new Int16Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = Math.floor(i * step);
+    const b = Math.max(a + 1, Math.floor((i + 1) * step));
+    let sum = 0;
+    for (let j = a; j < b && j < total; j++) sum += input[j]!;
+    const v = Math.max(-1, Math.min(1, sum / (b - a)));
+    pcm[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
+  }
+  const head = new DataView(new ArrayBuffer(44));
+  const str = (o: number, t: string) =>
+    [...t].forEach((ch, i) => head.setUint8(o + i, ch.charCodeAt(0)));
+  str(0, "RIFF");
+  head.setUint32(4, 36 + pcm.byteLength, true);
+  str(8, "WAVE");
+  str(12, "fmt ");
+  head.setUint32(16, 16, true);
+  head.setUint16(20, 1, true); // PCM
+  head.setUint16(22, 1, true); // mono
+  head.setUint32(24, outRate, true);
+  head.setUint32(28, outRate * 2, true);
+  head.setUint16(32, 2, true);
+  head.setUint16(34, 16, true);
+  str(36, "data");
+  head.setUint32(40, pcm.byteLength, true);
+  return new Blob([head.buffer, pcm.buffer], { type: "audio/wav" });
+}
