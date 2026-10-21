@@ -26,7 +26,7 @@ test("the chalkboard shows on the board; N opens the selected cadet's notes", as
   );
   await page.keyboard.press("Tab"); // selects Tomas (first hand)
   await page.keyboard.press("n");
-  const notes = page.getByRole("complementary", { name: "Cadet notes" });
+  const notes = page.getByRole("complementary", { name: "Student notes" });
   await expect(notes).toBeVisible();
   await expect(notes.getByText("Tomas Reyes")).toBeVisible();
   await expect(notes.locator("b", { hasText: "paired" })).toBeVisible();

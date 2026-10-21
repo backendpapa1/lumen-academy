@@ -627,9 +627,9 @@ function legend() {
   return h(
     "div",
     { class: "legend", "aria-label": "Status colours" },
-    item("var(--hull-500)", "Not taught"),
-    item("var(--lumen)", "Taught"),
-    item("#ff5c7a", "Needs a recap"),
-    item("var(--aurum)", "Mastered"),
+    item("var(--cobalt-wash)", "Not taught"),
+    item("var(--cobalt)", "Taught"),
+    item("var(--coral)", "Needs a recap"),
+    item("var(--marigold)", "Mastered"),
   );
 }

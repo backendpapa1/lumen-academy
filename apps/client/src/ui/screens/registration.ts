@@ -3,7 +3,7 @@ import { app } from "../../core/app";
 import { initialClassroom } from "../../core/classroom";
 import type { Registration } from "../../core/setup";
 import { store } from "../../core/store";
-import { badgeSrc, portrait } from "./common";
+import { portrait } from "./common";
 import { fill, h, icon, ICONS } from "./dom";
 
 // Registration (docs/02 §4, M3-07): the 3D classroom fills as cadets arrive;
@@ -29,7 +29,7 @@ export function mountRegistration(
   const list = h("div", { class: "reg-list", role: "list", "aria-label": "Enrolled students" });
   const panel = h(
     "div",
-    { class: "reg-panel" },
+    { class: "reg-panel card" },
     h("div", { class: "micro" }, "Registration"),
     title,
     h("div", { class: "row" }, count),
@@ -88,7 +88,6 @@ export function mountRegistration(
         continue;
       }
       const info = ARCHETYPE_INFO[c.archetype];
-      const badge = badgeSrc(c.archetype);
       const el = h(
         "article",
         { class: "card enroll", role: "listitem", style: `--accent:${info.accent}` },
@@ -97,19 +96,14 @@ export function mountRegistration(
           "div",
           {},
           h("div", { class: "who" }, c.name),
-          h(
-            "div",
-            { class: "dim", style: "font-size:13px" },
-            badge && h("img", { class: "badge", src: badge, alt: "" }),
-            `${info.label} · ${c.homeworld}`,
-          ),
+          h("div", { class: "dim", style: "font-size:13px" }, `${info.label} · ${c.homeworld}`),
           c.quirk && h("div", { class: "quirk" }, c.quirk),
         ),
       );
       cards.set(c.id, { el, portraitUrl: c.portraitUrl });
       list.prepend(el);
     }
-    // The 3D room shows the cadets that have "arrived" so far.
+    // The drawn room seats the students who have arrived so far.
     store.setState((s) => ({
       classroom: {
         ...initialClassroom(),

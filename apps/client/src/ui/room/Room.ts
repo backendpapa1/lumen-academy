@@ -19,16 +19,16 @@ const CX = 760; // the class sits a little left of centre: the hand rail is on t
 
 /** Rows from the front: desk-top height, scale, spacing (virtual px). */
 const ROWS = [
-  { y: 782, s: 0.94, gap: 226 },
-  { y: 652, s: 0.78, gap: 190 },
-  { y: 548, s: 0.64, gap: 158 },
+  { y: 792, s: 0.92, gap: 226 },
+  { y: 636, s: 0.75, gap: 188 },
+  { y: 520, s: 0.6, gap: 152 },
 ] as const;
 const PER_ROW = 5;
 /** The bust's drawn size at scale 1. */
-const BUST_W = 168;
-const BUST_H = (BUST_W * 1130.6) / 940.3;
+export const BUST_W = 168;
+export const BUST_H = (BUST_W * 1130.6) / 940.3;
 
-interface Desk {
+export interface Desk {
   x: number;
   y: number;
   s: number;
@@ -218,7 +218,7 @@ interface Seat {
   arrived: boolean;
 }
 
-function deskMarkup(d: Desk, seed: string, name: string): string {
+export function deskMarkup(d: Desk, seed: string, name: string): string {
   const r = rng(seed);
   const w = 206;
   const items = [
@@ -238,7 +238,7 @@ function deskMarkup(d: Desk, seed: string, name: string): string {
     </g>`;
 }
 
-const escapeXml = (s: string) =>
+export const escapeXml = (s: string) =>
   s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c]!);
 
 const GLYPH_CLASS: Partial<Record<ReactionState, string>> = {

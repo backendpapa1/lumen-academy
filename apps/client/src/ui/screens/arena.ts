@@ -70,7 +70,7 @@ export function mountArena(
         },
         h("span", {
           class: "fill",
-          style: `width:${pct}%;background:${integrity >= exam.passThreshold ? "var(--aurum)" : "var(--lumen)"}`,
+          style: `width:${pct}%;background:${integrity >= exam.passThreshold ? "var(--marigold)" : "var(--cobalt)"}`,
         }),
         h("i", { style: `left:${pass}%`, title: `Pass mark ${pass}%` }),
       ),

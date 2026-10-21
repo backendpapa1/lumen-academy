@@ -199,7 +199,7 @@ test("found a School → add a source → edit the curriculum → open a class �
     timeout: 15_000,
   });
   await expect(page.getByText("Class assembled")).toBeVisible();
-  await expect(page.getByText("3 of 3 cadets arrived")).toBeVisible();
+  await expect(page.getByText("3 of 3 students arrived")).toBeVisible();
   await page.waitForTimeout(1800); // holograms finish materializing
   await page.screenshot({ path: "docs/screens/m3-registration.png" });
   await expect(page.getByRole("button", { name: "Start teaching" })).toBeVisible();

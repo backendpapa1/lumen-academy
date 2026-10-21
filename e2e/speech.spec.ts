@@ -38,7 +38,7 @@ test("speech panel types the stream in and shimmers on a rewrite", async ({ page
   await page.screenshot({ path: "docs/screens/m2-speech-rephrasing.png" });
   await expect(panel.locator("p")).toHaveText("What happens when a level is odd?");
   await expect(panel).not.toHaveClass(/rephrasing/, { timeout: 2000 });
-  await expect(page.locator("#stage [aria-live]")).toContainText(
+  await expect(page.locator("#stage .sr-only[aria-live]")).toContainText(
     "What happens when a level is odd?",
   );
   expect(errors).toEqual([]);

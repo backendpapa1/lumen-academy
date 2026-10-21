@@ -61,7 +61,7 @@ export function emblem(
 ) {
   const el = h("div", {
     class: `emblem${large ? " large" : ""}`,
-    style: `--accent:${s.accent ?? "#5BE7FF"}`,
+    style: `--accent:${s.accent ?? "#2A40FF"}`,
   });
   const src = assetSrc(s.emblemUrl);
   el.append(

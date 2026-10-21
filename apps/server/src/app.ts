@@ -15,7 +15,16 @@ import { ClassroomConnection, type Runtime } from "./ws/classroomConnection.js";
 import { parseClientFrame, wsError } from "./ws/handler.js";
 
 // The Vite dev client is the only browser origin allowed to call the API.
-export const CLIENT_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"];
+// LUMEN_EXTRA_ORIGINS (comma-separated, local only) adds a second dev client,
+// e.g. a preview on another port against a copy of the data.
+export const CLIENT_ORIGINS = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  ...(process.env.LUMEN_EXTRA_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter((o) => /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(o)),
+];
 
 export interface AppDeps {
   config: AppConfig;

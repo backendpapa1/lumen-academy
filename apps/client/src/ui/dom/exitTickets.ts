@@ -67,7 +67,7 @@ function render(e: ExitTicketsState | undefined) {
       h(
         "div",
         { class: "progress exit-bar", style: "width:100%;margin-bottom:14px" },
-        h("span", { style: `width:${(left / e.seconds) * 100}%;background:var(--aurum)` }),
+        h("span", { style: `width:${(left / e.seconds) * 100}%;background:var(--marigold)` }),
       ),
       h(
         "ol",

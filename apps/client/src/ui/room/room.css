@@ -591,3 +591,93 @@
     animation: none !important;
   }
 }
+
+/* --- the exam hall ------------------------------------------------------------- */
+.hall .window .arch {
+  fill: var(--paper);
+  stroke: var(--cobalt);
+  stroke-width: 3;
+}
+.hall .window path.mullion {
+  fill: none;
+}
+.hall .sign-shadow {
+  fill: var(--cobalt);
+}
+.hall .sign-plate {
+  fill: var(--coral);
+  stroke: var(--cobalt);
+  stroke-width: 3;
+}
+.hall .sign text {
+  font: 700 15px var(--font-ui);
+  letter-spacing: 0.12em;
+  fill: #fff;
+}
+.hall .sign text.small {
+  font-size: 10px;
+}
+.hall .paper {
+  fill: #fff;
+  stroke: var(--cobalt);
+  stroke-width: 2;
+}
+.hall .stamp circle {
+  stroke: var(--cobalt);
+  stroke-width: 3;
+}
+.hall .stamp text {
+  font: 700 26px var(--font-ui);
+  fill: #fff;
+}
+.hall .stamp .ok circle {
+  fill: var(--leaf);
+}
+.hall .stamp .mid circle {
+  fill: var(--marigold);
+}
+.hall .stamp .mid text {
+  fill: var(--navy);
+}
+.hall .stamp .bad circle {
+  fill: var(--coral);
+}
+.hall .verdict rect {
+  fill: none;
+  stroke-width: 6;
+}
+.hall .verdict text {
+  font: 400 40px var(--font-display);
+  letter-spacing: 0.06em;
+}
+.hall .verdict .pass rect {
+  stroke: var(--leaf);
+}
+.hall .verdict .pass text {
+  fill: var(--leaf);
+}
+.hall .verdict .fail rect {
+  stroke: var(--coral);
+}
+.hall .verdict .fail text {
+  fill: var(--coral);
+}
+.exam-board .b-score {
+  font: 400 88px/1 var(--font-display);
+  color: var(--sky-hi);
+  -webkit-text-stroke: 2.5px var(--cobalt);
+  paint-order: stroke fill;
+  text-shadow:
+    2px 2px 0 var(--cobalt),
+    4px 4px 0 var(--cobalt),
+    6px 6px 0 var(--cobalt);
+}
+.hall.cheer .seat .bust > svg {
+  animation: cheer 0.7s ease-in-out infinite alternate;
+  animation-delay: calc(var(--i, 0) * -0.11s);
+}
+@keyframes cheer {
+  to {
+    transform: translateY(-5%);
+  }
+}

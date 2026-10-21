@@ -568,7 +568,15 @@ label.lbl {
   width: min(400px, calc(100vw - 48px));
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  padding: 20px 18px 14px;
+}
+.reg-panel .display {
+  font-size: 36px;
+  margin: 2px 0 0;
+}
+.reg-panel .progress {
+  height: 12px;
 }
 .reg-list {
   flex: 1;
@@ -1675,4 +1683,13 @@ table.heat td {
   .archived summary::before {
     transition: none;
   }
+}
+.concept-pick .tag-untaught {
+  margin-left: auto;
+  flex: none;
+  white-space: nowrap;
+  font: 700 10px var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
 }

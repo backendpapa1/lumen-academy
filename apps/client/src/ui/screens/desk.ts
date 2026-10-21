@@ -58,7 +58,7 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
           h(
             "p",
             { class: "lede" },
-            `${plural(desk.cadets, "cadet")} · assignments, grading and exams`,
+            `${plural(desk.cadets, "student")} · assignments, grading and exams`,
           ),
       ),
       h("span", { class: "spacer" }),
@@ -155,7 +155,7 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
             { class: `row pick${c.taught ? "" : " untaught"}`, style: "gap:8px" },
             box,
             c.title,
-            !c.taught && h("span", { class: "dim", style: "font-size:12px" }, "not taught yet"),
+            !c.taught && h("span", { class: "tag-untaught" }, "not taught"),
           );
         }),
       ),
@@ -316,7 +316,7 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
   };
 
   const submissionCard = (a: AssignmentView, s: SubmissionView) => {
-    const accent = ARCHETYPE_INFO[s.archetype as Archetype]?.accent ?? "#5BE7FF";
+    const accent = ARCHETYPE_INFO[s.archetype as Archetype]?.accent ?? "#2A40FF";
     let score = s.myScore ?? 0;
     const comment = h("textarea", {
       class: "field",
@@ -511,7 +511,7 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
               "div",
               { class: "progress", style: "width:100%" },
               h("span", {
-                style: `width:${pct}%;background:${m.eligibility.eligible ? "var(--aurum)" : "var(--lumen)"}`,
+                style: `width:${pct}%;background:${m.eligibility.eligible ? "var(--marigold)" : "var(--cobalt)"}`,
               }),
             ),
             h("i", {

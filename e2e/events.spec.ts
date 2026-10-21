@@ -54,7 +54,7 @@ test("a hologram glitch: N says it's wrong, and the result shows what was scramb
       }),
     cadet,
   );
-  const card = page.getByRole("dialog", { name: "Hologram glitch" });
+  const card = page.getByRole("dialog", { name: "Mix-up" });
   await expect(card).toBeVisible();
   await page.waitForTimeout(500);
   await page.screenshot({ path: "docs/screens/m6-glitch.png" });
@@ -136,17 +136,14 @@ test("a power flicker shows who whispered what, then clears itself", async ({ pa
       }),
     [a, b],
   );
-  const banner = page.getByRole("status").filter({ hasText: "Power flicker" });
+  const banner = page.getByRole("status").filter({ hasText: "The lights flickered" });
   await expect(banner).toContainText("The root is in every transaction.");
-  // The room browns out (the 3D canvas dims), then the lights come back.
-  await expect
-    .poll(() => page.evaluate(() => document.querySelector<HTMLElement>("#world")!.style.filter))
-    .toMatch(/brightness\(0\.[0-4]/);
+  // The drawn room browns out, then the lights come back.
+  await expect(page.locator(".room.flicker")).toHaveCount(1);
+  await page.waitForTimeout(700);
   await page.screenshot({ path: "docs/screens/m6-power-flicker.png" });
   await expect(banner).toBeHidden({ timeout: 12_000 });
-  await expect
-    .poll(() => page.evaluate(() => document.querySelector<HTMLElement>("#world")!.style.filter))
-    .toBe("");
+  await expect(page.locator(".room.flicker")).toHaveCount(0);
 });
 
 test("the visiting Dean tallies three explanations, then reports", async ({ page }) => {

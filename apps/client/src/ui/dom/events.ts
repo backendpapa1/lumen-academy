@@ -240,7 +240,7 @@ function renderInspector(e: EventState) {
       "div",
       { style: "flex:1;min-width:0" },
       h("div", { class: "micro" }, "Visiting inspector"),
-      h("div", { class: "who", style: "color:var(--aurum)" }, "The Dean"),
+      h("div", { class: "who", style: "color:var(--coral)" }, "The Dean"),
     ),
     !e.result && h("div", { class: "mono event-clock" }, `${watched} / 3`),
   );
@@ -253,7 +253,7 @@ function renderInspector(e: EventState) {
           class: "card event-card inspector watching",
           role: "status",
           "aria-live": "polite",
-          style: "--event-accent:var(--aurum)",
+          style: "--event-accent:var(--marigold)",
         },
         head,
         h(
@@ -291,7 +291,7 @@ function renderInspector(e: EventState) {
         role: "dialog",
         "aria-modal": "false",
         "aria-label": "The Dean's report",
-        style: "--event-accent:var(--aurum)",
+        style: "--event-accent:var(--marigold)",
       },
       head,
       h("p", { class: "event-line dean-verdict" }, `“${r.explanation}”`),

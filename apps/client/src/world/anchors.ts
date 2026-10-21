@@ -17,16 +17,16 @@ export const campusView: {
  * scene exists, so calls made through `withArena` wait for it.
  */
 export const arenaView: {
-  current: import("./scenes/ArenaScene").ArenaScene | null;
-  queue: Array<(a: import("./scenes/ArenaScene").ArenaScene) => void>;
+  current: import("../ui/room/ExamHall").ExamHall | null;
+  queue: Array<(a: import("../ui/room/ExamHall").ExamHall) => void>;
 } = { current: null, queue: [] };
 
-export function withArena(fn: (a: import("./scenes/ArenaScene").ArenaScene) => void): void {
+export function withArena(fn: (a: import("../ui/room/ExamHall").ExamHall) => void): void {
   if (arenaView.current) fn(arenaView.current);
   else arenaView.queue.push(fn);
 }
 
-export function setArena(a: import("./scenes/ArenaScene").ArenaScene | null): void {
+export function setArena(a: import("../ui/room/ExamHall").ExamHall | null): void {
   arenaView.current = a;
   if (a) for (const fn of arenaView.queue.splice(0)) fn(a);
   else arenaView.queue.length = 0;

@@ -427,7 +427,7 @@ export class ClassroomHud {
     else if (this.bellDue(c) && !this.bellAnswered) card = this.bellCard(c);
     else if (c.status === "ended" && c.ended) card = this.endedCard(c);
     this.overlay.classList.toggle("shown", !!card);
-    this.overlay.classList.toggle("modal", !!card && !card.classList.contains("note"));
+    this.overlay.classList.toggle("blocking", !!card && !card.classList.contains("note"));
     fill(this.overlay, card);
     card?.querySelector<HTMLElement>(".btn.primary")?.focus({ preventScroll: true });
   }

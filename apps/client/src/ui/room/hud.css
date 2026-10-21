@@ -515,7 +515,7 @@
   place-items: center;
   pointer-events: none;
 }
-.hud-overlay.modal {
+.hud-overlay.blocking {
   pointer-events: auto;
   background: rgba(15, 26, 102, 0.28);
   backdrop-filter: blur(2px);

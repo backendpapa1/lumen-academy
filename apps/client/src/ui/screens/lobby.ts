@@ -150,7 +150,7 @@ function heroParts(c: CampusView): HTMLElement[] {
           h(
             "div",
             { class: "progress", style: "width:100%;margin:8px 0 4px" },
-            h("span", { style: `width:${pct}%;background:var(--aurum)` }),
+            h("span", { style: `width:${pct}%;background:var(--marigold)` }),
           ),
           h(
             "div",
@@ -206,7 +206,7 @@ function schoolCard(s: SchoolSummary, wing?: CampusView["wings"][number]): HTMLE
           { class: inProgress ? "meta gold" : "meta" },
           inProgress
             ? `In progress · ${Math.floor(c.openPeriodElapsedMs! / 60_000)} min in`
-            : plural(c.cadets, "cadet"),
+            : plural(c.cadets, "student"),
         ),
       ),
       c.status === "active"

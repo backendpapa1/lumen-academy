@@ -9,7 +9,7 @@ import { GalleryScene } from "./ui/scenes/GalleryScene";
 import { installScreens } from "./ui/screens";
 import { Campus } from "./ui/campus/Campus";
 import { campusView, fx, setArena } from "./world/anchors";
-import { ArenaScene } from "./world/scenes/ArenaScene";
+import { ExamHall } from "./ui/room/ExamHall";
 import { world } from "./world/anchors";
 import { WorldDirector } from "./world/WorldDirector";
 import { app } from "./core/app";
@@ -55,6 +55,7 @@ window.addEventListener("resize", () => director.resize());
 // HUD; setup screens (lobby, School Wing, registration) are DOM (D14).
 let showing: string | null = null;
 let showingWorld: "campus" | "room" | "arena" | null = null;
+let arenaHall: ExamHall | null = null;
 function applyRoute() {
   const route = store.getState().route;
   const key =
@@ -66,7 +67,11 @@ function applyRoute() {
   if (key === showing) return;
   showing = key;
   if (route.name === "gallery") return;
-  if (route.name !== "exam") setArena(null);
+  if (route.name !== "exam") {
+    setArena(null);
+    arenaHall?.dispose();
+    arenaHall = null;
+  }
   if (route.name === "classroom" || route.name === "registration") {
     // The drawn classroom (ADR-009). Registration fills the same room, so the
     // students stay in their seats when the class starts.
@@ -79,10 +84,11 @@ function applyRoute() {
   }
   hideRoom();
   if (route.name === "exam") {
-    // The exam leaves the classroom for the arena (M6-09).
-    const arena = new ArenaScene();
-    director.show(arena);
-    setArena(arena);
+    // The exam leaves the classroom for the exam hall (M6-09, ADR-009).
+    director.clear();
+    arenaHall?.dispose();
+    arenaHall = new ExamHall(stage!);
+    setArena(arenaHall);
     showingWorld = "arena";
   } else if (showingWorld !== "campus") {
     // Lobby, School Wing, desk and debrief all sit over the drawn campus (M5-02, ADR-009).

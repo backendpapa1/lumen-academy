@@ -129,8 +129,8 @@ test("Esc pauses and resumes; a reload continues the period, paused, with its tr
   await page.keyboard.press("Escape");
   await expect.poll(async () => (await state()).classroom.clock.paused).toBe(false);
 
-  // End class (top-right button on the Phaser canvas) forgets the live class.
-  await page.mouse.click(1671, 50);
+  // End class (top-right of the HUD) forgets the live class.
+  await page.getByRole("button", { name: "End class" }).first().click();
   await expect.poll(async () => (await state()).classroom.status).toBe("ended");
   expect(await page.evaluate(() => localStorage.getItem("lumen.liveClassroom"))).toBeNull();
   await page.waitForTimeout(500);

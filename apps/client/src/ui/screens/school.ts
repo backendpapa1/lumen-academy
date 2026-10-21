@@ -424,7 +424,7 @@ function mountClasses(root: HTMLElement, schoolId: string): () => void {
       h(
         "div",
         { class: "mono", style: "margin-top:4px" },
-        `${graduated ? plural(c.cadets, "alumnus", "alumni") : plural(c.cadets, "cadet")} · ${plural(c.periods ?? 0, "class", "classes")} taught`,
+        `${graduated ? plural(c.cadets, "alumnus", "alumni") : plural(c.cadets, "student")} · ${plural(c.periods ?? 0, "class", "classes")} taught`,
       ),
       h(
         "div",
@@ -434,7 +434,7 @@ function mountClasses(root: HTMLElement, schoolId: string): () => void {
           "div",
           { class: "progress", style: "flex:1" },
           h("span", {
-            style: `width:${pct ?? 0}%;background:${(pct ?? 0) >= 70 ? "var(--aurum)" : "var(--lumen)"}`,
+            style: `width:${pct ?? 0}%;background:${(pct ?? 0) >= 70 ? "var(--marigold)" : "var(--cobalt)"}`,
           }),
         ),
         h("span", { class: "mono" }, pct == null ? "–" : `${pct}%`),
