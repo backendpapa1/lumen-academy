@@ -55,17 +55,42 @@ test("first run: the Head of School's tour, then never again unless asked", asyn
   await page.waitForTimeout(500);
   await page.screenshot({ path: "docs/screens/notes-tour-spotlight.png" });
 
-  // A simulated class: the board fills, then a hand goes up.
-  await tour.getByRole("button", { name: "Next" }).click();
-  await expect(tour.getByText("Wait, a fingerprint of what exactly?")).toBeVisible({
+  // Into the pretend class: the real classroom, scripted, no server.
+  const next = () => tour.getByRole("button", { name: "Next" }).click();
+  await next();
+  await expect(tour.getByText("This is your classroom.")).toBeVisible();
+  await expect(page.locator(".room .seat")).toHaveCount(5);
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: "docs/screens/notes-tour-classroom.png" });
+
+  // Teaching: the line types itself into the lectern and lands in the transcript.
+  await next();
+  await expect(tour.getByText("Teach it in your own words.")).toBeVisible();
+  await page.waitForTimeout(4500);
+  await page.screenshot({ path: "docs/screens/notes-tour-teach.png" });
+
+  // A hand goes up, and Ada asks.
+  await next();
+  await expect(page.locator(".hud-hands")).toContainText("A fingerprint of what?");
+  await expect(page.locator("#speech")).toContainText("a fingerprint of what exactly", {
     timeout: 8000,
   });
-  await page.screenshot({ path: "docs/screens/notes-tour-class.png" });
+  await page.screenshot({ path: "docs/screens/notes-tour-hand.png" });
 
-  await page.keyboard.press("ArrowRight");
-  await expect(tour.getByText(/That's what you told us!/)).toBeVisible({ timeout: 8000 });
-  await page.keyboard.press("ArrowRight");
+  // The mirror: Kenji repeats a mistake.
+  await next();
+  await expect(page.locator("#speech")).toContainText("only changes a little bit", {
+    timeout: 8000,
+  });
+  await page.screenshot({ path: "docs/screens/notes-tour-mirror.png" });
+
+  await next();
+  await expect(tour.getByText("Short classes, then the bell.")).toBeVisible();
+
+  // Out of the class again: exams and the debrief, back on the lobby.
+  await next();
   await expect(tour.getByText("Re-teach it")).toBeVisible({ timeout: 6000 });
+  await expect(page.getByRole("heading", { name: "Your Schools" })).toBeVisible();
   await page.screenshot({ path: "docs/screens/notes-tour-exam.png" });
 
   // After a click, each line goes to the narrator sentence by sentence (the

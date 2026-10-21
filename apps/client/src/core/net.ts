@@ -4,7 +4,10 @@ import { ServerMessageZ, WS_PATH, type ClientMessage, type ServerMessage } from 
 // validates every frame. The server is the only thing that talks to providers.
 
 type Status = "connecting" | "open" | "closed";
-type Payload<T extends ClientMessage["type"]> = Extract<ClientMessage, { type: T }>["payload"];
+export type Payload<T extends ClientMessage["type"]> = Extract<
+  ClientMessage,
+  { type: T }
+>["payload"];
 
 /**
  * Dev: the Vite client on 5173 talks to the server on 5174. A built client is

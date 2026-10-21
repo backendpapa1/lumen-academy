@@ -1,11 +1,12 @@
+import { demoClass } from "../../core/demoClass";
 import { narrator, type NarratorState } from "../../core/narrator";
 import { lookFor, peepSvg } from "../peeps/peep";
 import { fill, h, icon, ICONS } from "./dom";
 import "./tour.css";
 
 // The guided tour (Paul's note): the Head of School walks a first-timer
-// through the lobby, spotlighting the real thing on screen, and plays small
-// simulated scenes for what happens inside a class. Every line is read aloud
+// through the lobby, spotlighting the real thing on screen, then takes them
+// into a pretend class (core/demoClass.ts: the real classroom, scripted). Every line is read aloud
 // (narrator.ts). It runs once on first launch and replays from the lobby's
 // Tour button or Settings.
 
@@ -14,19 +15,22 @@ const KEY = "lumen.onboarded";
 /** The guide: a made-up Head of School (her voice is the narrator's). */
 const GUIDE = { name: "Ms Hale", look: lookFor("guide_hale", "bun", "female") };
 
-type Scene = "welcome" | "class" | "mirror" | "exam" | "keys";
+type Scene = "welcome" | "exam" | "keys";
+type ClassScene = "room" | "teach" | "hand" | "mirror" | "clock";
 
 interface Step {
   kicker: string;
   title: string;
   /** Shown and read aloud. */
   say: string;
-  /** What to spotlight on the lobby; missing on screen = the step is centred. */
-  target?: string;
+  /** What to spotlight; the first one on screen wins (missing = the step is centred). */
+  target?: string | string[];
   /** A simulated scene inside the guide card instead. */
   scene?: Scene;
   /** Leave the step out when its target isn't on screen. */
   optional?: boolean;
+  /** A step inside the pretend class, and what happens in it. */
+  inClass?: ClassScene;
 }
 
 const STEPS: Step[] = [
@@ -44,15 +48,39 @@ const STEPS: Step[] = [
   },
   {
     kicker: "In class",
+    title: "This is your classroom.",
+    say: "Let's step into a class. These five students are sitting a class on hashing. Each has their own personality, and none of them has seen your sources: everything they know comes from you.",
+    target: ".room .desks",
+    inClass: "room",
+  },
+  {
+    kicker: "In class",
     title: "Teach it in your own words.",
-    say: "In class you explain one concept at a time, typed or out loud. Your students react as you go. When you're vague, a hand goes up. Press Tab to pick the hand, and answer the question.",
-    scene: "class",
+    say: "You teach at the lectern: type a line, or hold Space and say it. Watch the room as it lands. Some faces light up, some frown.",
+    target: ".hud .lectern",
+    inClass: "teach",
+  },
+  {
+    kicker: "In class",
+    title: "When you're vague, a hand goes up.",
+    say: "Ada is lost, so her hand goes up. Press Tab to call on her, and answer the question. Questions are where the learning happens.",
+    // The raised hand, then her question once she's speaking.
+    target: ["#speech.shown", ".hud-hands"],
+    inClass: "hand",
   },
   {
     kicker: "The mirror",
-    title: "They only know what you taught.",
-    say: "Your students have never seen your sources. Everything they know came from you, so when you get something wrong, they repeat it back to you. Their confusion shows you exactly where your own understanding is thin.",
-    scene: "mirror",
+    title: "They repeat your mistakes.",
+    say: "Now Kenji repeats it back, wrongly. That's the mirror: when students get it wrong, it's often how it was taught. Correct him, and the whole class updates.",
+    target: ["#speech.shown", ".room .desks"],
+    inClass: "mirror",
+  },
+  {
+    kicker: "In class",
+    title: "Short classes, then the bell.",
+    say: "Classes are short: fifteen minutes unless you change it. The clock is up here. When the bell rings, students hand you exit tickets, so you see what stuck.",
+    target: ".hud-right",
+    inClass: "clock",
   },
   {
     kicker: "Homework, exams, debrief",
@@ -111,6 +139,8 @@ let active: (() => void) | null = null;
 
 /** First launch only; returns a cleanup for when the lobby goes. */
 export function maybeTour(): () => void {
+  // Already showing (it left the lobby for the pretend class and came back).
+  if (active) return () => {};
   try {
     if (localStorage.getItem(KEY)) return () => {};
   } catch {
@@ -118,15 +148,14 @@ export function maybeTour(): () => void {
   }
   // Let the lobby lay out first, so the spotlights land.
   const t = setTimeout(() => startTour(), 600);
-  return () => {
-    clearTimeout(t);
-    active?.();
-  };
+  // Only the pending start: the tour leaves the lobby for the pretend class
+  // and back, so it closes itself.
+  return () => clearTimeout(t);
 }
 
 export function startTour(): void {
   active?.();
-  const steps = STEPS.filter((s) => !s.optional || !s.target || visible(s.target));
+  const steps = STEPS.filter((s) => !s.optional || !s.target || !!find(s.target));
   let i = 0;
   let stopScene: (() => void) | null = null;
 
@@ -189,6 +218,8 @@ export function startTour(): void {
     narrator.stop();
     offNarrator();
     stopScene?.();
+    clearInterval(replace);
+    demoClass.stop();
     back.remove();
     document.removeEventListener("keydown", onKey, true);
     window.removeEventListener("resize", place);
@@ -205,8 +236,8 @@ export function startTour(): void {
 
   function place() {
     const s = steps[i]!;
-    const el = s.target ? document.querySelector<HTMLElement>(s.target) : null;
-    const r = el && visible(s.target!) ? el.getBoundingClientRect() : null;
+    const el = s.target ? find(s.target) : null;
+    const r = el ? el.getBoundingClientRect() : null;
     back.classList.toggle("spot", !!r);
     if (r) {
       const pad = 8;
@@ -227,7 +258,13 @@ export function startTour(): void {
     const last = i === steps.length - 1;
     stopScene?.();
     stopScene = null;
-    const el = s.target ? document.querySelector<HTMLElement>(s.target) : null;
+    // Into the pretend class, a scene in it, or back out to the lobby.
+    if (s.inClass) {
+      demoClass.start();
+      if (s.inClass !== "room") demoClass.play(s.inClass);
+      else demoClass.clear();
+    } else demoClass.stop();
+    const el = s.target ? find(s.target) : null;
     el?.scrollIntoView({ block: "center", behavior: "instant" as ScrollBehavior });
     const sceneEl = s.scene ? h("div", { class: `tour-scene scene-${s.scene}` }) : null;
     const next = h(
@@ -278,14 +315,21 @@ export function startTour(): void {
   };
   document.addEventListener("keydown", onKey, true);
   window.addEventListener("resize", place);
+  // Screens change under the tour (lobby ↔ class) and hands or speech appear a
+  // moment into a step, so the spotlight keeps finding its target.
+  const replace = setInterval(place, 400);
   render();
 }
 
-function visible(sel: string): boolean {
-  const el = document.querySelector<HTMLElement>(sel);
-  if (!el) return false;
-  const r = el.getBoundingClientRect();
-  return r.width > 0 && r.height > 0;
+/** The first of the targets that's on screen now. */
+function find(target: string | string[]): HTMLElement | null {
+  for (const sel of Array.isArray(target) ? target : [target]) {
+    const el = document.querySelector<HTMLElement>(sel);
+    const r = el?.getBoundingClientRect();
+    if (el && r && r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden")
+      return el;
+  }
+  return null;
 }
 
 // --- simulated scenes ---------------------------------------------------------
@@ -304,11 +348,6 @@ const student = (id: string, hair: string, face: string, pose: "idle" | "hand" |
 function playScene(scene: Scene, el: HTMLElement): () => void {
   const timers: Array<ReturnType<typeof setTimeout>> = [];
   const at = (ms: number, fn: () => void) => timers.push(setTimeout(fn, ms));
-  const type = (target: HTMLElement, text: string, from: number, cps = 32) => {
-    for (let k = 1; k <= text.length; k++)
-      at(from + (k * 1000) / cps, () => (target.textContent = text.slice(0, k)));
-    return from + (text.length * 1000) / cps;
-  };
 
   if (scene === "welcome") {
     el.append(
@@ -325,62 +364,6 @@ function playScene(scene: Scene, el: HTMLElement): () => void {
         ),
       ),
     );
-  }
-
-  if (scene === "class") {
-    const board = h(
-      "div",
-      { class: "t-board" },
-      h("span", { class: "t-today" }, "Today · Hashing"),
-      h("p", { class: "t-text" }),
-    );
-    const bubble = h(
-      "div",
-      { class: "t-bubble", hidden: true },
-      "Wait, a fingerprint of what exactly?",
-    );
-    const row = h(
-      "div",
-      { class: "t-row" },
-      student("tour_d", "bun", "Calm"),
-      student("tour_e", "curly", "Concerned"),
-      student("tour_f", "short", "Calm"),
-    );
-    el.append(board, h("div", { class: "t-desks" }, row, bubble));
-    const end = type(
-      board.querySelector(".t-text")!,
-      "A hash is like a fingerprint for data: it's short, and it changes completely if the data changes.",
-      300,
-    );
-    at(end + 300, () => {
-      row.children[1]!.replaceWith(student("tour_e", "curly", "Concerned", "hand"));
-      bubble.hidden = false;
-    });
-  }
-
-  if (scene === "mirror") {
-    const said = h(
-      "div",
-      { class: "t-said" },
-      h("span", { class: "micro" }, "You said, last week"),
-      h("p", {}, "“The Merkle root is stored in every transaction.”"),
-    );
-    const bubble = h("div", { class: "t-bubble left", hidden: true });
-    const row = h(
-      "div",
-      { class: "t-row" },
-      student("tour_g", "braids", "Driven", "talk"),
-      student("tour_h", "short", "Calm"),
-    );
-    const fix = h(
-      "div",
-      { class: "t-fix", hidden: true },
-      "✗ Only in the block header. Correct it in class and they'll update.",
-    );
-    el.append(said, h("div", { class: "t-desks" }, row, bubble), fix);
-    at(500, () => (bubble.hidden = false));
-    type(bubble, "So the root's in every transaction, right? That's what you told us!", 600);
-    at(3600, () => (fix.hidden = false));
   }
 
   if (scene === "exam") {

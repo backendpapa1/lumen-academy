@@ -1,5 +1,6 @@
 import {
   UPGRADES,
+  type ClientMessage,
   type Diagram,
   type PeriodKind,
   type ServerMessage,
@@ -15,7 +16,7 @@ import {
 import { applyServerMessage, dismissToast, type ParkedItem } from "./classroom";
 import { serverEvents } from "./bus";
 import { applySetupMessage } from "./setup";
-import { Net } from "./net";
+import { Net, type Payload } from "./net";
 import { rhythm } from "./rhythm";
 import { rememberLooks } from "../ui/peeps/peep";
 import { store } from "./store";
@@ -102,7 +103,7 @@ function receive(m: ServerMessage) {
     remember(null);
     store.setState({ route: { name: "boot" } });
   }
-  if (m.type === "period.started") {
+  if (m.type === "period.started" && !demo) {
     remember(m.payload.classroom.id);
     void app.loadParking(m.payload.school.id);
     // A reload during a break comes back to the break, not a cold pause card.
@@ -120,7 +121,7 @@ function receive(m: ServerMessage) {
     else if (!resumed && energy === "low")
       app.notify("A gentle class today: shorter questions, no surprises.");
   }
-  if (m.type === "period.ended") {
+  if (m.type === "period.ended" && !demo) {
     remember(null);
     const school = store.getState().classroom.school?.id;
     if (school) void app.loadParking(school, m.payload.periodId);
@@ -133,6 +134,26 @@ function receive(m: ServerMessage) {
         TOAST_MS,
       );
   }
+}
+
+/**
+ * The guided tour's pretend class (core/demoClass.ts): while it runs, what the
+ * classroom sends goes to it instead of the server, and what it says comes in
+ * through receive() like any server message. No server, no model calls.
+ */
+let demo: { send(type: ClientMessage["type"], payload: unknown): void } | null = null;
+export function setDemo(d: typeof demo) {
+  demo = d;
+}
+export const demoActive = () => demo !== null;
+/** Feeds a message into the client as if the server had sent it. */
+export function injectServerMessage(m: ServerMessage) {
+  receive(m);
+}
+
+function send<T extends ClientMessage["type"]>(type: T, payload: Payload<T>) {
+  if (demo) return demo.send(type, payload);
+  ensureNet().send(type, payload);
 }
 
 function ensureNet(): Net {
@@ -260,7 +281,7 @@ export const app = {
       route: { name: "classroom", classroomId },
       classroom: { ...s.classroom, status: "starting" },
     }));
-    ensureNet().send("period.start", { classroomId, ...start });
+    send("period.start", { classroomId, ...start });
   },
   teach(text: string, opts: { spoken?: boolean } = {}) {
     const t = text.trim();
@@ -269,21 +290,21 @@ export const app = {
     store.setState((s) => ({
       classroom: { ...s.classroom, lastSendAt: Date.now(), thinking: true },
     }));
-    ensureNet().send("teach.message", { text: t, ...(opts.spoken ? { spoken: true } : {}) });
+    send("teach.message", { text: t, ...(opts.spoken ? { spoken: true } : {}) });
   },
   call(cadetId: string) {
-    ensureNet().send("hand.call", { cadetId });
+    send("hand.call", { cadetId });
   },
   setConcept(conceptId: string) {
-    ensureNet().send("concept.set", { conceptId });
+    send("concept.set", { conceptId });
   },
   pause() {
-    if (store.getState().classroom.status === "live") ensureNet().send("period.pause", {});
+    if (store.getState().classroom.status === "live") send("period.pause", {});
   },
   resume() {
     if (store.getState().classroom.status !== "live") return;
     saveBreak(null);
-    ensureNet().send("period.resume", {});
+    send("period.resume", {});
   },
   /** V3-05: a Pomodoro break pauses the class; nothing runs on the server meanwhile. */
   takeBreak(minutes: number) {
@@ -304,7 +325,7 @@ export const app = {
     const c = store.getState().classroom;
     switch (cmd.toLowerCase()) {
       case "board":
-        ensureNet().send("board.set", {
+        send("board.set", {
           text: arg.toLowerCase() === "clear" ? "" : arg.replace(/\s*\|\s*/g, "\n"),
         });
         return;
@@ -322,10 +343,10 @@ export const app = {
       case "assign":
         return this.notify("At the bell, “Set homework” takes you straight to the Class Desk.");
       case "source":
-        ensureNet().send("source.check", arg ? { text: arg } : {});
+        send("source.check", arg ? { text: arg } : {});
         return;
       case "guest":
-        ensureNet().send("guest.invite", arg ? { question: arg } : {});
+        send("guest.invite", arg ? { question: arg } : {});
         return;
       case "park":
         if (!arg) return this.notify("Type the thought after /park, then Enter.");
@@ -337,13 +358,12 @@ export const app = {
     }
   },
   setHyperfocus(on: boolean) {
-    ensureNet().send("focus.toggle", { on });
+    send("focus.toggle", { on });
     this.notify(on ? "Hyperfocus on: lights down, sharper questions." : "Hyperfocus off.");
   },
   /** T-7: more time after the bell. */
   extend(minutes = 5) {
-    if (store.getState().classroom.status === "live")
-      ensureNet().send("period.extend", { minutes });
+    if (store.getState().classroom.status === "live") send("period.extend", { minutes });
   },
   togglePause() {
     if (store.getState().classroom.clock.paused) this.resume();
@@ -363,7 +383,7 @@ export const app = {
   },
   endClass() {
     store.setState((s) => ({ classroom: { ...s.classroom, status: "ending" } }));
-    ensureNet().send("period.end", {});
+    send("period.end", {});
   },
   /** The Class Desk: assignments, grading and exams for one class. */
   openDesk(
@@ -401,7 +421,7 @@ export const app = {
           }
         : s.classroom,
     }));
-    ensureNet().send("exit.mark", { ticketId, verdict });
+    send("exit.mark", { ticketId, verdict });
   },
   /** My answer to a pop quiz, or my verdict on a glitch (wrong = I caught it). */
   answerEvent(eventId: string, answer: { text?: string; wrong?: boolean }) {
@@ -410,7 +430,7 @@ export const app = {
         ? { classroom: { ...s.classroom, event: { ...s.classroom.event, sent: true } } }
         : {},
     );
-    ensureNet().send("event.answer", { eventId, ...answer });
+    send("event.answer", { eventId, ...answer });
   },
   dismissEvent() {
     store.setState((s) => {
@@ -422,7 +442,7 @@ export const app = {
   /** V6-09: keep the diagram I drew (the class reacts to it as a teaching turn). */
   saveDiagram(diagram: Diagram) {
     store.setState((s) => ({ classroom: { ...s.classroom, diagram } }));
-    ensureNet().send("board.diagram", { diagram });
+    send("board.diagram", { diagram });
   },
   dismissSource() {
     store.setState((s) => ({ classroom: { ...s.classroom, sourcePassage: null } }));
@@ -432,21 +452,21 @@ export const app = {
   },
   /** V5-04: my verdict on an analogy, and where it breaks. */
   judgeAnalogy(i: number, verdict: "good" | "misleading", reason: string) {
-    ensureNet().send("analogy.judge", { i, verdict, reason });
+    send("analogy.judge", { i, verdict, reason });
   },
   /** V5-08: object to the substitute's line i; finish the lesson. */
   objectToSub(i: number) {
-    ensureNet().send("sub.object", { i });
+    send("sub.object", { i });
   },
   finishSub() {
-    ensureNet().send("sub.finish", {});
+    send("sub.finish", {});
   },
   /** V5-03: the teach-back sentences I think are wrong. */
   markTeachBack(wrong: number[]) {
-    ensureNet().send("teachback.mark", { wrong });
+    send("teachback.mark", { wrong });
   },
   finishExitTickets(periodId: string) {
-    ensureNet().send("exit.done", { periodId });
+    send("exit.done", { periodId });
   },
   /** V3-04: file a stray thought for later, without leaving the class. */
   async park(text: string, schoolId = store.getState().classroom.school?.id) {
