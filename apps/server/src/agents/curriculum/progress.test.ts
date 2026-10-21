@@ -2,72 +2,42 @@ import { describe, expect, it } from "vitest";
 import type { CurriculumBuild } from "@lumen/shared";
 import { BuildTracker, explainBuildError } from "./progress.js";
 
-const SOURCES = [
-  { id: "src_a", title: "Volume I — Ethereum" },
-  { id: "src_b", title: "Volume II — Solidity" },
+const BOOKS = [
+  { id: "src_a", title: "Volume I — Ethereum", chapters: 2 },
+  { id: "src_b", title: "Volume II — Solidity", chapters: 2 },
 ];
 
 describe("curriculum build progress (Paul's ask)", () => {
-  it("follows the agent: reading each source, ordering, checking", () => {
+  it("follows the build: chapter by chapter, book by book, with a heartbeat", () => {
     const seen: CurriculumBuild[] = [];
-    const t = new BuildTracker("sch_x", SOURCES, (s) => seen.push(structuredClone(s)));
+    const t = new BuildTracker("sch_x", BOOKS, (s) => seen.push(structuredClone(s)));
     expect(t.state).toMatchObject({ stage: "preparing", fraction: 0.02, calls: 0 });
 
-    t.handleChatModelStart({}, [], "run1");
+    t.handleChatModelStart({} as never, [], "run1");
     expect(t.state.waitingSince).not.toBeNull();
-    t.handleLLMEnd({}, "run1");
+    t.handleLLMEnd({} as never, "run1");
     expect(t.state).toMatchObject({ calls: 1, waitingSince: null });
 
-    t.handleToolStart(
-      {},
-      JSON.stringify({ description: "Read source src_a", subagent_type: "source-analyst" }),
-      "t1",
-      undefined,
-      [],
-      {},
-      "task",
-    );
-    expect(t.state.stage).toBe("reading");
-    expect(t.state.label).toBe("Reading “Volume I — Ethereum” (1 of 2)");
+    t.startBook("src_a");
+    expect(t.state.label).toBe("Reading “Volume I — Ethereum”: chapter 1 of 2 · book 1 of 2");
     expect(t.state.sources.map((s) => s.state)).toEqual(["reading", "waiting"]);
-
-    t.handleToolStart(
-      {},
-      JSON.stringify({ file_path: "/work/candidates/src_a.json" }),
-      "t2",
-      undefined,
-      [],
-      {},
-      "write_file",
-    );
+    t.chapterDone("src_a");
+    expect(t.state.label).toBe("Reading “Volume I — Ethereum”: chapter 2 of 2 · book 1 of 2");
+    t.chapterDone("src_a");
+    t.bookDone("src_a", "Saved “Volume I — Ethereum”: 2 modules, 9 concepts");
+    expect(t.state).toMatchObject({
+      stage: "saving",
+      label: "Saved “Volume I — Ethereum”: 2 modules, 9 concepts",
+    });
     expect(t.state.sources.map((s) => s.state)).toEqual(["done", "waiting"]);
-    const half = t.state.fraction;
-    expect(half).toBeGreaterThan(0.3);
-    expect(half).toBeLessThan(0.5);
+    expect(t.state.fraction).toBeCloseTo(0.03 + 0.88 * 0.5, 5);
 
-    t.handleToolStart(
-      {},
-      JSON.stringify({ file_path: "/work/candidates/src_b.json" }),
-      "t3",
-      undefined,
-      [],
-      {},
-      "write_file",
-    );
-    expect(t.state.label).toBe("Read all 2 sources");
-
-    t.handleToolStart(
-      {},
-      JSON.stringify({ description: "Merge", subagent_type: "curriculum-editor" }),
-      "t4",
-      undefined,
-      [],
-      {},
-      "task",
-    );
-    expect(t.state.stage).toBe("ordering");
-    t.stage("checking", "Checking every concept against your sources", 0.95);
-    expect(t.state).toMatchObject({ stage: "checking", fraction: 0.95 });
+    t.startBook("src_b");
+    t.chapterDone("src_b");
+    t.chapterDone("src_b");
+    t.bookDone("src_b", "Saved");
+    t.stage("ordering", "Connecting the books", 0.93);
+    expect(t.state).toMatchObject({ stage: "ordering", fraction: 0.93 });
 
     // The fraction never goes backwards.
     const fractions = seen.map((s) => s.fraction);

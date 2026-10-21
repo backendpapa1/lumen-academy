@@ -52,6 +52,7 @@ export function loadEditableCurriculum(handle: DbHandle, schoolId: string): Edit
       id: m.id,
       title: m.title,
       goal: m.goal ?? "",
+      unit: m.unitTitle ? { sourceId: m.unitSourceId, title: m.unitTitle } : null,
       concepts: cons
         .filter((c) => c.moduleId === m.id)
         .map((c) => ({
@@ -196,7 +197,15 @@ export function applyCurriculumEdit(
       } else {
         moduleId = newId("module");
         db.insert(modules)
-          .values({ id: moduleId, schoolId, ord: mi, title: m.title, goal: m.goal })
+          .values({
+            id: moduleId,
+            schoolId,
+            ord: mi,
+            title: m.title,
+            goal: m.goal,
+            unitSourceId: m.unit?.sourceId ?? null,
+            unitTitle: m.unit?.title ?? null,
+          })
           .run();
         summary.modulesAdded++;
       }

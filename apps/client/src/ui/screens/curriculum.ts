@@ -1,5 +1,11 @@
 import type { CurriculumBuild, EditableCurriculum } from "@lumen/shared";
-import { api, ApiError, type ConceptStatus, type CurriculumView } from "../../core/api";
+import {
+  api,
+  ApiError,
+  type ConceptStatus,
+  type CurriculumUnit,
+  type CurriculumView,
+} from "../../core/api";
 import { app } from "../../core/app";
 import { store } from "../../core/store";
 import { fill, h, icon, ICONS } from "./dom";
@@ -325,18 +331,53 @@ export function mountCurriculum(
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("class", "links");
     svg.setAttribute("aria-hidden", "true");
-    const columns = draft.modules.map((m, mi) => moduleColumn(m, mi));
-    fill(
-      map,
-      svg,
-      ...columns,
-      h(
-        "button",
-        { class: "btn", style: "align-self:flex-start", onclick: addModule },
-        icon(ICONS.plus),
-        "Module",
-      ),
+    const addButton = h(
+      "button",
+      { class: "btn", style: "align-self:flex-start", onclick: addModule },
+      icon(ICONS.plus),
+      "Module",
     );
+    const grouped = draft.modules.some((m) => m.unit);
+    map.classList.toggle("grouped", grouped);
+    if (!grouped) {
+      fill(map, svg, ...draft.modules.map((m, mi) => moduleColumn(m, mi)), addButton);
+    } else {
+      // Book by book: each book's modules in a band, with what was covered.
+      const bands: Array<{ key: string; title: string; sourceId: string | null; items: number[] }> =
+        [];
+      draft.modules.forEach((m, mi) => {
+        const key = m.unit?.sourceId ?? m.unit?.title ?? "__own";
+        const last = bands.at(-1);
+        if (last && last.key === key) last.items.push(mi);
+        else
+          bands.push({
+            key,
+            title: m.unit?.title ?? "Your own modules",
+            sourceId: m.unit?.sourceId ?? null,
+            items: [mi],
+          });
+      });
+      fill(
+        map,
+        svg,
+        ...bands.map((b, i) =>
+          h(
+            "section",
+            { class: "unit-band", "aria-label": b.title },
+            unitHead(
+              b,
+              saved?.units?.find((u) => u.sourceId === b.sourceId),
+            ),
+            h(
+              "div",
+              { class: "unit-row" },
+              ...b.items.map((mi) => moduleColumn(draft!.modules[mi]!, mi)),
+              i === bands.length - 1 && addButton,
+            ),
+          ),
+        ),
+      );
+    }
     requestAnimationFrame(() => drawLinks(svg));
     renderEditor();
     savebar.hidden = !dirty && !problems.length;
@@ -352,6 +393,63 @@ export function mountCurriculum(
       h("span", { class: "spacer" }),
       h("button", { class: "btn quiet", onclick: () => load() }, "Discard"),
       h("button", { class: "btn primary", onclick: save }, "Save changes"),
+    );
+  };
+
+  /** A book's header: its name, how much of it the curriculum covers, and the gaps. */
+  const unitHead = (b: { title: string; sourceId: string | null }, unit?: CurriculumUnit) => {
+    const chapters = unit?.chapters ?? [];
+    const taught = chapters.filter((c) => c.state === "taught").length;
+    const skipped = chapters.filter((c) => c.state === "skipped");
+    const failed = chapters.filter((c) => c.state === "failed");
+    const concepts = chapters.reduce((n, c) => n + c.concepts, 0);
+    const building = store.getState().setup.builds[schoolId]?.status === "building";
+    return h(
+      "header",
+      { class: "unit-head" },
+      h("span", { class: "micro" }, unit ? "Book" : "Added by you"),
+      h("h3", { class: "unit-title" }, b.title),
+      unit &&
+        h(
+          "span",
+          {
+            class: "dim small unit-cover",
+            title: chapters
+              .map((c) => `${c.title}: ${c.state}${c.reason ? ` (${c.reason})` : ""}`)
+              .join("\n"),
+          },
+          `${taught} of ${chapters.length - skipped.length} chapters · ${concepts} concepts` +
+            (skipped.length
+              ? ` · skipped ${skipped
+                  .map((c) => c.title)
+                  .slice(0, 3)
+                  .join(", ")}${skipped.length > 3 ? "…" : ""}`
+              : ""),
+        ),
+      failed.length > 0 &&
+        h(
+          "span",
+          {
+            class: "chip err",
+            title: failed.map((c) => `${c.title}: ${c.reason ?? ""}`).join("\n"),
+          },
+          `${failed.length} chapter${failed.length === 1 ? "" : "s"} couldn't be read`,
+        ),
+      failed.length > 0 &&
+        b.sourceId &&
+        h(
+          "button",
+          {
+            class: "btn small",
+            disabled: building,
+            onclick: () =>
+              api
+                .post(`/api/schools/${schoolId}/curriculum/gaps`, { sourceId: b.sourceId })
+                .then(() => app.notify(`Reading the missing chapters of “${b.title}” again…`))
+                .catch((e: Error) => app.notify(e.message, "error")),
+          },
+          "Fill the gaps",
+        ),
     );
   };
 

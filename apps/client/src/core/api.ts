@@ -74,6 +74,15 @@ export interface SchoolSummary {
   sources: number;
   concepts: number;
   classrooms: ClassroomSummary[];
+  /** A series: the School this one continues. */
+  continuesSchoolId?: string | null;
+}
+
+export interface SchoolSeries {
+  continues: { id: string; name: string } | null;
+  /** Every School before this one in the series, nearest first. */
+  before: Array<{ id: string; name: string }>;
+  continuedBy: Array<{ id: string; name: string }>;
 }
 
 export interface ArchivedSchool {
@@ -103,6 +112,7 @@ export interface SchoolDetail {
   sources: SourceRow[];
   classrooms: ClassroomSummary[];
   classroomLimit: number;
+  series?: SchoolSeries;
 }
 
 export type ConceptStatus = "untaught" | "taught" | "weak" | "mastered";
@@ -111,6 +121,22 @@ export interface CurriculumView extends EditableCurriculum {
   /** S-5: sources added after the curriculum was built. */
   newSources: Array<{ id: string; title: string }>;
   status: Record<string, { status: ConceptStatus; comprehension: number | null; turns: number }>;
+  /** Book by book: each book's chapters and what became of them. */
+  units?: CurriculumUnit[];
+}
+
+export interface CurriculumUnit {
+  sourceId: string;
+  title: string;
+  builtAt: string;
+  chapters: Array<{
+    title: string;
+    pages: string | null;
+    chunks: number;
+    state: "taught" | "skipped" | "failed";
+    reason?: string;
+    concepts: number;
+  }>;
 }
 
 export interface Settings {

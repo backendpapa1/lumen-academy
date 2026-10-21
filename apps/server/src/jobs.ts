@@ -7,12 +7,10 @@ import {
   type CurriculumBuild,
 } from "@lumen/shared";
 import { emblemMotifs } from "./agents/artDirector.js";
-import { buildCurriculum } from "./agents/deep/curriculumArchitect.js";
-import { BuildTracker, explainBuildError } from "./agents/deep/progress.js";
+import { buildUnits, fillGaps } from "./agents/curriculum/build.js";
+import { BuildTracker, explainBuildError } from "./agents/curriculum/progress.js";
 import { emblemPrompt, portraitPrompt, type PortraitSubject } from "./assets/prompts.js";
 import type { AssetService } from "./assets/service.js";
-import { saveCurriculum } from "./db/curriculum.js";
-import { applyCurriculumEdit, loadEditableCurriculum } from "./db/curriculumEdit.js";
 import type { DbHandle } from "./db/client.js";
 import type { EventBus } from "./events.js";
 import type { Embedder } from "./ingest/embed.js";
@@ -193,12 +191,14 @@ async function runBuild(
   deps: JobDeps,
   schoolId: string,
   extending: boolean,
-  work: (track: (sources: Array<{ id: string; title: string }>) => BuildTracker) => Promise<string>,
+  work: (
+    track: (books: Array<{ id: string; title: string; chapters: number }>) => BuildTracker,
+  ) => Promise<string>,
 ): Promise<boolean> {
   const out = progressEmitter(deps, schoolId);
   let tracker: BuildTracker | null = null;
-  const track = (sources: Array<{ id: string; title: string }>) =>
-    (tracker = new BuildTracker(schoolId, sources, (s) => out.emit(s), extending));
+  const track = (books: Array<{ id: string; title: string; chapters: number }>) =>
+    (tracker = new BuildTracker(schoolId, books, (s) => out.emit(s), extending));
   // A heartbeat while it builds: one model call can take minutes and say nothing.
   const beat = setInterval(() => {
     const t = tracker as BuildTracker | null;
@@ -268,23 +268,61 @@ function blankBuild(schoolId: string): CurriculumBuild {
   };
 }
 
-/** C-1: Curriculum Architect, one run per school at a time. */
+const describeBuild = (s: {
+  units: number;
+  modules: number;
+  concepts: number;
+  skipped: number;
+  failed: number;
+}) =>
+  `${s.units > 1 ? `${s.units} books, ` : ""}${s.modules} modules, ${s.concepts} concepts` +
+  (s.failed
+    ? ` · ${s.failed} chapter${s.failed === 1 ? "" : "s"} couldn't be read: Fill the gaps to retry`
+    : "");
+
+/** C-1: the curriculum, built book by book; one build per School at a time. */
 export async function generateCurriculum(deps: JobDeps, schoolId: string): Promise<boolean> {
-  if (!deps.embedder)
-    throw new Error("the Curriculum Architect needs an OpenAI key for embeddings");
   if (building.has(schoolId)) return false;
   building.add(schoolId);
   deps.bus.emit({ type: "curriculum.status", payload: { schoolId, status: "building" } });
   try {
-    return await runBuild(deps, schoolId, false, async (track) => {
-      const result = await buildCurriculum(
-        { factory: deps.factory, handle: deps.handle, embedder: deps.embedder! },
+    return await runBuild(deps, schoolId, false, async (track) =>
+      describeBuild(
+        await buildUnits({ factory: deps.factory, handle: deps.handle }, schoolId, {
+          rebuild: true,
+          track,
+        }),
+      ),
+    );
+  } finally {
+    building.delete(schoolId);
+  }
+}
+
+/** Re-reads one book's chapters that failed, adding what they teach. */
+export async function fillCurriculumGaps(
+  deps: JobDeps,
+  schoolId: string,
+  sourceId: string,
+): Promise<boolean> {
+  if (building.has(schoolId)) return false;
+  building.add(schoolId);
+  deps.bus.emit({
+    type: "curriculum.status",
+    payload: { schoolId, status: "building", detail: "gaps" },
+  });
+  try {
+    return await runBuild(deps, schoolId, true, async (track) => {
+      const r = await fillGaps(
+        { factory: deps.factory, handle: deps.handle },
         schoolId,
-        undefined,
+        sourceId,
         track,
       );
-      const saved = saveCurriculum(deps.handle, schoolId, result.curriculum);
-      return `${saved.modules} modules, ${saved.concepts} concepts`;
+      return (
+        `filled ${r.filled} chapters with ${r.concepts} concepts` +
+        (r.stillFailed ? ` · ${r.stillFailed} still couldn't be read` : "")
+      );
     });
   } finally {
     building.delete(schoolId);
@@ -312,8 +350,6 @@ export function sourcesOutsideCurriculum(
  * the current curriculum, so your edits stay as they are.
  */
 export async function extendCurriculum(deps: JobDeps, schoolId: string): Promise<boolean> {
-  if (!deps.embedder)
-    throw new Error("the Curriculum Architect needs an OpenAI key for embeddings");
   const fresh = sourcesOutsideCurriculum(deps.handle, schoolId);
   if (!fresh.length) throw new Error("Every source is already in the curriculum.");
   if (building.has(schoolId)) return false;
@@ -324,25 +360,21 @@ export async function extendCurriculum(deps: JobDeps, schoolId: string): Promise
   });
   try {
     return await runBuild(deps, schoolId, true, async (track) => {
-      const current = loadEditableCurriculum(deps.handle, schoolId);
-      const existing = current.modules.flatMap((m) => m.concepts.map((c) => c.title));
-      const result = await buildCurriculum(
-        { factory: deps.factory, handle: deps.handle, embedder: deps.embedder! },
-        schoolId,
-        { sourceIds: fresh.map((s) => s.id), existingConcepts: existing },
+      const sources = deps.handle.sqlite
+        .prepare(
+          `SELECT id, title, kind, file_path filePath FROM sources WHERE id IN (${fresh.map(() => "?").join(",")}) ORDER BY created_at`,
+        )
+        .all(...fresh.map((f) => f.id)) as Array<{
+        id: string;
+        title: string;
+        kind: string;
+        filePath: string | null;
+      }>;
+      const summary = await buildUnits({ factory: deps.factory, handle: deps.handle }, schoolId, {
+        sources,
         track,
-      );
-      const taken = new Set(existing.map((t) => t.toLowerCase()));
-      const added = result.curriculum.modules
-        .map((m) => ({
-          ...m,
-          concepts: m.concepts.filter((c) => !taken.has(c.title.toLowerCase())),
-        }))
-        .filter((m) => m.concepts.length);
-      const summary = applyCurriculumEdit(deps.handle, schoolId, {
-        modules: [...current.modules, ...added],
       });
-      return `added ${summary.added} concepts in ${added.length} modules`;
+      return `added ${describeBuild(summary)}`;
     });
   } finally {
     building.delete(schoolId);

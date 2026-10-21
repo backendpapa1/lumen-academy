@@ -1,17 +1,16 @@
-// pnpm cli:curriculum --school "Blockchain"   — runs the Curriculum Architect (C-1) and saves it.
+// pnpm cli:curriculum --school "Blockchain"   — builds the curriculum book by book (C-1) and saves it.
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { buildCurriculum } from "../src/agents/deep/curriculumArchitect.js";
+import { buildUnits } from "../src/agents/curriculum/build.js";
+import { loadEditableCurriculum } from "../src/db/curriculumEdit.js";
 import { findConfigDir, loadConfig } from "../src/config/load.js";
 import { dbPath, loadDotEnv } from "../src/config/paths.js";
 import { openDb, runMigrations } from "../src/db/client.js";
-import { saveCurriculum } from "../src/db/curriculum.js";
 import {
   CurriculumEditError,
   exportCurriculumYaml,
   importCurriculumYaml,
 } from "../src/db/curriculumEdit.js";
-import { OpenAIEmbedder } from "../src/ingest/embed.js";
 import { ensureSchool } from "../src/ingest/pipeline.js";
 import { ModelFactory } from "../src/models/factory.js";
 import { UsageMeter } from "../src/usage/meter.js";
@@ -35,7 +34,6 @@ const handle = openDb(dbPath(cfg));
 runMigrations(handle);
 const meter = new UsageMeter({ db: handle.db, pricing: cfg.pricing, budget: cfg.models.budget });
 const factory = new ModelFactory({ config: cfg.models, env: process.env, meter });
-const embedder = new OpenAIEmbedder({ config: cfg.models, env: process.env, meter });
 const school = ensureSchool(handle, schoolName);
 const userPath = (p: string) => resolve(process.env.INIT_CWD ?? process.cwd(), p);
 
@@ -63,20 +61,16 @@ if (importPath) {
 const before = meter.totals().monthUsd;
 const started = performance.now();
 console.log(`Building curriculum for "${schoolName}"…`);
-const result = await buildCurriculum({ factory, handle, embedder }, school.id);
-const saved = saveCurriculum(handle, school.id, result.curriculum);
-for (const [mi, m] of result.curriculum.modules.entries()) {
+const summary = await buildUnits({ factory, handle }, school.id, { rebuild: true });
+const curriculum = loadEditableCurriculum(handle, school.id);
+for (const [mi, m] of curriculum.modules.entries()) {
   console.log(`\n${mi + 1}. ${m.title}: ${m.goal}`);
   for (const c of m.concepts)
     console.log(
       `   - ${c.title} (d${c.difficulty}, ${c.keyFacts.length} facts, ${c.misconceptions.length} misconceptions, ${c.citations.length} cites)`,
     );
 }
-for (const [n, problems] of result.rejections.entries()) {
-  console.log(`\nAttempt ${n + 1} was rejected:\n- ${problems.join("\n- ")}`);
-}
-if (result.warnings.length) console.log(`\nWarnings:\n- ${result.warnings.join("\n- ")}`);
 console.log(
-  `\nSaved ${saved.modules} modules / ${saved.concepts} concepts · attempts ${result.attempts} · ${((performance.now() - started) / 1000).toFixed(0)}s · $${(meter.totals().monthUsd - before).toFixed(4)}`,
+  `\nSaved ${summary.units} books: ${summary.modules} modules / ${summary.concepts} concepts · ${summary.skipped} chapters skipped, ${summary.failed} failed · ${((performance.now() - started) / 1000).toFixed(0)}s · $${(meter.totals().monthUsd - before).toFixed(4)}`,
 );
 handle.close();

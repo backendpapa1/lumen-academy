@@ -22,6 +22,7 @@ const TABLES: Array<[table: string, where: string]> = [
   ["sources", "school_id = :school"],
   ["chunks", "source_id IN (SELECT id FROM sources WHERE school_id = :school)"],
   ["modules", "school_id = :school"],
+  ["curriculum_units", "school_id = :school"],
   ["concepts", "module_id IN (SELECT id FROM modules WHERE school_id = :school)"],
   [
     "concept_citations",

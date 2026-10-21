@@ -281,6 +281,29 @@ export function normalizeCurriculum(c: Curriculum): Curriculum {
   };
 }
 
+/**
+ * One chapter of a book, read by the Chapter Analyst (book-by-book curriculum):
+ * the module it becomes and its concepts, or why it isn't teachable (front or
+ * back matter, a list of links…).
+ */
+export const ChapterAnalysisZ = z.object({
+  teachable: z.boolean(),
+  reason: z.string().default(""),
+  moduleTitle: z.string().default(""),
+  goal: z.string().default(""),
+  concepts: z.array(ConceptZ).default([]),
+});
+export type ChapterAnalysis = z.infer<typeof ChapterAnalysisZ>;
+
+/** The Curriculum Connector's pass over every book: links across books, and duplicates. */
+export const CurriculumLinksZ = z.object({
+  prerequisites: z
+    .array(z.object({ concept: z.string(), needs: z.array(z.string()).max(4) }))
+    .default([]),
+  duplicates: z.array(z.object({ drop: z.string(), keep: z.string() })).default([]),
+});
+export type CurriculumLinks = z.infer<typeof CurriculumLinksZ>;
+
 /** Curriculum as exported for hand editing (C-2): existing items carry their id. */
 export const EditableCurriculumZ = z.object({
   modules: z
@@ -289,6 +312,11 @@ export const EditableCurriculumZ = z.object({
         id: z.string().optional(),
         title: z.string().min(1),
         goal: z.string().default(""),
+        /** The book this module was built from (read-only here: edits keep it). */
+        unit: z
+          .object({ sourceId: z.string().nullable(), title: z.string() })
+          .nullable()
+          .optional(),
         concepts: z.array(ConceptZ.extend({ id: z.string().optional() })).min(1),
       }),
     )

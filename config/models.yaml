@@ -90,6 +90,8 @@ agents:
   parent: { role: fast, maxOutputTokens: 300, temperature: 0.7 } # V5-10
   styleCoach: { role: fast, maxOutputTokens: 300, temperature: 0.3 } # V7-07: three sentences from our numbers
   voiceCaster: { role: fast, maxOutputTokens: 400, temperature: 0 } # a voice that fits each older student's name
+  chapterAnalyst: { role: fast, maxOutputTokens: 6000, temperature: 0.2 } # one chapter's concepts (book-by-book curriculum)
+  curriculumConnector: { role: standard, maxOutputTokens: 8000, temperature: 0 } # prerequisites across books, duplicates
 
 budget:
   monthlyUsdCap: 20

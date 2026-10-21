@@ -1,4 +1,5 @@
-import { extractText } from "unpdf";
+import { extractText, getDocumentProxy } from "unpdf";
+import { headingsForPage, readPdfOutline } from "./pdfOutline.js";
 
 // Parse step of ingestion (docs/05 §7): plain text with heading and page markers.
 
@@ -65,12 +66,18 @@ export function parseText(text: string): ParsedSource {
   return { sections: clean ? [{ headingPath: [], text: clean }] : [], outline: [] };
 }
 
-/** PDF: one section per page (headings aren't reliable in PDF text). */
+/**
+ * PDF: one section per page. Headings come from the PDF's own outline
+ * (bookmarks), when it has one: each page is filed under its chapter and
+ * section, so the curriculum can follow the book's chapters.
+ */
 export async function parsePdf(bytes: Uint8Array): Promise<ParsedSource> {
-  const { totalPages, text } = await extractText(bytes, { mergePages: false });
+  const pdf = await getDocumentProxy(bytes);
+  const outline = await readPdfOutline(pdf);
+  const { totalPages, text } = await extractText(pdf, { mergePages: false });
   const sections = text
     .map((pageText, i) => ({
-      headingPath: [],
+      headingPath: headingsForPage(outline, i + 1),
       text: pageText.replace(/[ \t]+\n/g, "\n").trim(),
       pageFrom: i + 1,
       pageTo: i + 1,
@@ -78,7 +85,9 @@ export async function parsePdf(bytes: Uint8Array): Promise<ParsedSource> {
     .filter((s) => s.text.length > 0);
   return {
     sections,
-    outline: sections.map((s) => ({ title: `Page ${s.pageFrom}`, depth: 1, page: s.pageFrom })),
+    outline: outline.length
+      ? outline.map((o) => ({ title: o.title, depth: o.depth, page: o.page }))
+      : sections.map((s) => ({ title: `Page ${s.pageFrom}`, depth: 1, page: s.pageFrom })),
     pageCount: totalPages,
   };
 }

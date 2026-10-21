@@ -26,6 +26,8 @@ export const schools = sqliteTable("schools", {
   archived: integer("archived", { mode: "boolean" }).notNull().default(false),
   /** V6-07: "I have an exam on Friday": the date (YYYY-MM-DD) the plan works back from. */
   examDate: text("exam_date"),
+  /** This School continues another (a series): its prerequisites, classes and campus path. */
+  continuesSchoolId: text("continues_school_id"),
   createdAt: createdAt(),
 });
 
@@ -83,6 +85,10 @@ export const modules = sqliteTable(
     ord: integer("ord").notNull(),
     title: text("title").notNull(),
     goal: text("goal"),
+    /** The book (source) this module was built from: the curriculum's unit. */
+    unitSourceId: text("unit_source_id"),
+    /** The unit's name, kept even if the source is later removed. */
+    unitTitle: text("unit_title"),
   },
   (t) => [index("modules_school_ord").on(t.schoolId, t.ord)],
 );
@@ -643,3 +649,23 @@ export const studyNotes = sqliteTable("study_notes", {
   body: text("body").notNull().default(""),
   updatedAt: text("updated_at").notNull(),
 });
+
+/**
+ * One book's part of a curriculum (built unit by unit): its chapters, what each
+ * became, and so the coverage (which chapters were taught, skipped, or failed).
+ */
+export const curriculumUnits = sqliteTable(
+  "curriculum_units",
+  {
+    schoolId: text("school_id")
+      .notNull()
+      .references(() => schools.id),
+    sourceId: text("source_id").notNull(),
+    title: text("title").notNull(),
+    ord: integer("ord").notNull(),
+    /** [{ title, pages, chunks, state: "taught" | "skipped" | "failed", reason?, concepts }] */
+    chaptersJson: text("chapters_json").notNull().default("[]"),
+    builtAt: text("built_at").notNull(),
+  },
+  (t) => [uniqueIndex("curriculum_units_source").on(t.schoolId, t.sourceId)],
+);

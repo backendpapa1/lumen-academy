@@ -1,3 +1,4 @@
+import type { BaseCallbackHandler } from "@langchain/core/callbacks/base";
 import { HumanMessage, type BaseMessage } from "@langchain/core/messages";
 import type { AgentName } from "@lumen/shared";
 import { ZodError, type z } from "zod";
@@ -12,6 +13,8 @@ export interface StructuredCall<T> {
   messages: BaseMessage[];
   signal?: AbortSignal;
   resolve?: ResolveOptions;
+  /** Progress listeners (e.g. a curriculum build's heartbeat). */
+  callbacks?: BaseCallbackHandler[];
 }
 
 export interface StructuredResult<T> {
@@ -51,7 +54,10 @@ export async function callStructured<T extends Record<string, unknown>>(
     agent,
     async (candidate) => {
       const runnable = structured(candidate, call.schema, call.name);
-      const opts = call.signal ? { signal: call.signal } : {};
+      const opts = {
+        ...(call.signal ? { signal: call.signal } : {}),
+        ...(call.callbacks ? { callbacks: call.callbacks } : {}),
+      };
       try {
         return { data: await runnable.invoke(call.messages, opts), candidate, reasked: false };
       } catch (err) {

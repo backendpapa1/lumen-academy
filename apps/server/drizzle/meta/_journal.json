@@ -127,6 +127,13 @@
       "when": 1792606038508,
       "tag": "0017_study_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1792621384800,
+      "tag": "0018_curriculum_units",
+      "breakpoints": true
     }
   ]
 }
