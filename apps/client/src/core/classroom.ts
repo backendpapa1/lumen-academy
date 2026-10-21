@@ -73,6 +73,12 @@ export interface EventState {
   result?: Omit<ServerMessageOf<"event.result">["payload"], "eventId" | "kind">;
 }
 
+export interface ParkedItem {
+  id: string;
+  text: string;
+  status: "open" | "kept" | "concept" | "dismissed";
+}
+
 export interface ClassroomState {
   status: "idle" | "starting" | "live" | "ending" | "ended";
   periodId?: string;
@@ -115,6 +121,8 @@ export interface ClassroomState {
   /** V3-01/02: a micro-lesson, and how I said I felt at the start. */
   kind: "class" | "micro";
   energy: "low" | "ok" | "high" | null;
+  /** V3-04: open parked thoughts in this School; this period's, at the bell. */
+  parking: { open: number; items: ParkedItem[] };
   /** T-10: Hyperfocus mode for this period. */
   hyperfocus: boolean;
   /** The exit-ticket minigame at the bell (M4-05). */
@@ -141,6 +149,7 @@ export const initialClassroom = (): ClassroomState => ({
   lastTaughtDays: null,
   kind: "class",
   energy: null,
+  parking: { open: 0, items: [] },
   hyperfocus: false,
 });
 

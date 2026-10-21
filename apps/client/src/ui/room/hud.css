@@ -713,3 +713,24 @@
   color: var(--ink);
   quotes: "“" "”";
 }
+
+/* V3-04: what I parked, at the bell. */
+.parked-bell {
+  margin-top: 16px;
+  text-align: left;
+}
+.parked-item {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--marigold-wash);
+  border-left: 4px solid var(--marigold);
+}
+.parked-item p {
+  margin: 0 0 8px;
+}
+.parked-item:not(.open) {
+  opacity: 0.65;
+}
+.parked-item:not(.open) p {
+  margin: 0 0 2px;
+}

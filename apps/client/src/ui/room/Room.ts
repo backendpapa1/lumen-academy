@@ -467,7 +467,8 @@ export class Room {
   private board(c: ClassroomState) {
     const last = [...c.transcript].reverse().find((t) => t.speaker === "headmaster")?.text ?? "";
     const avg = c.classAverage;
-    const key = `${c.concept?.title}|${c.board}|${last}|${avg}|${c.lastTaughtDays}`;
+    const parked = c.parking.open;
+    const key = `${c.concept?.title}|${c.board}|${last}|${avg}|${c.lastTaughtDays}|${parked}`;
     if (this.boardText.dataset.key === key) return;
     this.boardText.dataset.key = key;
     const lines = c.board
@@ -487,7 +488,8 @@ export class Room {
         avg === null
           ? ""
           : `<div class="b-meter"><span>Class understanding</span><i><b style="width:${Math.round(avg * 100)}%"></b></i><em>${Math.round(avg * 100)}%</em></div>`
-      }`;
+      }
+      ${parked ? `<div class="b-sticky" title="Parked thoughts: they wait for you at the bell"><b>${parked}</b>parked</div>` : ""}`;
   }
 
   private highlight(hovered: string | null, selected: string | null) {

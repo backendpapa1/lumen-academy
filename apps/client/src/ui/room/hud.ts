@@ -132,7 +132,8 @@ export class ClassroomHud {
       c.status !== p.status ||
       c.ended !== p.ended ||
       c.clock.paused !== p.clock.paused ||
-      c.resumed !== p.resumed
+      c.resumed !== p.resumed ||
+      (c.status === "ended" && c.parking.items !== p.parking.items)
     )
       this.buildOverlay(c);
     if (c.toasts !== p.toasts) this.buildToasts(c);
@@ -395,6 +396,7 @@ export class ClassroomHud {
           ["Tab", "pick a hand"],
           ["1–5", "call by number"],
           ["R", "roster"],
+          ["P", "park a thought"],
           ["`", "transcript"],
           ["Esc", "pause"],
         ].map(([k, t]) => h("span", {}, h("kbd", {}, k!), t!)),
@@ -568,6 +570,7 @@ export class ClassroomHud {
       recap
         ? h("div", { class: "next" }, h("div", { class: "micro" }, "Next time…"), h("p", {}, recap))
         : null,
+      parkedAtBell(c),
       h(
         "div",
         { class: "actions" },
@@ -622,4 +625,48 @@ export class ClassroomHud {
     transcript.toggle(false);
     this.el.remove();
   }
+}
+
+/** V3-04: the thoughts parked this period, each one kept, made a concept, or let go. */
+function parkedAtBell(c: ClassroomState): HTMLElement | null {
+  const items = c.parking.items;
+  if (!items.length) return null;
+  const label = { kept: "Kept as a note", concept: "Sent to the curriculum", dismissed: "Let go" };
+  return h(
+    "div",
+    { class: "parked-bell" },
+    h(
+      "div",
+      { class: "micro" },
+      `You parked ${items.length === 1 ? "a thought" : `${items.length} thoughts`}`,
+    ),
+    ...items.map((p) =>
+      h(
+        "div",
+        { class: `parked-item ${p.status}` },
+        h("p", {}, p.text),
+        p.status === "open"
+          ? h(
+              "div",
+              { class: "row" },
+              h(
+                "button",
+                { class: "btn small", onclick: () => app.resolveParked(p, "kept") },
+                "Keep as a note",
+              ),
+              h(
+                "button",
+                { class: "btn small", onclick: () => app.resolveParked(p, "concept") },
+                "Make it a concept",
+              ),
+              h(
+                "button",
+                { class: "btn small quiet", onclick: () => app.resolveParked(p, "dismissed") },
+                "Let it go",
+              ),
+            )
+          : h("span", { class: "mono small dim" }, label[p.status]),
+      ),
+    ),
+  );
 }

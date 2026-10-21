@@ -6,6 +6,7 @@ import type { AppConfig } from "./config/load.js";
 import { registerAssessmentRoutes } from "./routes/assessment.js";
 import { registerAssetRoutes } from "./routes/assets.js";
 import { registerCampusRoutes } from "./routes/campus.js";
+import { registerParkingRoutes } from "./routes/parking.js";
 import { registerClassroomRoutes } from "./routes/classrooms.js";
 import { registerSchoolRoutes } from "./routes/schools.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
@@ -50,7 +51,7 @@ export async function buildApp({
   // PUT is used by curriculum edits and settings; the default allows only GET/HEAD/POST.
   await app.register(cors, {
     origin: CLIENT_ORIGINS,
-    methods: ["GET", "HEAD", "POST", "PUT", "DELETE"],
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
   });
   await app.register(websocket, { options: { maxPayload: 1 << 20 } });
 
@@ -67,6 +68,7 @@ export async function buildApp({
     runtime.bus ??= new EventBus();
     registerAssessmentRoutes(app, runtime);
     registerCampusRoutes(app, runtime);
+    registerParkingRoutes(app, runtime);
     if (dataDir) {
       const jobs = { ...runtime, bus: runtime.bus, art: config.artPrompts, dataDir };
       await registerSchoolRoutes(app, jobs);

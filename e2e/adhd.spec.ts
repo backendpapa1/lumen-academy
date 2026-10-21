@@ -34,13 +34,25 @@ const campus = {
 };
 
 async function boot(page: Page) {
-  await page.route("**/api/**", (r) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: r.request().url().includes("/api/campus") ? JSON.stringify(campus) : "[]",
-    }),
-  );
+  // A tiny in-memory parking lot behind the faked API.
+  const lot: Array<{ id: string; text: string; status: string; periodId: string | null }> = [];
+  await page.route("**/api/**", async (r) => {
+    const req = r.request();
+    const url = req.url();
+    let body: unknown = [];
+    if (url.includes("/api/campus")) body = campus;
+    else if (url.includes("/parking") && req.method() === "POST") {
+      const { text, periodId } = req.postDataJSON() as { text: string; periodId?: string };
+      lot.push({ id: `prk_${lot.length}`, text, status: "open", periodId: periodId ?? null });
+      body = { ...lot.at(-1), open: lot.filter((p) => p.status === "open").length };
+    } else if (url.includes("/api/parking/")) {
+      const item = lot.find((p) => url.endsWith(p.id))!;
+      item.status = (req.postDataJSON() as { status: string }).status;
+      body = { id: item.id, status: item.status };
+    } else if (url.includes("/parking"))
+      body = url.includes("periodId=") ? lot : lot.filter((p) => p.status === "open");
+    await r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  });
   await page.addInitScript((xp) => {
     const sent: Array<{ type: string; payload: Record<string, unknown> }> = [];
     (window as unknown as { __sent: typeof sent }).__sent = sent;
@@ -66,6 +78,26 @@ async function boot(page: Page) {
       send(data: string) {
         const m = JSON.parse(data) as { type: string; payload: Record<string, unknown> };
         sent.push(m);
+        if (m.type === "period.end") {
+          const ended = {
+            periodId: "per_fake",
+            turns: 3,
+            minutes: 6,
+            costUsd: 0.002,
+            xp: {
+              earned: 60,
+              breakdown: [{ kind: "teachingMinute", amount: 60 }],
+              standing: xp,
+              rankedUp: false,
+            },
+          };
+          setTimeout(
+            () =>
+              this.onmessage?.({ data: JSON.stringify({ type: "period.ended", payload: ended }) }),
+            20,
+          );
+          return;
+        }
         if (m.type !== "period.start") return;
         const micro = m.payload.kind === "micro";
         const payload = {
@@ -158,4 +190,26 @@ test("'Don't ask me again' turns the check-in off for good", async ({ page }) =>
   await page.getByRole("button", { name: "Micro-lesson · 3 min" }).click();
   await expect(page.locator(".room.micro")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "How's your energy?" })).toHaveCount(0);
+});
+
+test("P parks a thought: a sticky note on the board, sorted at the bell", async ({ page }) => {
+  await boot(page);
+  await page.getByRole("button", { name: "Start class" }).click();
+  await page.getByRole("button", { name: "Skip" }).click();
+  // The class is live once the board shows today's concept.
+  await expect(page.locator(".b-title")).toHaveText("Merkle trees");
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press("p");
+  const lectern = page.locator("#lectern");
+  await expect(lectern).toHaveValue("/park ");
+  await page.keyboard.type("Is a Merkle tree just a hash list?");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Parked. It'll be waiting for you at the bell.")).toBeVisible();
+  await expect(page.locator(".b-sticky")).toContainText("1");
+  await page.screenshot({ path: "docs/screens/v3-parked.png" });
+  await page.getByRole("button", { name: "End class" }).click();
+  const card = page.getByRole("dialog", { name: "Class dismissed" });
+  await expect(card.getByText("Is a Merkle tree just a hash list?")).toBeVisible();
+  await card.getByRole("button", { name: "Keep as a note" }).click();
+  await expect(card.getByText("Kept as a note")).toBeVisible();
 });

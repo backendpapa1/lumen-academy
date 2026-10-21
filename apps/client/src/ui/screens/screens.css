@@ -1986,3 +1986,20 @@ table.heat td {
     min-height: 0;
   }
 }
+
+/* V3-04 parking lot outside class (the bell's list shares .parked-item). */
+.lot {
+  margin-top: 24px;
+}
+.lot .field {
+  margin: 10px 0 4px;
+}
+.lot .parked-item {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--marigold-wash);
+  border-left: 4px solid var(--marigold);
+}
+.lot .parked-item p {
+  margin: 0 0 8px;
+}

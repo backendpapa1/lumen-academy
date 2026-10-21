@@ -153,7 +153,7 @@ export function mountSchool(root: HTMLElement, schoolId: string): () => void {
       tab === "sources"
         ? mountSources(panel, schoolId)
         : tab === "curriculum"
-          ? mountCurriculum(panel, schoolId)
+          ? mountCurriculum(panel, schoolId, route.newConcept)
           : tab === "knowledge"
             ? mountKnowledge(panel, schoolId)
             : mountClasses(panel, schoolId);

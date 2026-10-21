@@ -83,6 +83,11 @@ export function installKeyboard(): void {
       case "hyperfocus":
         void import("./hyperfocus").then((m) => m.toggleHyperfocus());
         break;
+      case "park":
+        lectern.el.value = "/park ";
+        lectern.focus();
+        lectern.el.setSelectionRange(lectern.el.value.length, lectern.el.value.length);
+        break;
     }
     e.preventDefault();
   });

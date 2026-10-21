@@ -6,7 +6,13 @@ import { initialSetup, type SetupState } from "./setup";
 export interface AppState {
   route:
     | { name: "boot" }
-    | { name: "school"; schoolId: string; tab: "sources" | "curriculum" | "classes" | "knowledge" }
+    | {
+        name: "school";
+        schoolId: string;
+        tab: "sources" | "curriculum" | "classes" | "knowledge";
+        /** V3-04: a parked thought to start a new concept from. */
+        newConcept?: string;
+      }
     | { name: "registration"; classroomId: string; schoolId: string }
     | {
         name: "desk";

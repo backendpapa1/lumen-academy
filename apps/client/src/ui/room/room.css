@@ -689,3 +689,25 @@
 .room.micro .seat.empty {
   opacity: 0.55;
 }
+/* V3-04: parked thoughts, a sticky note in the board's corner. */
+.board-text {
+  position: relative;
+}
+.board-text .b-sticky {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  width: 74px;
+  padding: 8px 6px 10px;
+  background: var(--marigold);
+  color: var(--navy);
+  font: 700 11px var(--font-ui);
+  text-align: center;
+  transform: rotate(4deg);
+  box-shadow: 2px 3px 0 rgba(15, 26, 102, 0.25);
+}
+.board-text .b-sticky b {
+  display: block;
+  font: 400 26px var(--font-display);
+  line-height: 1;
+}

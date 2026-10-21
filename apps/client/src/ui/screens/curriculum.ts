@@ -19,7 +19,12 @@ const STATUS_LABEL: Record<ConceptStatus, string> = {
   mastered: "Mastered",
 };
 
-export function mountCurriculum(root: HTMLElement, schoolId: string): () => void {
+export function mountCurriculum(
+  root: HTMLElement,
+  schoolId: string,
+  /** V3-04: a parked thought becomes a draft concept (saved only when I save). */
+  newConcept?: string,
+): () => void {
   let saved: CurriculumView | null = null;
   let draft: EditableCurriculum | null = null;
   let selected: { m: number; c: number } | null = null;
@@ -48,6 +53,14 @@ export function mountCurriculum(root: HTMLElement, schoolId: string): () => void
         problems = [];
         selected = draft.modules[0]?.concepts[0] ? { m: 0, c: 0 } : null;
         render();
+        if (newConcept && draft.modules.length) {
+          addConcept(draft.modules.length - 1);
+          const c = conceptAt()!;
+          c.title = newConcept.length > 70 ? `${newConcept.slice(0, 67)}…` : newConcept;
+          c.summary = newConcept;
+          newConcept = undefined;
+          render();
+        }
       })
       .catch((e: Error) => fill(map, h("div", { class: "empty" }, e.message)));
 

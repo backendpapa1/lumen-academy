@@ -23,7 +23,8 @@ describe("routeKey", () => {
     expect(routeKey(ctx("n"))).toEqual({ do: "notes" });
     expect(routeKey(ctx("`"))).toEqual({ do: "transcript" });
     expect(routeKey(ctx("r"))).toEqual({ do: "roster" });
-    expect(routeKey(ctx("p"))).toEqual({ do: "stats" });
+    expect(routeKey(ctx("p"))).toEqual({ do: "park" });
+    expect(routeKey({ ...ctx("P"), shift: true })).toEqual({ do: "stats" });
     expect(routeKey(ctx("m"))).toEqual({ do: "mute" });
   });
 

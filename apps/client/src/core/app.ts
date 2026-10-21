@@ -6,7 +6,7 @@ import {
   type SchoolDetail,
   type SchoolSummary,
 } from "./api";
-import { applyServerMessage, dismissToast } from "./classroom";
+import { applyServerMessage, dismissToast, type ParkedItem } from "./classroom";
 import { serverEvents } from "./bus";
 import { applySetupMessage } from "./setup";
 import { Net } from "./net";
@@ -58,6 +58,7 @@ function receive(m: ServerMessage) {
   }
   if (m.type === "period.started") {
     remember(m.payload.classroom.id);
+    void app.loadParking(m.payload.school.id);
     const { kind, energy, resumed, plannedMinutes } = m.payload;
     if (!resumed && kind === "micro")
       app.notify(
@@ -68,7 +69,11 @@ function receive(m: ServerMessage) {
     else if (!resumed && energy === "low")
       app.notify("A gentle class today: shorter questions, no surprises.");
   }
-  if (m.type === "period.ended") remember(null);
+  if (m.type === "period.ended") {
+    remember(null);
+    const school = store.getState().classroom.school?.id;
+    if (school) void app.loadParking(school, m.payload.periodId);
+  }
   if (m.type === "toast" || m.type === "error") {
     const id = store.getState().classroom.toasts.at(-1)?.id;
     if (id !== undefined)
@@ -245,9 +250,12 @@ export const app = {
       }
       case "assign":
         return this.notify("At the bell, “Set homework” takes you straight to the Class Desk.");
+      case "park":
+        if (!arg) return this.notify("Type the thought after /park, then Enter.");
+        return void this.park(arg);
       default:
         return this.notify(
-          "Lectern commands: /board <text> (| for a new line, /board clear) · /focus · /recap · /assign",
+          "Lectern commands: /board <text> (| for a new line, /board clear) · /park <thought> · /focus · /recap · /assign",
         );
     }
   },
@@ -336,6 +344,64 @@ export const app = {
   },
   finishExitTickets(periodId: string) {
     ensureNet().send("exit.done", { periodId });
+  },
+  /** V3-04: file a stray thought for later, without leaving the class. */
+  async park(text: string, schoolId = store.getState().classroom.school?.id) {
+    if (!schoolId) return;
+    try {
+      const r = await api.post<ParkedItem & { open: number }>(`/api/schools/${schoolId}/parking`, {
+        text,
+        ...(store.getState().classroom.periodId
+          ? { periodId: store.getState().classroom.periodId }
+          : {}),
+      });
+      store.setState((s) => ({
+        classroom: {
+          ...s.classroom,
+          parking: { open: r.open, items: [...s.classroom.parking.items, r] },
+        },
+      }));
+      this.notify("Parked. It'll be waiting for you at the bell.");
+    } catch (e) {
+      this.notify((e as Error).message, "error");
+    }
+  },
+  /** The School's open count, and (with a period) that period's thoughts for the bell. */
+  async loadParking(schoolId: string, periodId?: string) {
+    try {
+      const open = await api.get<ParkedItem[]>(`/api/schools/${schoolId}/parking`);
+      const items = periodId
+        ? await api.get<ParkedItem[]>(
+            `/api/schools/${schoolId}/parking?status=all&periodId=${encodeURIComponent(periodId)}`,
+          )
+        : store.getState().classroom.parking.items;
+      store.setState((s) => ({
+        classroom: { ...s.classroom, parking: { open: open.length, items } },
+      }));
+    } catch {
+      /* the lot is a nicety; the class goes on without it */
+    }
+  },
+  async resolveParked(item: ParkedItem, status: ParkedItem["status"]) {
+    try {
+      await api.patch(`/api/parking/${item.id}`, { status });
+    } catch (e) {
+      return this.notify((e as Error).message, "error");
+    }
+    store.setState((s) => ({
+      classroom: {
+        ...s.classroom,
+        parking: {
+          open: Math.max(0, s.classroom.parking.open - (status === "open" ? -1 : 1)),
+          items: s.classroom.parking.items.map((p) => (p.id === item.id ? { ...p, status } : p)),
+        },
+      },
+    }));
+    const school = store.getState().classroom.school?.id;
+    if (status === "concept" && school)
+      store.setState({
+        route: { name: "school", schoolId: school, tab: "curriculum", newConcept: item.text },
+      });
   },
   /** A client-side toast, same look and lifetime as the server's. */
   notify(text: string, level: "info" | "warn" | "error" = "info") {

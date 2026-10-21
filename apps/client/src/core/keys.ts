@@ -29,7 +29,8 @@ export type KeyAction =
   | { do: "stats" }
   | { do: "mute" }
   | { do: "hyperfocus" }
-  | { do: "notes" };
+  | { do: "notes" }
+  | { do: "park" };
 
 const NONE: KeyAction = { do: "none" };
 
@@ -52,7 +53,8 @@ export function routeKey(k: KeyContext): KeyAction {
     case "r":
       return { do: "roster" };
     case "p":
-      return { do: "stats" };
+      // V3-04: P parks a stray thought; the stats overlay moved to Shift+P.
+      return k.shift ? { do: "stats" } : { do: "park" };
     case "m":
       return { do: "mute" };
     case "f":

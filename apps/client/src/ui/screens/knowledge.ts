@@ -2,6 +2,7 @@ import { api, ApiError } from "../../core/api";
 import { app } from "../../core/app";
 import { SERVER_HTTP } from "../../core/net";
 import { fill, h, icon, ICONS } from "./dom";
+import { parkingLot } from "./parkingLot";
 
 // "What I actually know" (V2-07/08, VD6): the evidence from my classes, per
 // concept, shaky first. My own 1–5 rating sits beside each one; where it and
@@ -49,7 +50,12 @@ export function mountKnowledge(root: HTMLElement, schoolId: string): () => void 
     { class: "know-body" },
     h("p", { class: "dim" }, "Gathering the evidence…"),
   );
-  root.append(top, summary, body);
+  root.append(
+    top,
+    summary,
+    body,
+    parkingLot(schoolId, { title: "Parked thoughts and kept notes" }),
+  );
   let report: Report | null = null;
 
   const load = async () => {
