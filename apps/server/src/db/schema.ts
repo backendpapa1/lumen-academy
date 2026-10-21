@@ -180,6 +180,8 @@ export const ledgerEntries = sqliteTable(
     exposures: integer("exposures").notNull().default(0),
     misconceptionsJson: text("misconceptions_json").notNull().default("[]"),
     lastTaughtAt: text("last_taught_at"),
+    /** V2 forgetting: the half-life of this memory in days; spaced reviews grow it. */
+    stabilityDays: real("stability_days"),
   },
   (t) => [primaryKey({ columns: [t.cadetId, t.conceptId] })],
 );

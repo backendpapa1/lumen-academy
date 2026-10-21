@@ -282,6 +282,29 @@ export const GameConfigZ = z.strictObject({
     lowConfidenceWeight: unit,
     understoodAt: unit,
   }),
+  /** V2 forgetting (VD5): recall decays toward a floor; spaced reviews slow it. */
+  memory: z
+    .strictObject({
+      /** Half-life of a freshly taught concept, in days. */
+      halfLifeDays: z.number().positive(),
+      /** Each spaced review multiplies the half-life by this. */
+      growth: z.number().min(1),
+      maxHalfLifeDays: z.number().positive(),
+      /** Recall never drops below this share of what was understood. */
+      floor: unit,
+      /** A review only counts as spaced if it's at least this long after the last one. */
+      spacedAfterHours: z.number().nonnegative(),
+      /** Below this share of its strength, a concept is "fading" (the lobby offers a refresher). */
+      fadingAt: unit,
+    })
+    .default({
+      halfLifeDays: 2,
+      growth: 1.8,
+      maxHalfLifeDays: 90,
+      floor: 0.35,
+      spacedAfterHours: 12,
+      fadingAt: 0.75,
+    }),
   registration: z.strictObject({
     batchSize: z.number().int().min(1).max(15),
     /** Generated portrait images per student. Off since students are drawn (ADR-009). */

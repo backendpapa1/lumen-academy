@@ -1,0 +1,1 @@
+ALTER TABLE `ledger_entries` ADD `stability_days` real;

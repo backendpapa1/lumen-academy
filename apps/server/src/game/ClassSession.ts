@@ -42,6 +42,7 @@ import type { ModelFactory } from "../models/factory.js";
 import { withUsageContext } from "../usage/meter.js";
 import { refreshConcepts } from "./conceptRefresh.js";
 import { applyTurnToLedger, type LedgerChange, type Misconception } from "./ledger.js";
+import { recall } from "./memory.js";
 
 // One active Class Period (docs/03 §7): in-memory state, written through to
 // SQLite every turn. Reactions stream out first; the Director's analysis is
@@ -548,7 +549,15 @@ export class ClassSession {
               title: this.currentConcept.title,
               nextId: this.curriculum[idx + 1]?.id,
             },
-            comprehension: ledger?.comprehension ?? 0,
+            comprehension: ledger
+              ? recall(
+                  ledger.comprehension,
+                  ledger.lastTaughtAt,
+                  ledger.stabilityDays,
+                  new Date(),
+                  this.deps.game.memory,
+                )
+              : 0,
             misconceptions: ledger
               ? (JSON.parse(ledger.misconceptionsJson) as Misconception[]).map((m) => m.text)
               : [],
@@ -782,7 +791,16 @@ export class ClassSession {
         attention: s.attention,
         skepticism: s.skepticism,
         learningStyle: s.learningStyle,
-        comprehension: row?.comprehension ?? 0,
+        // What they recall now (V2 forgetting): a faded concept shows in how they react.
+        comprehension: row
+          ? recall(
+              row.comprehension,
+              row.lastTaughtAt,
+              row.stabilityDays,
+              new Date(),
+              this.deps.game.memory,
+            )
+          : 0,
         misconceptions: held.slice(-2).map((m) => m.text),
         lastState: s.lastState,
         spokeTurnsAgo: s.lastSpokeTurn === null ? null : this.turnOrd - s.lastSpokeTurn,

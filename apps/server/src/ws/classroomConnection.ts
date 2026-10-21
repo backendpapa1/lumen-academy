@@ -11,6 +11,7 @@ import { writeRecap } from "../agents/realtime/recap.js";
 import type { DbHandle } from "../db/client.js";
 import { cadets, classrooms, ledgerEntries, schools } from "../db/schema.js";
 import { ClassSession } from "../game/ClassSession.js";
+import { recall, retention } from "../game/memory.js";
 import { rewriteNotes } from "../game/notes.js";
 import {
   INSPECTION_TURNS,
@@ -267,6 +268,7 @@ export class ClassroomConnection {
         ...(session.resumed && session.board ? { board: session.board } : {}),
         transcript: session.resumed ? this.transcriptView(session.periodId) : [],
         xp: standing(handle, game),
+        lastTaughtDays: this.lastTaughtDays(room.id, session.currentConcept.id),
       },
     });
     this.sendCost();
@@ -528,6 +530,7 @@ export class ClassroomConnection {
         periodId: session.periodId,
         classroomId: session.classroomId,
         conceptId: session.currentConcept.id,
+        memory: this.rt.game.memory,
       });
       if (tickets.length)
         this.send({
@@ -560,13 +563,28 @@ export class ClassroomConnection {
     );
   }
 
+  /** V2-04: how long ago this class last heard about this concept. */
+  private lastTaughtDays(classroomId: string, conceptId: string): number | null {
+    const row = this.rt.handle.sqlite
+      .prepare(
+        `SELECT max(l.last_taught_at) AS at FROM ledger_entries l JOIN cadets d ON d.id = l.cadet_id
+         WHERE d.classroom_id = ? AND l.concept_id = ?`,
+      )
+      .get(classroomId, conceptId) as { at: string | null } | undefined;
+    return row?.at ? Math.floor((Date.now() - Date.parse(row.at)) / 86_400_000) : null;
+  }
+
   private cadetViews(session: ClassSession): CadetView[] {
     const { db } = this.rt.handle;
     const rows = db.select().from(cadets).where(eq(cadets.classroomId, session.classroomId)).all();
     return session.roster.map((r) => {
       const row = rows.find((x) => x.id === r.id)!;
       const ledger = db
-        .select({ c: ledgerEntries.comprehension })
+        .select({
+          c: ledgerEntries.comprehension,
+          at: ledgerEntries.lastTaughtAt,
+          s: ledgerEntries.stabilityDays,
+        })
         .from(ledgerEntries)
         .where(
           and(
@@ -583,8 +601,19 @@ export class ClassroomConnection {
         homeworld: row.homeworld,
         quirk: row.quirk,
         portraitUrl: this.portraitUrl(row.portraitAssetId),
-        comprehension: ledger?.c ?? 0,
-        state: r.lastState as ReactionState,
+        // What they recall today (V2 forgetting), not the old peak.
+        comprehension: ledger
+          ? recall(ledger.c, ledger.at, ledger.s, new Date(), this.rt.game.memory)
+          : 0,
+        // A student who's let it slip starts the class looking unsure (V2-04).
+        state:
+          r.lastState === "attentive" &&
+          ledger &&
+          ledger.c > 0 &&
+          retention(ledger.at, ledger.s, new Date(), this.rt.game.memory) <
+            this.rt.game.memory.fadingAt
+            ? "confused"
+            : (r.lastState as ReactionState),
       };
     });
   }

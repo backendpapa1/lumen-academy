@@ -136,6 +136,8 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       board: z.string().optional(),
       transcript: z.array(TranscriptLineViewZ),
       xp: XpStandingZ,
+      /** V2-04: days since this concept was last taught in this class (null: never). */
+      lastTaughtDays: z.number().int().nullable().optional(),
     }),
   ),
   /** XP just earned (e.g. answering a cadet's question). */

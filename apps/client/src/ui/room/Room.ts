@@ -454,7 +454,7 @@ export class Room {
   private board(c: ClassroomState) {
     const last = [...c.transcript].reverse().find((t) => t.speaker === "headmaster")?.text ?? "";
     const avg = c.classAverage;
-    const key = `${c.concept?.title}|${c.board}|${last}|${avg}`;
+    const key = `${c.concept?.title}|${c.board}|${last}|${avg}|${c.lastTaughtDays}`;
     if (this.boardText.dataset.key === key) return;
     this.boardText.dataset.key = key;
     const lines = c.board
@@ -463,7 +463,11 @@ export class Room {
       .map((l) => `<li>${escapeXml(l)}</li>`)
       .join("");
     this.boardText.innerHTML = `
-      <div class="b-label">Today</div>
+      <div class="b-label">${
+        c.lastTaughtDays && c.lastTaughtDays >= 1 && !c.transcript.length
+          ? `Today · last taught ${c.lastTaughtDays === 1 ? "yesterday" : `${c.lastTaughtDays} days ago`}`
+          : "Today"
+      }</div>
       <div class="b-title">${escapeXml(c.concept?.title ?? "Waiting for the class…")}</div>
       ${lines ? `<ul class="b-notes">${lines}</ul>` : last ? `<p class="b-last">“${escapeXml(last.length > 150 ? `${last.slice(0, 147)}…` : last)}”</p>` : ""}
       ${

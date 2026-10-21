@@ -1693,3 +1693,46 @@ table.heat td {
   text-transform: uppercase;
   color: var(--ink-dim);
 }
+
+/* V2-03: your class is forgetting. Marigold, a pair of floating question marks. */
+.fading {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  background: var(--marigold-wash);
+}
+.fading-art {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex: none;
+  border: var(--line);
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.fading-art .q {
+  position: absolute;
+  left: 14px;
+  top: 8px;
+  font: 400 30px var(--font-display);
+  color: var(--cobalt);
+  animation: drift-up 3s ease-in-out infinite;
+}
+.fading-art .q.two {
+  left: 34px;
+  top: 22px;
+  font-size: 20px;
+  color: var(--coral);
+  animation-delay: -1.4s;
+}
+@keyframes drift-up {
+  50% {
+    transform: translateY(-6px);
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fading-art .q {
+    animation: none;
+  }
+}

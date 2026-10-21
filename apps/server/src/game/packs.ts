@@ -1,7 +1,8 @@
-import type { TeachingAnalysis } from "@lumen/shared";
+import type { GameConfig, TeachingAnalysis } from "@lumen/shared";
 import type { DbHandle } from "../db/client.js";
 import type { Misconception } from "./ledger.js";
 import { knowledgePack, type KnowledgePack, type TaughtFact } from "./knowledgePack.js";
+import { recall } from "./memory.js";
 
 // Knowledge packs from the database (ADR-003): which key facts the Director
 // credited as covered in this classroom, and this cadet's ledger.
@@ -59,18 +60,37 @@ export function cadetPack(
     cadetId: string;
     concept: { id: string; title: string; keyFacts: string[] };
     purpose: string;
+    /** V2: what's recalled now, not the old peak (VD5). Omitted → no forgetting. */
+    memory?: GameConfig["memory"];
+    now?: Date;
   },
 ): KnowledgePack {
   const ledger = handle.sqlite
     .prepare(
-      "SELECT comprehension, misconceptions_json FROM ledger_entries WHERE cadet_id = ? AND concept_id = ?",
+      "SELECT comprehension, misconceptions_json, last_taught_at, stability_days FROM ledger_entries WHERE cadet_id = ? AND concept_id = ?",
     )
     .get(input.cadetId, input.concept.id) as
-    { comprehension: number; misconceptions_json: string } | undefined;
+    | {
+        comprehension: number;
+        misconceptions_json: string;
+        last_taught_at: string | null;
+        stability_days: number | null;
+      }
+    | undefined;
   return knowledgePack({
     conceptTitle: input.concept.title,
     taught: taughtFacts(handle, input.classroomId, input.concept.id, input.concept.keyFacts),
-    comprehension: ledger?.comprehension ?? 0,
+    comprehension: ledger
+      ? input.memory
+        ? recall(
+            ledger.comprehension,
+            ledger.last_taught_at,
+            ledger.stability_days,
+            input.now ?? new Date(),
+            input.memory,
+          )
+        : ledger.comprehension
+      : 0,
     misconceptions: ledger
       ? (JSON.parse(ledger.misconceptions_json) as Misconception[]).map((m) => m.text)
       : [],

@@ -22,6 +22,16 @@ comprehension:
   lowConfidenceWeight: 0.5 # deltas from a Director fallback turn count at 50%
   understoodAt: 0.75
 
+# V2 forgetting (v2-dev-plan VD5): recall = c × (floor + (1 − floor) × 0.5^(days / halfLife)).
+# A review at least spacedAfterHours after the last one multiplies the half-life by growth.
+memory:
+  halfLifeDays: 2
+  growth: 1.8 # 2 → 3.6 → 6.5 → 11.7 → 21 days…
+  maxHalfLifeDays: 90
+  floor: 0.35 # you never forget everything you understood
+  spacedAfterHours: 12
+  fadingAt: 0.75 # recalled below 75% of its strength → "your class is forgetting"
+
 # Registration (docs/03 §5.2). Archetypes are drawn in code (seeded); the LLM writes flavour only.
 registration:
   batchSize: 3 # students per flavour call, so the first arrivals appear fast

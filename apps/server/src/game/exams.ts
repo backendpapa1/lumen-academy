@@ -216,6 +216,7 @@ export async function runExam(deps: ExamDeps, examId: string): Promise<void> {
           cadetId: cadet.id,
           concept: { id: concept.id, title: concept.title, keyFacts: concept.keyFacts },
           purpose: `exam:${examId}`,
+          memory: deps.game.memory,
         });
         const asked =
           q.kind === "mcq"

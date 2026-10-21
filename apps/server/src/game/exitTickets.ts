@@ -20,7 +20,12 @@ export interface ExitTicket {
 
 export function issueExitTickets(
   handle: DbHandle,
-  input: { periodId: string; classroomId: string; conceptId: string },
+  input: {
+    periodId: string;
+    classroomId: string;
+    conceptId: string;
+    memory?: import("@lumen/shared").GameConfig["memory"];
+  },
 ): ExitTicket[] {
   const { sqlite } = handle;
   const concept = sqlite
@@ -61,6 +66,7 @@ export function issueExitTickets(
         cadetId: c.id,
         concept: { id: concept.id, title: concept.title, keyFacts },
         purpose: `exit:${input.periodId}`,
+        memory: input.memory,
       });
       const held = pack.misconceptions;
       // A cadet who holds a misconception says it half the time; one who retained

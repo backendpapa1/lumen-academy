@@ -197,6 +197,7 @@ export async function collectHomework(deps: HomeworkDeps, assignmentId: string):
           cadetId: cadet.id,
           concept: { id: concept.id, title: concept.title, keyFacts: concept.keyFacts },
           purpose: `assignment:${assignmentId}`,
+          memory: deps.game.memory,
         });
         const asked = q.kind === "eli10" ? `Explain like I'm 10: ${q.prompt}` : q.prompt;
         const ans = await answerQuestion(

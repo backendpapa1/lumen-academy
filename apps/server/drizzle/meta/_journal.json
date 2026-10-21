@@ -57,6 +57,13 @@
       "when": 1792591469880,
       "tag": "0007_speech_corrections",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792591709547,
+      "tag": "0008_memory_stability",
+      "breakpoints": true
     }
   ]
 }

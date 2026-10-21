@@ -137,6 +137,17 @@ export interface CampusView {
     decalUrl: string | null;
   }>;
   streak: { current: number; best: number; missedDays: number; taughtToday: boolean };
+  /** V2-03: the one concept a class is forgetting most (null when nothing's fading). */
+  fading: {
+    classroomId: string;
+    classroomName: string;
+    schoolName: string;
+    conceptId: string;
+    conceptTitle: string;
+    days: number;
+    was: number;
+    now: number;
+  } | null;
   xp: {
     total: number;
     rank: string;

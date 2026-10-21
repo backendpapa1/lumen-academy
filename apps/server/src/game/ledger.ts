@@ -3,6 +3,7 @@ import type { GameConfig, LearningStyle, TeachingAnalysis } from "@lumen/shared"
 import type { DbHandle } from "../db/client.js";
 import { ledgerEntries } from "../db/schema.js";
 import { adoptsMisconception, applyDelta, comprehensionDelta } from "./comprehension.js";
+import { reinforce } from "./memory.js";
 
 // Applies one teaching turn to every cadet's Knowledge Ledger (T-5). The
 // Director proposes; this computes the final numbers (docs/03 §4.3).
@@ -54,7 +55,7 @@ const sameIdea = (a: string, b: string) => {
 
 export function applyTurnToLedger(
   handle: DbHandle,
-  cfg: Pick<GameConfig, "comprehension" | "fatigue">,
+  cfg: Pick<GameConfig, "comprehension" | "fatigue"> & Partial<Pick<GameConfig, "memory">>,
   t: TurnInput,
 ): LedgerChange[] {
   const { db, sqlite } = handle;
@@ -132,12 +133,17 @@ export function applyTurnToLedger(
           }
         }
 
-        const comprehension = applyDelta(row?.comprehension ?? 0, d.delta);
+        // V2: teach on top of what's recalled now, and a spaced review lasts longer.
+        const mem = cfg.memory
+          ? reinforce(row, new Date(now), cfg.memory)
+          : { base: row?.comprehension ?? 0, stabilityDays: row?.stabilityDays ?? null };
+        const comprehension = applyDelta(mem.base, d.delta);
         const values = {
           comprehension,
           exposures: (row?.exposures ?? 0) + 1,
           misconceptionsJson: JSON.stringify(held),
           lastTaughtAt: now,
+          stabilityDays: mem.stabilityDays,
         };
         if (row) {
           db.update(ledgerEntries)

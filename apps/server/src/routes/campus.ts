@@ -1,3 +1,4 @@
+import { fadingTarget } from "../game/fading.js";
 import type { FastifyInstance } from "fastify";
 import type { GameConfig } from "@lumen/shared";
 import type { AssetService } from "../assets/service.js";
@@ -43,6 +44,7 @@ export function registerCampusRoutes(
       streak: streak(deps.handle, deps.game),
       xp: standing(deps.handle, deps.game),
       resume: resumeTarget(deps.handle),
+      fading: fadingTarget(deps.handle, deps.game),
     };
   });
 }

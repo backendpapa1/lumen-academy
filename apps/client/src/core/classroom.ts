@@ -110,6 +110,8 @@ export interface ClassroomState {
   ended?: Omit<ServerMessageOf<"period.ended">["payload"], "periodId">;
   /** T-9: the chalkboard block on the holo-board. */
   board: string;
+  /** V2-04: days since this concept was last taught in this class (null: new). */
+  lastTaughtDays: number | null;
   /** T-10: Hyperfocus mode for this period. */
   hyperfocus: boolean;
   /** The exit-ticket minigame at the bell (M4-05). */
@@ -133,6 +135,7 @@ export const initialClassroom = (): ClassroomState => ({
   toasts: [],
   xp: null,
   board: "",
+  lastTaughtDays: null,
   hyperfocus: false,
 });
 
@@ -161,6 +164,7 @@ export function applyServerMessage(
         resumed: m.payload.resumed,
         xp: m.payload.xp,
         board: m.payload.board ?? "",
+        lastTaughtDays: m.payload.lastTaughtDays ?? null,
         transcript: m.payload.transcript.map((t) => ({
           speaker: t.cadetId ? "cadet" : "headmaster",
           cadetId: t.cadetId,

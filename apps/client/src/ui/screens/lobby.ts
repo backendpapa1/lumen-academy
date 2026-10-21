@@ -131,6 +131,7 @@ function heroParts(c: CampusView): HTMLElement[] {
     // Enter goes straight in: the lobby opens with Resume focused.
     queueMicrotask(() => go.focus({ preventScroll: true }));
   }
+  if (c.fading && !c.resume?.inProgress) out.push(fadingCard(c.fading));
   const insignia = rankInsignia(c.xp.rank);
   const pct = Math.round(c.xp.progress * 100);
   const st = c.streak;
@@ -188,6 +189,47 @@ function heroParts(c: CampusView): HTMLElement[] {
     ),
   );
   return out;
+}
+
+/** V2-03: a gentle nudge, not an alarm. One concept, one button. */
+function fadingCard(f: NonNullable<CampusView["fading"]>): HTMLElement {
+  const pct = (n: number) => `${Math.round(n * 100)}%`;
+  const when = f.days === 0 ? "today" : f.days === 1 ? "yesterday" : `${f.days} days ago`;
+  return h(
+    "section",
+    { class: "card pad fading", "aria-label": "Your class is forgetting" },
+    h(
+      "div",
+      { class: "fading-art", "aria-hidden": "true" },
+      h("span", { class: "q" }, "?"),
+      h("span", { class: "q two" }, "?"),
+    ),
+    h(
+      "div",
+      { style: "flex:1;min-width:0" },
+      h("div", { class: "micro" }, "Your class is forgetting"),
+      h("div", { class: "h2", style: "margin:6px 0 2px" }, f.conceptTitle),
+      h(
+        "div",
+        { class: "dim" },
+        `${f.classroomName} · ${f.schoolName}: ${pct(f.was)} → ${pct(f.now)} since you taught it ${when}.`,
+      ),
+      h(
+        "div",
+        { class: "row", style: "margin-top:12px" },
+        h(
+          "button",
+          {
+            class: "btn",
+            onclick: () => app.startClass(f.classroomId, { conceptId: f.conceptId, minutes: 5 }),
+          },
+          icon(ICONS.play),
+          "5-minute refresher",
+        ),
+        h("span", { class: "dim small" }, "A short review now makes it stick longer."),
+      ),
+    ),
+  );
 }
 
 function schoolCard(s: SchoolSummary, wing?: CampusView["wings"][number]): HTMLElement {
