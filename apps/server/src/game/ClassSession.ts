@@ -553,7 +553,10 @@ export class ClassSession {
   }
 
   /** The teacher said something (T-1..T-6). */
-  teach(text: string, opts: { conceptId?: string; replyToCadetId?: string } = {}): TurnHandle {
+  teach(
+    text: string,
+    opts: { conceptId?: string; replyToCadetId?: string; spoken?: boolean } = {},
+  ): TurnHandle {
     this.assertTeaching();
     // Refuse up front when paused, so nothing is half-saved (BudgetPausedError).
     this.deps.budget?.assertCanCall();
@@ -567,6 +570,8 @@ export class ClassSession {
       opts.replyToCadetId ? "answer" : "lecture",
       text,
       opts.replyToCadetId,
+      // V7-06: voice vs typed, for the progress chart.
+      opts.spoken ? { spoken: true } : undefined,
     );
     // V4-05: what the last turn recalled, taken now (this turn's own recall may land first).
     const pastClaims = this.pastClaims;

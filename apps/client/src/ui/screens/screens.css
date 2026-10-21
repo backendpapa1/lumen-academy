@@ -2198,3 +2198,104 @@ table.heat td {
 .plan-chip.taught {
   border-left-color: var(--leaf);
 }
+
+/* V7-06/07 progress. */
+.prog-totals {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.prog-total b {
+  display: block;
+  font: 400 34px var(--font-display);
+  color: var(--navy);
+}
+.prog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+.chart {
+  width: 100%;
+  height: auto;
+  margin-top: 6px;
+}
+.chart .bar {
+  fill: var(--cobalt);
+}
+.chart .bar.none {
+  fill: var(--cobalt-wash);
+}
+.chart .val {
+  font: 700 11px var(--font-ui);
+  fill: var(--navy);
+}
+.chart .wk {
+  font: 400 10px var(--font-ui);
+  fill: var(--ink-dim);
+}
+.chart .axis {
+  stroke: var(--cobalt-wash);
+  stroke-width: 1.5;
+}
+.chart .axis.faint {
+  stroke-dasharray: 4 4;
+}
+.chart .line {
+  fill: none;
+  stroke-width: 2.5;
+}
+.chart .line.clarity,
+.legend.clarity {
+  stroke: var(--cobalt);
+  color: var(--cobalt);
+}
+.chart .line.accuracy,
+.legend.accuracy {
+  stroke: var(--leaf);
+  color: var(--leaf);
+}
+.chart .dot.clarity {
+  fill: var(--cobalt);
+}
+.chart .dot.accuracy {
+  fill: var(--leaf);
+}
+.legend {
+  font: 700 11px var(--font-ui);
+}
+.energy-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+.energy-stat {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border: var(--line);
+  background: var(--paper);
+}
+.energy-stat.best {
+  background: var(--leaf-wash);
+  border-color: var(--leaf);
+}
+.style-card .style-line {
+  margin: 8px 0;
+  font: 400 18px/1.45 var(--font-body);
+  color: var(--navy);
+}
+.style-card .style-tip {
+  padding: 10px 12px;
+  background: var(--marigold-wash);
+  border-left: 4px solid var(--marigold);
+}
+@media (max-width: 720px) {
+  .prog-totals,
+  .energy-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

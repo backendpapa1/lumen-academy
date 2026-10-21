@@ -46,7 +46,15 @@ export function refreshConcepts(handle: DbHandle, conceptIds: string[], cfg: Gam
       unresolvedTeacherErrors: errors.n,
       keyFacts: (JSON.parse(c.keyFactsJson) as string[]).length,
     });
-    db.update(concepts).set({ status, myMastery: mastery }).where(eq(concepts.id, c.id)).run();
+    db.update(concepts)
+      .set({
+        status,
+        myMastery: mastery,
+        // V7-06: the first time it's mastered, for the progress chart.
+        ...(status === "mastered" && !c.masteredAt ? { masteredAt: new Date().toISOString() } : {}),
+      })
+      .where(eq(concepts.id, c.id))
+      .run();
     return { conceptId: c.id, status, mastery };
   });
 }

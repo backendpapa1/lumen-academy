@@ -172,6 +172,15 @@ function heroParts(c: CampusView): HTMLElement[] {
               ? `${c.xp.total.toLocaleString()} XP · ${(c.xp.next.minXp - c.xp.total).toLocaleString()} to ${c.xp.next.name}`
               : `${c.xp.total.toLocaleString()} XP`,
           ),
+          h(
+            "button",
+            {
+              class: "btn small quiet",
+              style: "margin-top:8px;padding:0",
+              onclick: () => store.setState({ route: { name: "progress" } }),
+            },
+            "Your progress and teaching style →",
+          ),
         ),
       ),
       h(

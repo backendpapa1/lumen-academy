@@ -1,3 +1,10 @@
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { StyleProfileZ } from "@lumen/shared";
+import { callStructured } from "../agents/harness.js";
+import { loadPrompt } from "../agents/prompts/load.js";
+import type { ModelFactory } from "../models/factory.js";
+import { progress } from "../game/progress.js";
+import { fallbackProfile, numbersAreOurs, statLines, styleStats } from "../game/styleProfile.js";
 import type { FastifyInstance } from "fastify";
 import type { CrowdReaction, GameConfig, TeachingAnalysis } from "@lumen/shared";
 import type { DbHandle } from "../db/client.js";
@@ -58,11 +65,61 @@ export function confusionMap(handle: DbHandle, periodId: string): ConfusionTurn[
   });
 }
 
+/** V7-07: refreshed weekly (or on request), cached in settings. */
+const STYLE_KEY = "styleProfile";
+const WEEK = 7 * 86_400_000;
+/** Fewer turns than this and the profile would be guessing. */
+const MIN_TURNS = 20;
+
 export function registerInsightRoutes(
   app: FastifyInstance,
-  deps: { handle: DbHandle; game: GameConfig },
+  deps: { handle: DbHandle; game: GameConfig; factory: ModelFactory },
 ) {
   const { sqlite } = deps.handle;
+
+  /** V7-06: weekly minutes, sessions, mastered, clarity/accuracy, voice share, energy days. */
+  app.get("/api/progress", async () => progress(deps.handle, deps.game));
+
+  /** V7-07: how I teach, in three sentences and a suggestion, from my own numbers. */
+  app.get<{ Querystring: { refresh?: string } }>("/api/style", async (req) => {
+    const cached = sqlite
+      .prepare("SELECT value_json v FROM settings WHERE key = ?")
+      .get(STYLE_KEY) as { v: string } | undefined;
+    const old = cached ? (JSON.parse(cached.v) as { computedAt: string }) : null;
+    if (old && !req.query.refresh && Date.now() - Date.parse(old.computedAt) < WEEK) return old;
+    const stats = styleStats(deps.handle);
+    if (stats.turns < MIN_TURNS)
+      return { computedAt: null, stats, enough: false, needed: MIN_TURNS };
+    const lines = statLines(stats);
+    let text = fallbackProfile(stats);
+    let written = false;
+    try {
+      const res = await callStructured(deps.factory, "styleCoach", {
+        schema: StyleProfileZ,
+        name: "style_profile",
+        messages: [
+          new SystemMessage(
+            loadPrompt("styleCoach", { facts: lines.map((l) => `- ${l}`).join("\n") }),
+          ),
+          new HumanMessage("Write the profile."),
+        ],
+      });
+      // The coach may only use our numbers; otherwise the plain version stands.
+      if (numbersAreOurs([...res.data.sentences, res.data.suggestion].join(" "), lines)) {
+        text = res.data;
+        written = true;
+      }
+    } catch {
+      /* the plain sentences still describe the numbers */
+    }
+    const profile = { computedAt: new Date().toISOString(), stats, enough: true, written, ...text };
+    sqlite
+      .prepare(
+        "INSERT INTO settings (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
+      )
+      .run(STYLE_KEY, JSON.stringify(profile));
+    return profile;
+  });
 
   /** V5-06: "start here" pins for a School's curriculum map, from recent misses in its classes. */
   app.get<{ Params: { id: string } }>("/api/schools/:id/start-here", async (req, reply) => {

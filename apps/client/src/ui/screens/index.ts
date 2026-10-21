@@ -10,6 +10,7 @@ import { mountRegistration } from "./registration";
 import { mountSchool } from "./school";
 import { mountStudyHall } from "./studyhall";
 import { mountMeeting } from "./meeting";
+import { mountProgress } from "./progress";
 import "../dom/overlay.css";
 import "./screens.css";
 
@@ -36,6 +37,8 @@ function keyOf(r: AppState["route"]): string | null {
       return `debrief:${r.examId}`;
     case "studyhall":
       return "studyhall";
+    case "progress":
+      return "progress";
     case "meeting":
       return `meeting:${r.classroomId}`;
     default:
@@ -67,9 +70,11 @@ function mount(r: AppState["route"]) {
                 ? mountDebrief(root, r.examId, r.classroomId, r.schoolId)
                 : r.name === "studyhall"
                   ? mountStudyHall(root, r.schoolId)
-                  : r.name === "meeting"
-                    ? mountMeeting(root, r.classroomId, r.schoolId)
-                    : () => {};
+                  : r.name === "progress"
+                    ? mountProgress(root)
+                    : r.name === "meeting"
+                      ? mountMeeting(root, r.classroomId, r.schoolId)
+                      : () => {};
   current = { key, root, unmount };
 }
 

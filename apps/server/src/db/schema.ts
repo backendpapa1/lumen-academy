@@ -104,6 +104,8 @@ export const concepts = sqliteTable(
     status: text("status", { enum: ["untaught", "taught", "weak", "mastered"] })
       .notNull()
       .default("untaught"),
+    /** V7-06: when it first became mastered (for the weekly chart). */
+    masteredAt: text("mastered_at"),
     myMastery: real("my_mastery").notNull().default(0),
   },
   (t) => [index("concepts_module_ord").on(t.moduleId, t.ord)],
@@ -140,6 +142,8 @@ export const classrooms = sqliteTable(
     }).notNull(),
     seed: integer("seed").notNull(),
     currentConceptId: text("current_concept_id"),
+    /** V7-02: the drawn class photo at graduation (SVG). */
+    photoSvg: text("photo_svg"),
     createdAt: createdAt(),
   },
   (t) => [index("classrooms_school").on(t.schoolId)],
@@ -588,4 +592,45 @@ export const diagrams = sqliteTable("diagrams", {
     .references(() => periods.id),
   json: text("json").notNull(),
   updatedAt: text("updated_at").notNull(),
+});
+
+/** V7-01: room upgrades bought with XP, placed on fixed spots in a classroom. */
+export const roomUpgrades = sqliteTable(
+  "room_upgrades",
+  {
+    classroomId: text("classroom_id")
+      .notNull()
+      .references(() => classrooms.id),
+    item: text("item").notNull(),
+    placedAt: text("placed_at").notNull(),
+  },
+  (t) => [uniqueIndex("room_upgrades_item").on(t.classroomId, t.item)],
+);
+
+/** V7-04: the weekly challenge I opted into, and how it went. */
+export const challenges = sqliteTable(
+  "challenges",
+  {
+    id: text("id").primaryKey(),
+    /** ISO week, e.g. 2026-W43. */
+    week: text("week").notNull(),
+    kind: text("kind").notNull(),
+    acceptedAt: text("accepted_at").notNull(),
+    completedAt: text("completed_at"),
+    progressJson: text("progress_json").notNull().default("{}"),
+  },
+  (t) => [uniqueIndex("challenges_week").on(t.week)],
+);
+
+/** V7-05: trophies for the campus (beating the rival class on an exam). */
+export const trophies = sqliteTable("trophies", {
+  id: text("id").primaryKey(),
+  schoolId: text("school_id")
+    .notNull()
+    .references(() => schools.id),
+  classroomId: text("classroom_id"),
+  kind: text("kind").notNull(),
+  examId: text("exam_id"),
+  note: text("note").notNull().default(""),
+  createdAt: text("created_at").notNull(),
 });

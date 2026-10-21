@@ -24,6 +24,8 @@ export const ID_PREFIXES = {
   sticker: "stk",
   peek: "pek",
   term: "trm",
+  challenge: "chl",
+  trophy: "tro",
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIXES;

@@ -111,6 +111,8 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
     z.strictObject({
       text: z.string().trim().min(1).max(4000),
       replyToCadetId: z.string().optional(),
+      /** V7-06: said aloud (voice) rather than typed. */
+      spoken: z.boolean().optional(),
     }),
   ),
   msg("hand.call", z.strictObject({ cadetId: z.string() })),

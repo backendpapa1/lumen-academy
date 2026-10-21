@@ -163,6 +163,12 @@ export const ParentTurnZ = z.object({
 });
 export type ParentTurn = z.infer<typeof ParentTurnZ>;
 
+/** V7-07: the teaching-style profile, written from the server's numbers only. */
+export const StyleProfileZ = z.object({
+  sentences: z.array(z.string().min(1).max(300)).length(3),
+  suggestion: z.string().min(1).max(300),
+});
+
 export const TeachBackPhrasingZ = z.object({ sentences: z.array(z.string().min(1).max(300)) });
 
 /**

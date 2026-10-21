@@ -199,7 +199,7 @@ export class ClassroomConnection {
         case "period.start":
           return await this.start(msg.payload);
         case "teach.message":
-          return await this.teach(msg.payload.text, msg.payload.replyToCadetId);
+          return await this.teach(msg.payload.text, msg.payload.replyToCadetId, msg.payload.spoken);
         case "hand.call":
           return await this.call(msg.payload.cadetId);
         case "concept.set":
@@ -455,7 +455,7 @@ export class ClassroomConnection {
     }
   }
 
-  private async teach(text: string, replyTo?: string) {
+  private async teach(text: string, replyTo?: string, spoken?: boolean) {
     const session = this.requireSession();
     // V5-08: with a substitute in, I'm at the back: I object, I don't teach.
     if (session.kind === "substitute")
@@ -481,7 +481,10 @@ export class ClassroomConnection {
       this.lastSpeaker?.cadetId === reply &&
       this.lastSpeaker.turnsAgo === 0 &&
       ["question", "objection", "claim"].includes(this.lastSpeaker.kind);
-    const turn = session.teach(text, reply ? { replyToCadetId: reply } : {});
+    const turn = session.teach(text, {
+      ...(reply ? { replyToCadetId: reply } : {}),
+      ...(spoken ? { spoken } : {}),
+    });
     this.turnId = turn.turnId;
     if (answering && this.scope) {
       const delta = awardXp(this.rt.handle, this.rt.game, this.scope, "questionAnswered");

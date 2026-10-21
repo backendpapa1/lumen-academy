@@ -57,8 +57,9 @@ el.addEventListener("keydown", (e) => {
           );
       });
     }
+    const spoken = suggested !== null;
     suggested = null;
-    app.teach(el.value);
+    app.teach(el.value, { spoken });
     el.value = "";
   } else if (e.key === "Escape") {
     el.blur();
@@ -100,7 +101,7 @@ export const talk = {
         return;
       }
       if (voice.prefs.autoSend) {
-        app.teach(await voice.fix(heard));
+        app.teach(await voice.fix(heard), { spoken: true });
         return;
       }
       // Review first: the raw words now, the fixed ones when they land (unless I've edited).
@@ -171,5 +172,11 @@ export const lectern = {
   },
   focus() {
     el.focus();
+  },
+  /** V7-06: the lectern's text came from my voice (then maybe edited). */
+  takeSpoken(): boolean {
+    const was = suggested !== null;
+    suggested = null;
+    return was;
   },
 };

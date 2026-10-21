@@ -404,7 +404,7 @@ export class ClassroomHud {
       {
         class: "btn primary teach",
         onclick: () => {
-          app.teach(lectern.el.value);
+          app.teach(lectern.el.value, { spoken: lectern.takeSpoken() });
           lectern.el.value = "";
           lectern.focus();
         },

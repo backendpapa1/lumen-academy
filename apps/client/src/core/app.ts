@@ -242,14 +242,14 @@ export const app = {
     }));
     ensureNet().send("period.start", { classroomId, ...start });
   },
-  teach(text: string) {
+  teach(text: string, opts: { spoken?: boolean } = {}) {
     const t = text.trim();
     if (t.startsWith("/")) return this.command(t);
     if (!t || store.getState().classroom.status !== "live") return;
     store.setState((s) => ({
       classroom: { ...s.classroom, lastSendAt: Date.now(), thinking: true },
     }));
-    ensureNet().send("teach.message", { text: t });
+    ensureNet().send("teach.message", { text: t, ...(opts.spoken ? { spoken: true } : {}) });
   },
   call(cadetId: string) {
     ensureNet().send("hand.call", { cadetId });
