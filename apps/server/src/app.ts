@@ -35,7 +35,11 @@ export async function buildApp({
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger });
 
-  await app.register(cors, { origin: CLIENT_ORIGINS });
+  // PUT is used by curriculum edits and settings; the default allows only GET/HEAD/POST.
+  await app.register(cors, {
+    origin: CLIENT_ORIGINS,
+    methods: ["GET", "HEAD", "POST", "PUT", "DELETE"],
+  });
   await app.register(websocket, { options: { maxPayload: 1 << 20 } });
 
   app.get("/api/health", async () => ({

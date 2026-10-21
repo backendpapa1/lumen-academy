@@ -52,6 +52,19 @@ describe("http", () => {
     expect(denied.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
+  it("lets the Vite origin preflight PUT (curriculum edits, settings)", async () => {
+    const pre = await app.inject({
+      method: "OPTIONS",
+      url: "/api/health",
+      headers: {
+        origin: "http://localhost:5173",
+        "access-control-request-method": "PUT",
+        "access-control-request-headers": "content-type",
+      },
+    });
+    expect(String(pre.headers["access-control-allow-methods"])).toContain("PUT");
+  });
+
   it("binds to loopback", () => {
     expect((app.server.address() as AddressInfo).address).toBe("127.0.0.1");
   });

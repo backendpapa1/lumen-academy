@@ -142,7 +142,8 @@ export class AssetService {
   }
 
   private pump() {
-    const max = this.deps.concurrency ?? 2;
+    // Three at a time: a class of 9–15 portraits lands within ~1.5 min, under image rate limits.
+    const max = this.deps.concurrency ?? 3;
     while (this.running < max && this.queue.length) {
       const job = this.queue.shift()!;
       this.running++;
