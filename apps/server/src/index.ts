@@ -1,3 +1,5 @@
+// First: on Android, name resolution must be in place before anything connects (ADR-012).
+import "./platform/android.js";
 import { dirname, join } from "node:path";
 import { OpenAIImages } from "./assets/images.js";
 import { AssetService } from "./assets/service.js";
@@ -13,6 +15,7 @@ import { castVoices } from "./game/voiceCast.js";
 import { UsageMeter } from "./usage/meter.js";
 import { WhisperSidecar } from "./speech/stt.js";
 import { KokoroSpeaker } from "./speech/tts.js";
+import { NativeSpeaker, NativeTranscriber } from "./speech/native.js";
 
 // Local-only: never bind beyond loopback (CLAUDE.md hard rule).
 const HOST = "127.0.0.1";
@@ -47,12 +50,14 @@ const assets = process.env[config.models.providers.openai.apiKeyEnv]
   : undefined;
 
 // V1 voice: both run on this machine; the sidecar and the model load on first use.
+// In the Android app the phone itself speaks and listens (ADR-012).
 const speechCfg = config.models.speech;
+const android = !!process.env.LUMEN_ANDROID;
 const speech = speechCfg
   ? {
       cfg: speechCfg,
-      stt: new WhisperSidecar(speechCfg.stt),
-      tts: new KokoroSpeaker(speechCfg.tts),
+      stt: android ? new NativeTranscriber() : new WhisperSidecar(speechCfg.stt),
+      tts: android ? new NativeSpeaker() : new KokoroSpeaker(speechCfg.tts),
     }
   : undefined;
 
@@ -74,11 +79,14 @@ process.on("exit", () => speech?.stt.close());
 
 // The desktop app (ADR-011): if the window process goes away without stopping
 // us (killed, crashed), stop too, so no server is left holding the database.
+// On Android our parent is the seccomp supervisor, not the app, so the app
+// passes its own pid (ADR-012).
 if (process.env.LUMEN_DESKTOP) {
-  const parent = process.ppid;
+  const given = Number(process.env.LUMEN_PARENT_PID);
+  const parent = given > 0 ? given : process.ppid;
   let leaving = false;
   setInterval(() => {
-    let alive = process.ppid === parent;
+    let alive = given > 0 || process.ppid === parent;
     try {
       process.kill(parent, 0);
     } catch {

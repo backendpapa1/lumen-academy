@@ -9,7 +9,7 @@ import { machinePath } from "./paths.js";
 // machine, and nothing is written to disk by us.
 
 export interface Transcriber {
-  status(): "ready" | "starting" | "missing" | "off";
+  status(): "ready" | "starting" | "missing" | "off" | "native";
   /** Why it's missing, in plain words (shown in Settings). */
   readonly problem: string | null;
   transcribe(audio: Buffer, mime: string, prompt: string): Promise<{ text: string; ms: number }>;

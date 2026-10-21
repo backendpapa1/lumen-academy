@@ -287,6 +287,11 @@ export class ClassroomConnection {
 
   private closing: Promise<void> | null = null;
 
+  /** A class period is running on this connection. */
+  get live(): boolean {
+    return this.session !== null;
+  }
+
   /**
    * Idempotent: socket close and server shutdown may both call it. A running
    * period is suspended, not ended: reopening the classroom continues it.

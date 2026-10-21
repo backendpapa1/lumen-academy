@@ -7,7 +7,7 @@ import { machinePath } from "./paths.js";
 // never competes with itself for the CPU.
 
 export interface Speaker {
-  status(): "ready" | "loading" | "idle" | "missing";
+  status(): "ready" | "loading" | "idle" | "missing" | "native";
   readonly problem: string | null;
   /** WAV bytes (24 kHz mono). */
   say(text: string, voice: string, speed: number): Promise<{ wav: Buffer; ms: number }>;

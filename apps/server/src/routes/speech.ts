@@ -141,6 +141,26 @@ export async function registerSpeechRoutes(
     }
   });
 
+  /**
+   * A student's voice as a choice, not audio: the Android app (ADR-012) speaks
+   * with the phone's own voices, picking by register and by the voice's place
+   * in its pool, so classmates still sound different.
+   */
+  app.get<{ Params: { cadetId: string } }>("/api/speech/voice/:cadetId", async (req, reply) => {
+    if (req.params.cadetId === "narrator") {
+      const { voice, speed } = speech.cfg.tts.narrator;
+      return { voice, speed, register: "female", index: -1, narrator: true };
+    }
+    const row = sqlite
+      .prepare("SELECT id, traits_json AS t FROM cadets WHERE id = ?")
+      .get(req.params.cadetId) as { id: string; t: string } | undefined;
+    const voice = row && voiceOf(row.id);
+    if (!row || !voice) return reply.code(404).send({ error: "no such student" });
+    const register = registerOf(row.id, row.t);
+    const index = speech.cfg.tts.voices[register].indexOf(voice.voice);
+    return { ...voice, register, index, narrator: false };
+  });
+
   /** The guided tour's narrator: one line in the Head of School's voice. */
   const NarrateZ = z.strictObject({ text: z.string().trim().min(1).max(600) });
   app.post("/api/speech/narrate", async (req, reply) => {
