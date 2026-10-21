@@ -1,4 +1,5 @@
 import { nextChunkEnd } from "@lumen/shared";
+import { android } from "./android";
 import type { Speech } from "./classroom";
 import { nativeAudio, wavInfo } from "./nativeAudio";
 import { SERVER_HTTP } from "./net";
@@ -10,6 +11,10 @@ import { store } from "./store";
 // sentences) and each chunk is spoken by /api/speech/say as soon as it's
 // complete, so they start talking in about half a second. The speech bubble
 // and the student's mouth follow the audio.
+//
+// In the Android app (ADR-012) the server says "native" for both: the phone's
+// SpeechRecognizer hears me and its TextToSpeech speaks for the students, in a
+// voice per student the server still chooses (android.ts).
 
 const PREFS_KEY = "lumen.voice";
 const FIRST_CHUNK_WORDS = 6;
@@ -41,8 +46,8 @@ type Listener = () => void;
 /** What the lectern, the bubble and the room need to draw. */
 export interface VoiceState {
   /** Server speech engines, from /api/speech/status. */
-  stt: "ready" | "starting" | "missing" | "off" | "unknown";
-  tts: "ready" | "loading" | "idle" | "missing" | "unknown";
+  stt: "ready" | "starting" | "missing" | "off" | "native" | "unknown";
+  tts: "ready" | "loading" | "idle" | "missing" | "native" | "unknown";
   recording: boolean;
   /** 0..1 microphone level while recording. */
   level: number;
@@ -92,6 +97,8 @@ class Voice {
     endsAtMs: number;
     spans: Array<{ startMs: number; envelope: number[] }>;
     doneTimer?: ReturnType<typeof setTimeout>;
+    /** Android: lines handed to the phone's voice and not finished yet. */
+    pending: number;
     aborted: boolean;
     rephrased?: number;
   } | null = null;
@@ -135,8 +142,15 @@ class Voice {
   }
 
   get canListen() {
+    if (this.state.stt === "native") return android.present;
     return this.state.stt !== "missing" && this.state.stt !== "off";
   }
+
+  /** The phone hears me and speaks for the students (the Android app). */
+  private get onPhone() {
+    return android.present && this.state.tts === "native";
+  }
+  private offLevel: (() => void) | null = null;
 
   private audio(): AudioContext {
     if (!this.ctx) {
@@ -157,6 +171,22 @@ class Voice {
   async startRecording(): Promise<void> {
     if (this.state.recording || !this.canListen) return;
     this.stopSpeaking(); // talking over a student interrupts them
+    if (this.state.stt === "native") {
+      try {
+        await android.listen();
+      } catch (e) {
+        throw new Error(String((e as Error)?.message ?? e) || "The microphone isn't available.", {
+          cause: e,
+        });
+      }
+      this.state.recording = true;
+      this.offLevel = android.onLevel((level) => {
+        this.state.level = level;
+        this.emit();
+      });
+      this.emit();
+      return;
+    }
     try {
       this.stream ??= await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
@@ -189,6 +219,23 @@ class Voice {
 
   /** Stops recording; resolves with what I said ("" if nothing was heard). */
   async stopRecording(cancel = false): Promise<string> {
+    if (this.state.stt === "native" && this.state.recording) {
+      this.offLevel?.();
+      this.offLevel = null;
+      this.state.recording = false;
+      this.state.level = 0;
+      this.state.transcribing = !cancel;
+      this.emit();
+      const at = performance.now();
+      try {
+        const text = await android.stopListening(cancel);
+        if (!cancel) this.metrics.sttMs = Math.round(performance.now() - at);
+        return text;
+      } finally {
+        this.state.transcribing = false;
+        this.emit();
+      }
+    }
     const rec = this.recorder;
     if (!rec || !this.state.recording) return "";
     cancelAnimationFrame(this.levelRaf);
@@ -286,6 +333,7 @@ class Voice {
         aborted: false,
         endsAtMs: 0,
         spans: [],
+        pending: 0,
       };
     }
     // The Leak Guard rewrote a line: say it again, the way a student would.
@@ -309,6 +357,7 @@ class Voice {
 
   /** Fetches a chunk's audio now (in parallel) and plays it after the previous one. */
   private enqueue(line: NonNullable<Voice["line"]>, text: string, revealTo: number | null) {
+    if (this.onPhone) return this.enqueueOnPhone(line, text, revealTo);
     const audio = fetch(`${SERVER_HTTP}/api/speech/say`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -359,6 +408,39 @@ class Voice {
           this.emit();
         }
       };
+    });
+  }
+
+  /** Android: the phone speaks the chunk; the bubble and the mouth follow its start and end. */
+  private enqueueOnPhone(line: NonNullable<Voice["line"]>, text: string, revealTo: number | null) {
+    line.queue = line.queue.then(async () => {
+      const choice = await android.voiceOf(line.cadetId);
+      if (line.aborted || this.line !== line) return;
+      line.pending++;
+      android.speak("voice", text.replace(/[*_`#~]+/g, ""), choice, {
+        volume: this.prefs.volume,
+        started: () => {
+          if (this.line !== line || line.aborted) return;
+          if (revealTo !== null) line.revealTo = Math.max(line.revealTo, revealTo);
+          if (!this.state.speaking && line.revealTo === revealTo && this.lineStartedAt)
+            this.metrics.firstAudioMs = Math.round(performance.now() - this.lineStartedAt);
+          this.state.speaking = line.cadetId;
+          this.watchMouth(line);
+          this.emit();
+        },
+        done: () => {
+          line.pending--;
+          if (this.line !== line || line.aborted) return;
+          // Spoken or not, the bubble shows the whole chunk now.
+          if (revealTo !== null) line.revealTo = Math.max(line.revealTo, revealTo);
+          if (line.pending === 0) {
+            this.state.speaking = null;
+            this.state.mouthOpen = false;
+            cancelAnimationFrame(this.mouthRaf);
+          }
+          this.emit();
+        },
+      });
     });
   }
 
@@ -424,7 +506,10 @@ class Voice {
       if (t - last > 95) {
         last = t;
         let open: boolean;
-        if (nativeAudio.available || !buf) open = this.nativeLevel(line) > 0.08;
+        if (this.onPhone) {
+          // The phone doesn't say how loud it is: a talking rhythm instead.
+          open = Math.floor(t / 130) % 2 === 0 || Math.sin(t / 47) > 0.6;
+        } else if (nativeAudio.available || !buf) open = this.nativeLevel(line) > 0.08;
         else {
           this.analyser!.getByteTimeDomainData(buf);
           let peak = 0;
@@ -464,6 +549,7 @@ class Voice {
       line.aborted = true;
       clearTimeout(line.doneTimer);
       if (nativeAudio.available) nativeAudio.stop("voice");
+      if (this.onPhone) android.stop("voice");
       for (const s of line.sources) {
         try {
           s.stop();

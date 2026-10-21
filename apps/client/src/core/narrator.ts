@@ -1,3 +1,4 @@
+import { android } from "./android";
 import { nativeAudio, wavInfo } from "./nativeAudio";
 import { SERVER_HTTP } from "./net";
 
@@ -5,6 +6,9 @@ import { SERVER_HTTP } from "./net";
 // Lines come from the local Kokoro voice on the server (/api/speech/narrate);
 // where the browser has its own speech synthesis it's the fallback (the
 // desktop app's WebKitGTK has none). Nothing leaves the machine either way.
+//
+// In the Android app (ADR-012) the phone's own TextToSpeech reads it, in a
+// voice kept for the narrator; no click is needed there either.
 //
 // In the desktop app the shell plays the audio (nativeAudio.ts): no click
 // needed, and it works where WebKitGTK's own audio is silent. In a browser:
@@ -111,6 +115,7 @@ class Narrator {
     this.stop();
     if (!this.on) return;
     const token = ++this.token;
+    if (android.present) return this.sayOnPhone(text, token);
     if (nativeAudio.available) return this.sayNative(text, token);
     try {
       this.ctx ??= new AudioContext();
@@ -156,6 +161,22 @@ class Narrator {
     }
   }
 
+  /** Android: the phone reads it, sentence by sentence (so stopping is quick). */
+  private async sayOnPhone(text: string, token: number): Promise<void> {
+    this.set("loading");
+    const voice = await android.voiceOf("narrator");
+    if (token !== this.token) return;
+    const parts = sentences(text);
+    let left = parts.length;
+    for (const [i, p] of parts.entries())
+      android.speak("narrator", p, voice, {
+        started: () => i === 0 && token === this.token && this.set("speaking"),
+        done: () => {
+          if (--left === 0 && token === this.token) this.set("idle");
+        },
+      });
+  }
+
   /** The desktop app: each sentence goes to the shell as soon as it's made. */
   private async sayNative(text: string, token: number): Promise<void> {
     this.set("loading");
@@ -189,7 +210,7 @@ class Narrator {
 
   /** Starts fetching a line's audio (the tour asks for the next step's). */
   prefetch(text: string) {
-    if (!this.on) return;
+    if (!this.on || android.present) return;
     for (const p of sentences(text)) void this.fetch(p).catch(() => undefined);
   }
 
@@ -230,6 +251,7 @@ class Narrator {
     this.waiting = null;
     clearTimeout(this.idleTimer);
     if (nativeAudio.available) nativeAudio.stop("narrator");
+    if (android.present) android.stop("narrator");
     for (const s of this.sources)
       try {
         s.stop();
