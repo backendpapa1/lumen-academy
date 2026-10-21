@@ -12,6 +12,7 @@ import {
   streak,
   TIER_NAMES,
 } from "../game/campus.js";
+import { trophyCount } from "../game/rival.js";
 import { standing } from "../game/xp.js";
 
 // The campus at a glance (M5): every School with its wing's tier, the
@@ -40,6 +41,7 @@ export function registerCampusRoutes(
           ...t,
           tierName: TIER_NAMES[t.tier],
           decalUrl: schoolDecalUrl(deps.handle, s.id),
+          trophies: trophyCount(deps.handle, s.id),
         };
       }),
       streak: streak(deps.handle, deps.game),

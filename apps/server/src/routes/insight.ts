@@ -1,3 +1,4 @@
+import { acceptChallenge, currentChallenge } from "../game/challenges.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { StyleProfileZ } from "@lumen/shared";
 import { callStructured } from "../agents/harness.js";
@@ -76,6 +77,10 @@ export function registerInsightRoutes(
   deps: { handle: DbHandle; game: GameConfig; factory: ModelFactory },
 ) {
   const { sqlite } = deps.handle;
+
+  /** V7-04: this week's challenge (opt-in) and its progress. */
+  app.get("/api/challenge", async () => currentChallenge(deps.handle, deps.game));
+  app.post("/api/challenge/accept", async () => acceptChallenge(deps.handle, deps.game));
 
   /** V7-06: weekly minutes, sessions, mastered, clarity/accuracy, voice share, energy days. */
   app.get("/api/progress", async () => progress(deps.handle, deps.game));

@@ -23,6 +23,11 @@ export function mountLobby(root: HTMLElement): () => void {
   const grid = h("div", { class: "school-grid", role: "list" });
   const status = h("p", { class: "lede", "aria-live": "polite" });
   const hero = h("div", { class: "lobby-hero" });
+  const challenge = h("section", {
+    class: "card pad challenge",
+    "aria-label": "This week's challenge",
+    hidden: true,
+  });
   const shelf = h("div", { class: "archived-shelf" });
   root.append(
     h(
@@ -62,10 +67,12 @@ export function mountLobby(root: HTMLElement): () => void {
         ),
       ),
       hero,
+      challenge,
       grid,
       shelf,
     ),
   );
+  void loadChallenge(challenge);
 
   const render = () => {
     const { schools, campus, archived } = store.getState().setup;
@@ -562,4 +569,57 @@ function importSchoolDialog() {
       });
   });
   const close = openModal("Import a School", form);
+}
+
+/** V7-04: one opt-in challenge a week. Progress is the server's count of my own turns. */
+interface Challenge {
+  title: string;
+  blurb: string;
+  of: number;
+  done: number;
+  accepted: boolean;
+  completed: boolean;
+}
+async function loadChallenge(el: HTMLElement) {
+  const render = (c: Challenge) => {
+    el.hidden = false;
+    fill(
+      el,
+      h(
+        "div",
+        { style: "flex:1;min-width:0" },
+        h(
+          "div",
+          { class: "micro" },
+          c.completed ? "Challenge done this week" : "This week's challenge",
+        ),
+        h("div", { class: "h2", style: "margin:4px 0 2px" }, c.title),
+        h("div", { class: "dim small" }, c.blurb),
+      ),
+      c.accepted
+        ? h(
+            "div",
+            { class: "challenge-dots", "aria-label": `${c.done} of ${c.of}` },
+            ...Array.from({ length: c.of }, (_, i) => h("i", { class: i < c.done ? "on" : "" })),
+            h(
+              "span",
+              { class: "mono small" },
+              c.completed ? "Done! +XP and a sticker" : `${c.done} / ${c.of}`,
+            ),
+          )
+        : h(
+            "button",
+            {
+              class: "btn",
+              onclick: () => void api.post<Challenge>("/api/challenge/accept").then(render),
+            },
+            "Take it on",
+          ),
+    );
+  };
+  try {
+    render(await api.get<Challenge>("/api/challenge"));
+  } catch {
+    /* no challenge this time */
+  }
 }

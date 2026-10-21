@@ -127,6 +127,18 @@ function view(d: DebriefView, classroomId: string, schoolId: string): HTMLElemen
             d.passed ? "Passed" : `Below the ${pctOf(d.passThreshold)} pass mark`,
           ),
           d.xpEarned > 0 && h("span", { class: "chip gold" }, `+${d.xpEarned} XP`),
+          // V7-05: the rival class on the same module.
+          d.rival &&
+            h(
+              "span",
+              {
+                class: `chip ${d.rival.beaten ? "gold" : ""}`,
+                title: "A simulated class taught by another teacher on the same School",
+              },
+              d.rival.beaten
+                ? `🏆 You beat ${d.rival.className} (${pctOf(d.rival.score)})`
+                : `${d.rival.className}: ${pctOf(d.rival.score)}`,
+            ),
           d.openBook &&
             h(
               "span",

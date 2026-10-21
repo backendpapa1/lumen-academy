@@ -32,6 +32,7 @@ const GLYPH: Record<string, string> = {
   fixed_confusion: "✓",
   brave_correction: "★",
   landed: "🎯",
+  challenge: "🏅",
 };
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

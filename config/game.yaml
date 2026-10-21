@@ -210,6 +210,7 @@ xp: # docs/02 §7.1
   analogyJudged: 20 # V5-04: × score (verdict right + reason)
   eliRound: 20 # V5-05: × fit score per round
   substituteCatch: 25 # V5-08: per planted error caught
+  challengeDone: 150 # V7-04: the weekly challenge
 
 ranks: # placeholder thresholds; tune after M5
   - { name: Student Teacher, minXp: 0 }

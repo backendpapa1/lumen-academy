@@ -134,3 +134,70 @@ test("progress: totals, weekly charts, energy days and the style profile", async
   await expect(page.getByText(/clearest teaching happens on high-energy days/)).toBeVisible();
   await page.screenshot({ path: "docs/screens/v7-progress.png", fullPage: true });
 });
+
+test("campus: tier pieces, trophies, and festival day for a new Landmark", async ({ page }) => {
+  const school = (id: string, name: string, accent: string) => ({
+    id,
+    name,
+    description: null,
+    accent,
+    emblemUrl: null,
+    sources: 1,
+    concepts: 12,
+    classrooms: [],
+  });
+  const wing = (schoolId: string, slot: number, tier: number, trophies: number) => ({
+    schoolId,
+    slot,
+    tier,
+    tierName: ["Blueprint", "Frame", "Wing", "Tower", "Landmark"][tier],
+    masteredFraction: tier / 4,
+    nextAt: null,
+    graduations: 0,
+    decalUrl: null,
+    trophies,
+  });
+  await page.route(/\/api\/schools$/, (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        school("sch_a", "Blockchain", "#0E8A80"),
+        school("sch_b", "Statistics", "#F0442E"),
+      ]),
+    }),
+  );
+  await page.route("**/api/campus", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        wings: [wing("sch_a", 0, 4, 3), wing("sch_b", 2, 3, 0)],
+        streak: {
+          current: 3,
+          best: 8,
+          missedDays: 0,
+          taughtToday: true,
+          freezes: 1,
+          frozenDays: 0,
+        },
+        xp: { total: 2400, rank: "Senior Teacher", next: null, progress: 0.1 },
+        resume: null,
+        fading: null,
+        best: null,
+      }),
+    }),
+  );
+  // The Blockchain building was a Tower last time I looked.
+  await page.addInitScript(() =>
+    localStorage.setItem("lumen.seenTiers", JSON.stringify({ sch_a: 3, sch_b: 3 })),
+  );
+  await page.goto("/");
+  await expect(page.getByText(/Festival day! Blockchain is now a Landmark/)).toBeVisible();
+  await expect(page.locator(".campus .fountain")).toHaveCount(1);
+  await expect(page.locator(".campus .lab")).toHaveCount(2);
+  await expect(page.locator(".campus .trophies .cup")).toHaveCount(3);
+  await expect(page.locator(".campus .bunting")).toHaveCount(1);
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: "docs/screens/v7-campus-festival.png" });
+});

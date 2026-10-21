@@ -2336,3 +2336,29 @@ table.heat td {
   border: var(--line);
   box-shadow: var(--shadow);
 }
+
+/* V7-04 the weekly challenge card. */
+.card.challenge {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin: 18px 0;
+  border-style: dashed;
+}
+.card.challenge[hidden] {
+  display: none;
+}
+.challenge-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.challenge-dots i {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--cobalt);
+  background: var(--paper);
+}
+.challenge-dots i.on {
+  background: var(--marigold);
+}

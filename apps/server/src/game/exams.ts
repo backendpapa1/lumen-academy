@@ -1,3 +1,4 @@
+import { rivalFor } from "./rival.js";
 import { peekedRecently } from "./sourceCheck.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {
@@ -492,5 +493,7 @@ export function debriefView(
         }
       ).status === "graduated",
     xpEarned: xp,
+    // V7-05: the simulated rival class on the same module.
+    rival: rivalFor(handle, examId) ?? undefined,
   };
 }

@@ -92,6 +92,8 @@ export interface DebriefView {
   classAverage: number;
   passed: boolean;
   passThreshold: number;
+  /** V7-05: the simulated rival class (another teacher) on the same module. */
+  rival?: { teacher: string; className: string; score: number; beaten: boolean; trophy: boolean };
   /** V6-06: I checked my sources (/source) within the hour before setting it. */
   openBook?: boolean;
   concepts: ConceptResult[];

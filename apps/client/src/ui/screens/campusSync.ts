@@ -63,7 +63,11 @@ function sync(s: AppState) {
       const w = campus.wings.find((x) => x.schoolId === id)!;
       const name = schools.find((x) => x.id === id)?.name ?? "A School";
       scene.flyTo(id);
-      app.notify(`${name} grew: its building is now a ${w.tierName}.`);
+      if (w.tier === 4) {
+        // V7-03: reaching Landmark is a festival day on the campus.
+        scene.celebrate(schools.find((x) => x.id === id)?.accent ?? "#2A40FF");
+        app.notify(`Festival day! ${name} is now a Landmark: library, lab, garden and fountain.`);
+      } else app.notify(`${name} grew: its building is now a ${w.tierName}.`);
       setTimeout(() => look(store.getState()), 4500);
       return;
     }

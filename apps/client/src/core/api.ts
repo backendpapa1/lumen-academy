@@ -140,6 +140,8 @@ export interface CampusView {
     nextAt: number | null;
     graduations: number;
     decalUrl: string | null;
+    /** V7-05: exams won against the rival class. */
+    trophies?: number;
   }>;
   streak: {
     current: number;

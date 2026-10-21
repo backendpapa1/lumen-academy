@@ -12,6 +12,7 @@ export const STICKER_KINDS = {
   fixed_confusion: "Fixed my confusion",
   brave_correction: "Brave correction",
   landed: "That one landed!",
+  challenge: "Challenge done!",
 } as const;
 export type StickerKind = keyof typeof STICKER_KINDS;
 

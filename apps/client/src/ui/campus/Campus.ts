@@ -14,6 +14,8 @@ export interface WingInfo {
   accent: string;
   emblemUrl: string | null;
   decalUrl: string | null;
+  /** V7-05: exams won against the rival class. */
+  trophies?: number;
 }
 
 const W = 1600;
@@ -146,6 +148,74 @@ export function buildingMarkup(tier: number, accent: string, emblemUrl: string |
     </g>`;
 }
 
+/**
+ * V7-03: the grounds grow with the building. A library beside it from the Wing
+ * tier, a lab from the Tower, then a garden and a fountain at the Landmark.
+ * Trophies (V7-05) stand on the front step. Same origin and scale as the building.
+ */
+export function campusPieces(tier: number, accent: string, trophies = 0): string {
+  const out: string[] = [];
+  if (tier >= 2)
+    out.push(`<g class="piece library" transform="translate(-196 0)">
+      <rect class="wall" x="-44" y="-92" width="88" height="92"/>
+      <path class="roof" d="M-52 -92 L0 -128 L52 -92z"/>
+      ${[-28, -8, 12].map((x) => `<rect class="col" x="${x}" y="-80" width="10" height="80"/>`).join("")}
+      <g class="book-sign" transform="translate(0 -104)"><path d="M-12 0 q6 -6 12 0 q6 -6 12 0 v10 q-6 -6 -12 0 q-6 -6 -12 0z" style="fill:${accent}"/></g>
+    </g>`);
+  if (tier >= 3)
+    out.push(`<g class="piece lab" transform="translate(196 0)">
+      <rect class="wall" x="-46" y="-80" width="92" height="80"/>
+      <path class="roof" d="M-50 -80 h100 v-10 h-100z"/>
+      <path class="dome-sm" d="M-18 -90 q18 -40 36 0z"/>
+      <line class="chimney" x1="30" y1="-90" x2="30" y2="-116"/>
+      <g class="steam"><circle cx="30" cy="-126" r="7"/><circle cx="38" cy="-140" r="5"/></g>
+      <path class="flask" d="M-6 -60 v14 l-12 24 h36 l-12 -24 v-14z" style="fill:${accent}"/>
+      <rect class="win" x="-38" y="-62" width="18" height="20"/><rect class="win" x="20" y="-62" width="18" height="20"/>
+    </g>`);
+  if (tier >= 4) {
+    out.push(`<g class="piece garden" transform="translate(196 34)">
+      <path class="bed" d="M-70 0 q70 -26 140 0 q-70 22 -140 0z"/>
+      ${[-46, -20, 6, 32, 54].map((x, i) => `<g class="flower f${i % 3}" transform="translate(${x} ${i % 2 ? -6 : 2})"><line x1="0" y1="0" x2="0" y2="-16"/><circle cx="0" cy="-20" r="6"/></g>`).join("")}
+    </g>`);
+    out.push(`<g class="piece fountain" transform="translate(-196 30)">
+      <ellipse class="basin" cx="0" cy="0" rx="56" ry="16"/>
+      <ellipse class="water" cx="0" cy="-3" rx="44" ry="10"/>
+      <rect class="spout" x="-5" y="-40" width="10" height="38"/>
+      <g class="jet"><path d="M0 -40 q-24 -30 -38 18"/><path d="M0 -40 q24 -30 38 18"/><path d="M0 -40 v-26"/></g>
+    </g>`);
+  }
+  if (trophies > 0) {
+    const shown = Math.min(trophies, 4);
+    const cups = Array.from({ length: shown }, (_, i) => {
+      const x = (i - (shown - 1) / 2) * 30;
+      return `<g class="cup" transform="translate(${x} 0)"><path d="M-10 -34 h20 v8 q0 12 -10 14 q-10 -2 -10 -14z"/><path class="handle" d="M-10 -30 q-8 0 -6 8 M10 -30 q8 0 6 8"/><rect x="-7" y="-12" width="14" height="4"/><rect x="-10" y="-8" width="20" height="8"/></g>`;
+    }).join("");
+    out.push(
+      `<g class="piece trophies" transform="translate(0 30)">${cups}${
+        trophies > shown
+          ? `<text class="more" x="${shown * 15 + 12}" y="-8">×${trophies}</text>`
+          : ""
+      }</g>`,
+    );
+  }
+  return out.join("");
+}
+
+/** Festival day (V7-03): bunting, confetti and the class out on the lawn, once per Landmark. */
+function festivalMarkup(accent: string): string {
+  const flags = Array.from(
+    { length: 30 },
+    (_, i) =>
+      `<path d="M${i * 54} ${40 + Math.sin(i / 2.5) * 10} l26 0 l-13 24z" style="fill:${i % 3 === 0 ? accent : i % 3 === 1 ? "var(--marigold)" : "var(--coral)"}"/>`,
+  ).join("");
+  const confetti = Array.from(
+    { length: 70 },
+    (_, i) =>
+      `<rect class="bit" x="${(i * 137) % W}" y="-20" width="8" height="14" style="--d:${(i % 9) * 0.35}s;--x:${((i * 53) % 120) - 60}px;fill:${["var(--marigold)", "var(--coral)", accent, "var(--sky)"][i % 4]}"/>`,
+  ).join("");
+  return `<g class="bunting"><path class="string" d="M0 40 Q 800 90 1600 40"/>${flags}</g><g class="confetti">${confetti}</g>`;
+}
+
 function grounds(): string {
   const phase = dayPhase();
   const [top, low] = SKY[phase];
@@ -193,7 +263,8 @@ function grounds(): string {
       <rect class="step" x="-70" y="-6" width="120" height="10"/>
     </g>
     <g class="plots"></g>
-    <g class="weather"></g>`;
+    <g class="weather"></g>
+    <g class="festival"></g>`;
 }
 
 export class Campus {
@@ -201,6 +272,8 @@ export class Campus {
   private readonly svg: SVGSVGElement;
   private readonly plots: SVGGElement;
   private readonly weather: SVGGElement;
+  private readonly festival: SVGGElement;
+  private festivalTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly wings = new Map<string, { g: SVGGElement; info: WingInfo }>();
   private focused: string | null = null;
 
@@ -216,6 +289,7 @@ export class Campus {
     stage.prepend(this.el);
     this.plots = this.svg.querySelector(".plots")!;
     this.weather = this.svg.querySelector(".weather")!;
+    this.festival = this.svg.querySelector(".festival")!;
   }
 
   /** Sync buildings with the campus data; returns the Schools that just tiered up. */
@@ -236,7 +310,7 @@ export class Campus {
       const grew = seen !== undefined && info.tier > seen;
       if (grew) up.push(info.schoolId);
       let w = this.wings.get(info.schoolId);
-      const key = `${info.tier}|${info.accent}|${info.emblemUrl}`;
+      const key = `${info.tier}|${info.accent}|${info.emblemUrl}|${info.trophies ?? 0}`;
       if (!w) {
         const g = document.createElementNS(NS, "g");
         g.setAttribute("class", "plot");
@@ -248,6 +322,7 @@ export class Campus {
         w.g.dataset.key = key;
         w.g.setAttribute("transform", `translate(${slot.x} ${slot.y}) scale(${slot.s})`);
         w.g.innerHTML =
+          `<g class="pieces">${campusPieces(info.tier, info.accent, info.trophies)}</g>` +
           `<g class="build">${buildingMarkup(info.tier, info.accent, info.emblemUrl)}</g>` +
           `<g class="pin" transform="translate(0 ${-(TOP[info.tier] ?? 260)})"><path d="M0 0 q-24 -32 0 -56 q24 24 0 56z"/><circle cx="0" cy="-30" r="8"/></g>`;
       }
@@ -260,6 +335,17 @@ export class Campus {
     }
     this.flyTo(this.focused, true);
     return up;
+  }
+
+  /** A School became a Landmark: festival day on the campus for a while. */
+  celebrate(accent: string, ms = 12_000): void {
+    this.festival.innerHTML = festivalMarkup(accent);
+    this.el.classList.add("festival-day");
+    clearTimeout(this.festivalTimer);
+    this.festivalTimer = setTimeout(() => {
+      this.festival.innerHTML = "";
+      this.el.classList.remove("festival-day");
+    }, ms);
   }
 
   /** Point at a School's building (or nothing). */
@@ -292,6 +378,7 @@ export class Campus {
   resize(): void {}
 
   dispose(): void {
+    clearTimeout(this.festivalTimer);
     this.el.remove();
   }
 }

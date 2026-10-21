@@ -387,6 +387,126 @@
   }
 }
 
+/* V7-03: the grounds grow with the building */
+.campus .piece .wall,
+.campus .piece .roof {
+  fill: #fff;
+  stroke: var(--cobalt);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.campus .piece .roof {
+  fill: var(--sky-lo);
+}
+.campus .piece .col,
+.campus .piece .win {
+  fill: var(--sky);
+  stroke: var(--cobalt);
+  stroke-width: 2;
+}
+.campus .piece .book-sign path,
+.campus .piece .flask,
+.campus .piece .dome-sm {
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+}
+.campus .piece .dome-sm {
+  fill: var(--marigold);
+}
+.campus .piece .chimney {
+  stroke: var(--cobalt);
+  stroke-width: 6;
+}
+.campus .lab .steam circle {
+  fill: #fff;
+  stroke: var(--cobalt);
+  stroke-width: 2;
+  animation: steam 4s ease-in-out infinite;
+}
+@keyframes steam {
+  50% {
+    transform: translateY(-6px);
+    opacity: 0.6;
+  }
+}
+.campus .garden .bed {
+  fill: #7fd1a0;
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+}
+.campus .garden line {
+  stroke: #2f8a57;
+  stroke-width: 3;
+}
+.campus .garden circle {
+  stroke: var(--cobalt);
+  stroke-width: 2;
+}
+.campus .garden .f0 circle {
+  fill: var(--coral);
+}
+.campus .garden .f1 circle {
+  fill: var(--marigold);
+}
+.campus .garden .f2 circle {
+  fill: #fff;
+}
+.campus .fountain .basin,
+.campus .fountain .spout {
+  fill: #e8dfc6;
+  stroke: var(--cobalt);
+  stroke-width: 3;
+}
+.campus .fountain .water {
+  fill: var(--sky);
+}
+.campus .fountain .jet path {
+  fill: none;
+  stroke: var(--sky-lo);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 8 6;
+  animation: jet 1.2s linear infinite;
+}
+@keyframes jet {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+.campus .trophies .cup path,
+.campus .trophies .cup rect {
+  fill: var(--marigold);
+  stroke: var(--cobalt);
+  stroke-width: 2;
+}
+.campus .trophies .cup .handle {
+  fill: none;
+}
+.campus .trophies .more {
+  font: 700 16px var(--font-ui);
+  fill: var(--navy);
+}
+
+/* Festival day (a School became a Landmark) */
+.campus .bunting .string {
+  fill: none;
+  stroke: var(--cobalt);
+  stroke-width: 2;
+}
+.campus .bunting path:not(.string) {
+  stroke: var(--cobalt);
+  stroke-width: 1.5;
+}
+.campus .confetti .bit {
+  animation: confetti 4.5s linear infinite;
+  animation-delay: var(--d);
+}
+@keyframes confetti {
+  to {
+    transform: translate(var(--x), 1040px) rotate(540deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .campus * {
     animation: none !important;

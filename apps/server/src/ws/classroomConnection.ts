@@ -1,3 +1,4 @@
+import { currentChallenge, undefinedTerms } from "../game/challenges.js";
 import { newSinceLastPeriod, upgradeState } from "../game/upgrades.js";
 import { schoolDecalUrl } from "../game/campus.js";
 import { diagramText, type Diagram } from "@lumen/shared";
@@ -524,6 +525,21 @@ export class ClassroomConnection {
           session.flavour.find((f) => f.archetype === "overachiever");
         if (expert) void this.call(expert.id).catch(() => undefined);
       });
+    // V7-04: with "Teach without jargon" on, flag subject terms that aren't on the wall.
+    const ch = currentChallenge(this.rt.handle, this.rt.game);
+    if (ch.accepted && !ch.completed && ch.kind === "no_jargon") {
+      const terms = undefinedTerms(this.rt.handle, text).filter(
+        (t) => !done.analysis.definitions?.some((d) => d.term.toLowerCase().includes(t)),
+      );
+      if (terms.length)
+        this.send({
+          type: "toast",
+          payload: {
+            level: "info",
+            text: `Jargon check: ${terms.slice(0, 3).join(", ")} ${terms.length === 1 ? "isn't" : "aren't"} on the wall yet. Define it, or say it plainly.`,
+          },
+        });
+    }
     // V6-08: terms I defined go on the glossary wall, in my words.
     if (done.analysis.definitions?.length && this.scope) {
       pinDefinitions(this.rt.handle, {

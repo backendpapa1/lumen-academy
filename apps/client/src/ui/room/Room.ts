@@ -81,6 +81,7 @@ const STICKER_GLYPH: Record<string, string> = {
   fixed_confusion: "✓",
   brave_correction: "★",
   landed: "🎯",
+  challenge: "🏅",
 };
 
 // --- the room itself ----------------------------------------------------------
