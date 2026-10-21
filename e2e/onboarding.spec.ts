@@ -68,8 +68,10 @@ test("first run: the Head of School's tour, then never again unless asked", asyn
   await expect(tour.getByText("Re-teach it")).toBeVisible({ timeout: 6000 });
   await page.screenshot({ path: "docs/screens/notes-tour-exam.png" });
 
-  // Every line was sent to the narrator (the browser voice reads it when the local one is off).
-  expect(narrated[0]).toMatch(/^Hello, I'm Ms Hale/);
+  // After a click, each line goes to the narrator sentence by sentence (the
+  // browser's own voice reads it when the local one is off, as here).
+  expect(narrated).toContain("Hello, I'm Ms Hale, Head of Lumen Academy.");
+  expect(narrated).toContain("Each School is one topic you want to learn.");
   expect(narrated.length).toBeGreaterThanOrEqual(5);
 
   for (let i = 0; i < 12 && (await tour.getByRole("button", { name: "Next" }).count()); i++)

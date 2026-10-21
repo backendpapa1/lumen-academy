@@ -153,12 +153,24 @@ export function startTour(): void {
     },
   });
   const paintSpeaker = (s: NarratorState) => {
-    const on = narrator.on && s !== "blocked";
+    const on = narrator.on && s !== "blocked" && s !== "unavailable";
     fill(
       speakBtn,
       icon(on ? ICONS.speaker : ICONS.mute),
-      s === "blocked" ? "Tap to hear me" : on ? (s === "loading" ? "…" : "Voice on") : "Voice off",
+      s === "blocked"
+        ? "Tap to hear me"
+        : s === "unavailable"
+          ? "No voice right now"
+          : on
+            ? s === "loading"
+              ? "Warming up the voice…"
+              : "Voice on"
+            : "Voice off",
     );
+    speakBtn.title =
+      s === "unavailable"
+        ? "The narrator's voice isn't set up on this computer; the text is all here."
+        : "";
     speakBtn.setAttribute("aria-pressed", String(on));
     speakBtn.classList.toggle("pulse", s === "blocked");
     card.classList.toggle("talking", s === "speaking");

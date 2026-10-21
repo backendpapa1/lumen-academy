@@ -2,21 +2,54 @@ import { SERVER_HTTP } from "./net";
 
 // The guided tour's narrator (Paul's note: the guide should have a speaker).
 // Lines come from the local Kokoro voice on the server (/api/speech/narrate);
-// without it, the browser's own speech synthesis reads them. Nothing leaves
-// the machine either way. Whether it speaks is remembered in this browser.
+// where the browser has its own speech synthesis it's the fallback (the
+// desktop app's WebKitGTK has none). Nothing leaves the machine either way.
+//
+// Two things the desktop app taught us (WebKitGTK):
+// - Audio starts locked and `AudioContext.resume()` never settles without a
+//   click, so we never wait on it: the line waits for the first click or key
+//   press anywhere, and the speaker button says "Tap to hear me".
+// - A long line takes Kokoro seconds to make, so it's spoken sentence by
+//   sentence: the first one plays as soon as it's ready, the rest follow.
 
 const KEY = "lumen.tourVoice";
 
-export type NarratorState = "idle" | "loading" | "speaking" | "blocked";
+export type NarratorState = "idle" | "loading" | "speaking" | "blocked" | "unavailable";
+
+/** A line split into sentences, short ones joined so the voice doesn't stutter. */
+export function sentences(text: string): string[] {
+  const parts = text.match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) ?? [text];
+  const out: string[] = [];
+  for (const p of parts.map((s) => s.trim()).filter(Boolean)) {
+    const last = out.at(-1);
+    if (last && last.split(/\s+/).length < 4) out[out.length - 1] = `${last} ${p}`;
+    else out.push(p);
+  }
+  return out;
+}
 
 class Narrator {
   private ctx: AudioContext | null = null;
-  private src: AudioBufferSourceNode | null = null;
+  private sources: AudioBufferSourceNode[] = [];
   private token = 0;
   private listeners = new Set<(s: NarratorState) => void>();
-  /** Audio already asked for, so the next step starts without a wait. */
+  /** Audio already asked for, per sentence, so the next step starts without a wait. */
   private cache = new Map<string, Promise<ArrayBuffer>>();
+  /** The line waiting for the first click (audio is locked until then). */
+  private waiting: string | null = null;
   state: NarratorState = "idle";
+
+  constructor() {
+    // Any click or key press unlocks audio and speaks the line that was waiting.
+    const unlock = () => {
+      this.unlock();
+      if (this.waiting && this.on) void this.say(this.waiting);
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("pointerdown", unlock, true);
+      window.addEventListener("keydown", unlock, true);
+    }
+  }
 
   get on(): boolean {
     try {
@@ -44,10 +77,29 @@ class Narrator {
     for (const fn of this.listeners) fn(s);
   }
 
-  /** Call from a click: browsers only allow sound after one. */
+  /** Call from a click or key press: browsers only allow sound after one. */
   unlock() {
-    this.ctx ??= new AudioContext();
-    void this.ctx.resume();
+    try {
+      this.ctx ??= new AudioContext();
+      if (this.ctx.state !== "running") void this.ctx.resume().catch(() => undefined);
+    } catch {
+      /* no Web Audio: say() falls back */
+    }
+  }
+
+  /** True once audio runs; false if it's still locked after a moment. */
+  private async running(): Promise<boolean> {
+    const ctx = this.ctx;
+    if (!ctx) return false;
+    // Read fresh each time: the state changes while we wait.
+    const live = (): AudioContextState => ctx.state;
+    if (live() === "running") return true;
+    void ctx.resume().catch(() => undefined);
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+      if (live() === "running") return true;
+    }
+    return false;
   }
 
   /** Reads a line, replacing whatever was being read. */
@@ -55,33 +107,54 @@ class Narrator {
     this.stop();
     if (!this.on) return;
     const token = ++this.token;
-    this.ctx ??= new AudioContext();
-    if (this.ctx.state === "suspended") await this.ctx.resume().catch(() => undefined);
-    if (this.ctx.state === "suspended") {
-      // No click yet (first launch): the speaker button asks for one.
+    try {
+      this.ctx ??= new AudioContext();
+    } catch {
+      return this.browserSay(text, token);
+    }
+    if (!(await this.running())) {
+      if (token !== this.token) return;
+      this.waiting = text;
       this.set("blocked");
       return;
     }
+    if (token !== this.token) return;
+    this.waiting = null;
     this.set("loading");
-    try {
-      const buf = await this.ctx.decodeAudioData((await this.fetch(text)).slice(0));
+    const ctx = this.ctx;
+    const parts = sentences(text);
+    // Ask for every sentence now; the server makes them in order, so the first is ready first.
+    const audio = parts.map((p) => this.fetch(p));
+    let endsAt = 0;
+    let played = 0;
+    for (const [i, a] of audio.entries()) {
+      let buf: AudioBuffer;
+      try {
+        buf = await ctx.decodeAudioData((await a).slice(0));
+      } catch {
+        if (token !== this.token) return;
+        // No voice at all: say so (or let the browser read it, where it can).
+        if (played === 0) return this.browserSay(parts.slice(i).join(" "), token);
+        continue;
+      }
       if (token !== this.token) return;
-      const src = this.ctx.createBufferSource();
+      const src = ctx.createBufferSource();
       src.buffer = buf;
-      src.connect(this.ctx.destination);
-      src.onended = () => token === this.token && this.set("idle");
-      src.start();
-      this.src = src;
-      this.set("speaking");
-    } catch {
-      if (token !== this.token) return;
-      this.browserSay(text, token);
+      src.connect(ctx.destination);
+      const at = Math.max(ctx.currentTime + 0.03, endsAt);
+      src.start(at);
+      endsAt = at + buf.duration;
+      this.sources.push(src);
+      played++;
+      if (played === 1) this.set("speaking");
+      if (i === audio.length - 1) src.onended = () => token === this.token && this.set("idle");
     }
   }
 
   /** Starts fetching a line's audio (the tour asks for the next step's). */
   prefetch(text: string) {
-    if (this.on) void this.fetch(text).catch(() => undefined);
+    if (!this.on) return;
+    for (const p of sentences(text)) void this.fetch(p).catch(() => undefined);
   }
 
   private fetch(text: string): Promise<ArrayBuffer> {
@@ -99,10 +172,10 @@ class Narrator {
     return p;
   }
 
-  /** The fallback: the browser's own voice (local on every desktop OS). */
+  /** The fallback: the browser's own voice, where there is one. */
   private browserSay(text: string, token: number) {
     const synth = typeof speechSynthesis === "undefined" ? null : speechSynthesis;
-    if (!synth) return this.set("idle");
+    if (!synth) return this.set("unavailable");
     const u = new SpeechSynthesisUtterance(text);
     const voices = synth.getVoices().filter((v) => v.lang.startsWith("en"));
     u.voice =
@@ -111,7 +184,6 @@ class Narrator {
       ) ??
       voices[0] ??
       null;
-    u.rate = 1;
     u.onend = () => token === this.token && this.set("idle");
     synth.speak(u);
     this.set("speaking");
@@ -119,12 +191,14 @@ class Narrator {
 
   stop() {
     this.token++;
-    try {
-      this.src?.stop();
-    } catch {
-      /* already ended */
-    }
-    this.src = null;
+    this.waiting = null;
+    for (const s of this.sources)
+      try {
+        s.stop();
+      } catch {
+        /* already ended */
+      }
+    this.sources = [];
     if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
     if (this.state !== "idle") this.set("idle");
   }
