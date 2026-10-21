@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <title>How Merkle trees work | Example Blog</title>
+    <script>
+      alert("never runs");
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">Home</a> · <a href="/about">About</a> · Subscribe to our newsletter</nav>
+    <article>
+      <h1>How Merkle trees work</h1>
+      <p>
+        A Merkle tree summarises every transaction in a block with one hash, the Merkle root. It is
+        a compact commitment that lets anyone check membership cheaply.
+      </p>
+      <h2>Building the tree</h2>
+      <p>
+        Each transaction is hashed. Neighbouring hashes are paired, joined and hashed again, level
+        by level, until one hash is left. If a level has an odd number of hashes, the last one is
+        duplicated.
+      </p>
+      <ul>
+        <li>Leaves are transaction hashes.</li>
+        <li>The root sits in the block header.</li>
+      </ul>
+      <h2>Proving inclusion</h2>
+      <p>
+        A Merkle path is the list of sibling hashes from a transaction up to the root. A light
+        client rehashes up the path and compares the result with the root in its header.
+      </p>
+    </article>
+    <footer>© Example Blog. Cookie settings. Share on social media.</footer>
+  </body>
+</html>

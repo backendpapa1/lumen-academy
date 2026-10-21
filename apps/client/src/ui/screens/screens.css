@@ -2123,3 +2123,30 @@ table.heat td {
   color: #fff;
   font: 700 11px var(--font-ui);
 }
+
+/* V6-04: a photo beside its OCR text. */
+.ocr-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 16px;
+}
+.ocr-img {
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border: var(--line);
+  background: var(--paper-2);
+}
+@media (max-width: 640px) {
+  .ocr-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.link-form .field {
+  flex: 1;
+  min-width: 0;
+}
+.modal:has(.ocr),
+.modal:has(.mode-grid) {
+  width: min(880px, 100%);
+}

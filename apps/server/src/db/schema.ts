@@ -35,7 +35,11 @@ export const sources = sqliteTable(
       .notNull()
       .references(() => schools.id),
     title: text("title").notNull(),
-    kind: text("kind", { enum: ["pdf", "md", "txt", "paste"] }).notNull(),
+    kind: text("kind", {
+      enum: ["pdf", "md", "txt", "paste", "youtube", "web", "pptx", "anki", "notes"],
+    }).notNull(),
+    /** V6: the YouTube or web link a source came from. */
+    url: text("url"),
     filePath: text("file_path"),
     pageCount: integer("page_count"),
     status: text("status", {

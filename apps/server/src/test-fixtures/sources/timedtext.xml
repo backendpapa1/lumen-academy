@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8" ?><timedtext format="3"><body>
+<p t="0" d="2000">Today we look at Merkle trees.</p>
+<p t="2100" d="3000">Each transaction is hashed &amp; paired.</p>
+<p t="95000" d="3000">The root goes in the header.</p>
+<p t="96000" d="2000"></p>
+</body></timedtext>

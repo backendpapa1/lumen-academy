@@ -8,3 +8,5 @@ allowBuilds:
   onnxruntime-node: false
   protobufjs: false
   sharp: true
+  # Its only install script is an Open Collective donation banner.
+  tesseract.js: false

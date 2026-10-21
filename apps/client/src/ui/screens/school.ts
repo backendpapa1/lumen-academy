@@ -8,7 +8,7 @@ import { mountCurriculum } from "./curriculum";
 import { mountKnowledge } from "./knowledge";
 import { emblem, plural, statusChip } from "./common";
 import { fill, h, icon, ICONS } from "./dom";
-import { confirmDialog } from "./modal";
+import { confirmDialog, openModal } from "./modal";
 
 // The School Wing (M3-05, M3-09): Sources, Curriculum and Classes for one School.
 
@@ -19,7 +19,23 @@ const TABS: Array<[Tab, string]> = [
   ["classes", "Classes"],
   ["knowledge", "What I know"],
 ];
-const ACCEPT = ".pdf,.md,.markdown,.txt";
+// V6: slides, Anki decks and photos of notes too (photos are read on this machine).
+const ACCEPT =
+  ".pdf,.md,.markdown,.txt,.pptx,.apkg,.jpg,.jpeg,.png,.webp,.mp3,.m4a,.wav,.ogg,.opus,.webm,.flac";
+const PHOTO = /\.(jpe?g|png|webp)$/i;
+/** V6-01 fallback: a recorded talk, transcribed on this machine. */
+const AUDIO = /\.(mp3|m4a|wav|ogg|oga|opus|webm|flac|aac)$/i;
+const KIND_LABEL: Record<string, string> = {
+  pdf: "PDF",
+  md: "Markdown",
+  txt: "Text",
+  paste: "Pasted text",
+  youtube: "YouTube captions",
+  web: "Web article",
+  pptx: "Slides",
+  anki: "Anki deck",
+  notes: "Photo of notes",
+};
 
 export function mountSchool(root: HTMLElement, schoolId: string): () => void {
   const header = h("header", { class: "topbar" });
@@ -201,12 +217,59 @@ function mountSources(root: HTMLElement, schoolId: string): () => void {
       class: "dropzone",
       role: "button",
       tabindex: 0,
-      "aria-label": "Upload a source: PDF, Markdown or text",
+      "aria-label": "Upload a source: PDF, slides, Anki deck, a photo of notes, Markdown or text",
     },
     icon(ICONS.upload),
-    h("div", { class: "h2" }, "Drop a PDF, Markdown or text file"),
-    h("div", {}, "or click to choose one. Up to 50 MB."),
+    h("div", { class: "h2" }, "Drop a file"),
+    h(
+      "div",
+      {},
+      "PDF, slides (.pptx), an Anki deck (.apkg), a photo of your notes, a recorded talk, Markdown or text. Up to 50 MB.",
+    ),
   );
+  // V6-01/02: a YouTube talk (its captions) or a web article.
+  const linkInput = h("input", {
+    class: "field",
+    id: "link-url",
+    type: "url",
+    placeholder: "https://www.youtube.com/watch?v=… or an article's address",
+  });
+  const linkErr = h("p", { class: "error-text", role: "alert" });
+  const linkBtn = h("button", { class: "btn", type: "submit" }, "Add link");
+  const linkForm = h(
+    "form",
+    { class: "card pad link-form" },
+    h("div", { class: "h2" }, "Or paste a link"),
+    h(
+      "p",
+      { class: "dim small", style: "margin:4px 0 8px" },
+      "A YouTube talk (we read its captions, never the video) or a web article.",
+    ),
+    h("div", { class: "row", style: "gap:8px" }, linkInput, linkBtn),
+    linkErr,
+  );
+  linkForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    linkErr.textContent = "";
+    linkBtn.disabled = true;
+    linkBtn.textContent = "Reading…";
+    api
+      .post<{ title: string; kind: string }>(`/api/schools/${schoolId}/sources/link`, {
+        url: linkInput.value.trim(),
+      })
+      .then((r) => {
+        linkInput.value = "";
+        app.notify(`Indexing "${r.title}"…`);
+      })
+      .catch(
+        (err: unknown) =>
+          (linkErr.textContent = err instanceof ApiError ? err.message : String(err)),
+      )
+      .finally(() => {
+        linkBtn.disabled = false;
+        linkBtn.textContent = "Add link";
+      });
+  });
   const pasteTitle = h("input", {
     class: "field",
     id: "paste-title",
@@ -239,7 +302,7 @@ function mountSources(root: HTMLElement, schoolId: string): () => void {
     h(
       "div",
       { class: "two-col" },
-      h("div", { class: "stack" }, drop, dropErr, fileInput),
+      h("div", { class: "stack" }, drop, dropErr, fileInput, linkForm),
       pasteForm,
     ),
     h(
@@ -254,8 +317,18 @@ function mountSources(root: HTMLElement, schoolId: string): () => void {
 
   const upload = (file: File) => {
     dropErr.textContent = "";
-    if (!/\.(pdf|md|markdown|txt)$/i.test(file.name)) {
-      dropErr.textContent = "Use a PDF, Markdown or text file.";
+    if (PHOTO.test(file.name)) return void readPhoto(schoolId, file);
+    if (AUDIO.test(file.name))
+      return void api
+        .upload(`/api/schools/${schoolId}/sources/audio`, file)
+        .then(() => app.notify(`Transcribing "${file.name}" on this computer…`))
+        .catch(
+          (e: unknown) => (dropErr.textContent = e instanceof ApiError ? e.message : String(e)),
+        );
+    if (!/\.(pdf|md|markdown|txt|pptx|apkg)$/i.test(file.name)) {
+      dropErr.textContent = /\.hei[cf]$/i.test(file.name)
+        ? "HEIC photos can't be read yet. Share it from your phone as JPEG."
+        : "Use a PDF, slides (.pptx), an Anki deck (.apkg), a photo, Markdown or a text file.";
       return;
     }
     api
@@ -349,7 +422,7 @@ function sourceRow(s: SourceRow, job?: SourceJob): HTMLElement {
       h(
         "div",
         { class: "mono" },
-        `${s.kind} · ${plural(s.chunks, "passage")}${s.pageCount ? ` · ${s.pageCount} pages` : ""}`,
+        `${KIND_LABEL[s.kind] ?? s.kind} · ${plural(s.chunks, "passage")}${s.pageCount ? ` · ${s.pageCount} pages` : ""}`,
       ),
     ),
     h("span", { class: "spacer" }),
@@ -528,4 +601,76 @@ function mountClasses(root: HTMLElement, schoolId: string): () => void {
   return store.subscribe((s, p) =>
     s.setup.school !== p.setup.school ? render(s.setup.school) : undefined,
   );
+}
+
+/**
+ * V6-04: a photo of notes is read on this machine, then shown beside its text
+ * so I can fix what the OCR got wrong before anything is ingested.
+ */
+function readPhoto(schoolId: string, file: File) {
+  const url = URL.createObjectURL(file);
+  const status = h("p", { class: "dim small" }, "Reading the photo on this computer…");
+  const title = h("input", {
+    class: "field",
+    id: "ocr-title",
+    maxlength: 120,
+    value: file.name.replace(/\.[^.]+$/, ""),
+  });
+  const text = h("textarea", { class: "field", id: "ocr-text", rows: 14, disabled: true });
+  const err = h("p", { class: "error-text", role: "alert" });
+  const add = h("button", { class: "btn primary", disabled: true }, "Add as notes");
+  const body = h(
+    "div",
+    { class: "ocr" },
+    h(
+      "div",
+      { class: "ocr-grid" },
+      h("img", { src: url, alt: "Your photo", class: "ocr-img" }),
+      h(
+        "div",
+        {},
+        h("label", { class: "lbl", for: "ocr-title" }, "Title"),
+        title,
+        h("label", { class: "lbl", for: "ocr-text" }, "Text (fix anything it misread)"),
+        text,
+        status,
+      ),
+    ),
+    err,
+    h("div", { class: "actions" }, h("span", { class: "spacer" }), add),
+  );
+  const close = openModal("Check the text from your photo", body, {
+    onClose: () => URL.revokeObjectURL(url),
+  });
+  api
+    .upload<{ text: string; confidence: number }>(`/api/schools/${schoolId}/ocr`, file)
+    .then((r) => {
+      text.value = r.text;
+      text.disabled = false;
+      add.disabled = false;
+      status.textContent =
+        r.confidence < 0.6
+          ? `It wasn't sure about much of this (${Math.round(r.confidence * 100)}% confident): read it through carefully.`
+          : "Nothing left the computer. Check the text, then add it.";
+      text.focus();
+    })
+    .catch((e: unknown) => (status.textContent = e instanceof ApiError ? e.message : String(e)));
+  add.addEventListener("click", () => {
+    err.textContent = "";
+    add.disabled = true;
+    api
+      .post(`/api/schools/${schoolId}/sources`, {
+        title: title.value.trim(),
+        text: text.value,
+        kind: "notes",
+      })
+      .then(() => {
+        close();
+        app.notify(`Indexing "${title.value.trim()}"…`);
+      })
+      .catch((e: unknown) => {
+        err.textContent = e instanceof ApiError ? e.message : String(e);
+        add.disabled = false;
+      });
+  });
 }

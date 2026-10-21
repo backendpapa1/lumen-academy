@@ -1,3 +1,4 @@
+import type { Transcriber } from "./speech/stt.js";
 import { ARCHETYPE_INFO, type Archetype, type CadetView } from "@lumen/shared";
 import { emblemMotifs } from "./agents/artDirector.js";
 import { buildCurriculum } from "./agents/deep/curriculumArchitect.js";
@@ -30,6 +31,8 @@ export interface JobDeps {
   dataDir: string;
   embedder?: Embedder;
   assets?: AssetService;
+  /** V6-01: local Whisper, for talks uploaded as audio. */
+  speech?: { stt: Transcriber };
 }
 
 /** Emblem accents rotate through the archetype palette, so neighbouring schools differ. */
@@ -87,7 +90,13 @@ export function backfillEmblems(deps: JobDeps): number {
 /** S-2/S-3: index a source; status streams on the bus. */
 export function addSource(
   deps: JobDeps,
-  input: { schoolId: string; title: string; kind: SourceKind; data: Uint8Array | string },
+  input: {
+    schoolId: string;
+    title: string;
+    kind: SourceKind;
+    data: Uint8Array | string;
+    url?: string;
+  },
 ): Promise<{ sourceId: string; chunks: number } | null> {
   if (!deps.embedder) throw new Error("indexing needs an OpenAI key for embeddings");
   let sourceId: string | null = null;

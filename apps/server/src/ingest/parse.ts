@@ -2,7 +2,9 @@ import { extractText } from "unpdf";
 
 // Parse step of ingestion (docs/05 §7): plain text with heading and page markers.
 
-export type SourceKind = "pdf" | "md" | "txt" | "paste";
+/** V6 adds YouTube captions, web articles, slides, Anki decks and OCR'd notes. */
+export type SourceKind =
+  "pdf" | "md" | "txt" | "paste" | "youtube" | "web" | "pptx" | "anki" | "notes";
 
 export interface Section {
   /** e.g. ["The Blockchain", "Merkle Trees"]; empty when the source has no headings. */
@@ -95,9 +97,24 @@ export async function parseSource(
       return parseMarkdown(asText());
     case "txt":
       return parseText(asText());
-    case "paste": {
+    case "paste":
+    case "notes": {
       const text = asText();
       return /^#{1,6}\s+\S/m.test(text) ? parseMarkdown(text) : parseText(text);
     }
+    case "pptx": {
+      if (typeof data === "string") throw new Error("Slides must be bytes");
+      const { parsePptx } = await import("./sources/pptx.js");
+      return parsePptx(data);
+    }
+    case "anki": {
+      if (typeof data === "string") throw new Error("Anki decks must be bytes");
+      const { parseAnki } = await import("./sources/anki.js");
+      return parseAnki(data);
+    }
+    case "youtube":
+    case "web":
+      // Fetched and parsed by the route (sources/youtube.ts, sources/web.ts); stored as Markdown.
+      return parseMarkdown(asText());
   }
 }

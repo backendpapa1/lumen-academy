@@ -13,6 +13,12 @@ export interface Transcriber {
   /** Why it's missing, in plain words (shown in Settings). */
   readonly problem: string | null;
   transcribe(audio: Buffer, mime: string, prompt: string): Promise<{ text: string; ms: number }>;
+  /** V6-01 fallback: a whole talk, with timestamps (start ms per segment). */
+  transcribeLong?(
+    audio: Buffer,
+    filename: string,
+    prompt?: string,
+  ): Promise<Array<[number, string]>>;
   close(): void;
 }
 
@@ -110,6 +116,44 @@ export class WhisperSidecar implements Transcriber {
     const body = (await res.json()) as { text?: string; error?: string };
     if (body.error) throw new Error(`whisper-server: ${body.error}`);
     return { text: cleanTranscript(body.text ?? ""), ms: performance.now() - t };
+  }
+
+  /**
+   * V6-01: a recorded talk or lecture, transcribed on this machine with segment
+   * timestamps, so it becomes a source with "12:40" anchors like YouTube captions.
+   */
+  async transcribeLong(
+    audio: Buffer,
+    filename: string,
+    prompt = "",
+  ): Promise<Array<[number, string]>> {
+    await this.start();
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(audio)]), filename);
+    form.append("response_format", "verbose_json");
+    form.append("temperature", "0");
+    // The School's own terms, so "nonce" isn't heard as "non-c" (as in class).
+    if (prompt) form.append("prompt", prompt);
+    const res = await fetch(`${this.url}/inference`, {
+      method: "POST",
+      body: form,
+      // About real time at worst on a laptop GPU; an hour of audio is the cap.
+      signal: AbortSignal.timeout(60 * 60_000),
+    });
+    if (!res.ok) throw new Error(`whisper-server: HTTP ${res.status}`);
+    const body = (await res.json()) as {
+      text?: string;
+      error?: string;
+      segments?: Array<{ start?: number; t0?: number; text?: string }>;
+    };
+    if (body.error) throw new Error(`whisper-server: ${body.error}`);
+    const segs = (body.segments ?? [])
+      .map((s): [number, string] => [
+        Math.round((s.start ?? (s.t0 ?? 0) / 100) * 1000),
+        cleanTranscript(s.text ?? ""),
+      ])
+      .filter(([, t]) => t);
+    return segs.length ? segs : [[0, cleanTranscript(body.text ?? "")]];
   }
 
   close() {

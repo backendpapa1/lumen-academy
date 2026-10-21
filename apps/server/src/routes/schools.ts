@@ -1,3 +1,8 @@
+import { glossaryFor } from "../speech/glossary.js";
+import { captionsToSource, fetchYouTube, youtubeId } from "../ingest/sources/youtube.js";
+import { fetchArticle } from "../ingest/sources/web.js";
+import { ocrImage, OCR_TYPES } from "../ingest/sources/ocr.js";
+import type { ParsedSource } from "../ingest/parse.js";
 import multipart from "@fastify/multipart";
 import type { FastifyInstance } from "fastify";
 import { extname } from "node:path";
@@ -38,6 +43,8 @@ const KINDS: Record<string, SourceKind> = {
   ".md": "md",
   ".markdown": "md",
   ".txt": "txt",
+  ".pptx": "pptx",
+  ".apkg": "anki",
 };
 
 const CreateSchoolZ = z.strictObject({
@@ -47,7 +54,18 @@ const CreateSchoolZ = z.strictObject({
 const PasteZ = z.strictObject({
   title: z.string().trim().min(1).max(120),
   text: z.string().trim().min(40).max(2_000_000),
+  /** V6-04: text read from a photo of notes, corrected by me. */
+  kind: z.enum(["paste", "notes"]).default("paste"),
 });
+const LinkZ = z.strictObject({ url: z.string().trim().min(4).max(2000) });
+
+/** V6-01/02: a fetched source as Markdown, so it's stored and re-parsed like any other. */
+const toMarkdown = (p: ParsedSource) =>
+  p.sections
+    .map(
+      (s) => `${s.headingPath.map((h, i) => `${"#".repeat(i + 1)} ${h}`).join("\n")}\n\n${s.text}`,
+    )
+    .join("\n\n");
 const CreateClassroomZ = z.strictObject({
   difficulty: z.enum(["gentle", "standard", "ruthless"]).optional(),
 });
@@ -267,18 +285,138 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
       const file = await req.file();
       if (!file) return reply.code(400).send({ error: "No file in the upload." });
       const kind = KINDS[extname(file.filename).toLowerCase()];
-      if (!kind) return reply.code(415).send({ error: "Use a PDF, Markdown or text file." });
+      if (!kind)
+        return reply.code(415).send({
+          error: OCR_TYPES.has(extname(file.filename).toLowerCase())
+            ? "Photos go through “Photo of notes”, so you can check the text first."
+            : "Use a PDF, slides (.pptx), an Anki deck (.apkg), Markdown or a text file.",
+        });
       const buf = await file.toBuffer();
       const title = file.filename.replace(/\.[^.]+$/, "");
-      input = { title, kind, data: kind === "pdf" ? new Uint8Array(buf) : buf.toString("utf8") };
+      const binary = kind === "pdf" || kind === "pptx" || kind === "anki";
+      input = { title, kind, data: binary ? new Uint8Array(buf) : buf.toString("utf8") };
     } else {
       const body = PasteZ.safeParse(req.body);
       if (!body.success)
         return reply.code(400).send({ error: "Paste at least a paragraph, with a title." });
-      input = { title: body.data.title, kind: "paste", data: body.data.text };
+      input = { title: body.data.title, kind: body.data.kind, data: body.data.text };
     }
     void addSource(deps, { schoolId: s.id, ...input });
     return reply.code(202).send({ accepted: true, title: input.title });
+  });
+
+  /**
+   * V6-01/02: a pasted link. YouTube gets its public captions (no video), any
+   * other page its readable article. The only network use is this one URL.
+   */
+  app.post<{ Params: { id: string } }>("/api/schools/:id/sources/link", async (req, reply) => {
+    const s = school(req.params.id);
+    if (!s) return reply.code(404).send({ error: "no such School" });
+    if (!deps.embedder)
+      return reply.code(503).send({ error: "Indexing needs an OpenAI key in .env." });
+    const body = LinkZ.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: "Paste a link." });
+    try {
+      const { url } = body.data;
+      if (youtubeId(url)) {
+        const yt = await fetchYouTube(url);
+        const title = `${yt.title}${yt.auto ? " (auto-captions)" : ""}`;
+        void addSource(deps, {
+          schoolId: s.id,
+          title,
+          kind: "youtube",
+          data: toMarkdown(yt.parsed),
+          url: yt.url,
+        });
+        return reply.code(202).send({ accepted: true, title, kind: "youtube" });
+      }
+      const web = await fetchArticle(url);
+      void addSource(deps, {
+        schoolId: s.id,
+        title: web.title,
+        kind: "web",
+        data: toMarkdown(web.parsed),
+        url: web.url,
+      });
+      return reply.code(202).send({ accepted: true, title: web.title, kind: "web" });
+    } catch (err) {
+      return reply.code(422).send({ error: (err as Error).message });
+    }
+  });
+
+  /**
+   * V6-01 fallback: a talk with no captions, uploaded as audio and transcribed on
+   * this machine (local Whisper). It becomes a source with "12:40" anchors.
+   */
+  app.post<{ Params: { id: string } }>("/api/schools/:id/sources/audio", async (req, reply) => {
+    const s = school(req.params.id);
+    if (!s) return reply.code(404).send({ error: "no such School" });
+    if (!deps.embedder)
+      return reply.code(503).send({ error: "Indexing needs an OpenAI key in .env." });
+    const stt = deps.speech?.stt;
+    if (!stt?.transcribeLong || stt.status() === "missing")
+      return reply.code(503).send({
+        error:
+          "Transcribing needs local Whisper (see Settings › Voice). It isn't set up on this machine.",
+      });
+    if (!req.isMultipart()) return reply.code(400).send({ error: "Upload an audio file." });
+    const file = await req.file();
+    if (!file) return reply.code(400).send({ error: "No audio in the upload." });
+    if (!/\.(mp3|m4a|wav|ogg|oga|opus|webm|flac|aac)$/i.test(file.filename))
+      return reply.code(415).send({ error: "Use an audio file: MP3, M4A, WAV, OGG or WebM." });
+    const audio = await file.toBuffer();
+    const title = file.filename.replace(/\.[^.]+$/, "");
+    deps.bus.emit({
+      type: "source.status",
+      payload: {
+        schoolId: s.id,
+        sourceId: null,
+        title,
+        status: "parsing",
+        detail: "transcribing on this computer",
+      },
+    });
+    const glossary = glossaryFor(deps.handle, s.id, 600);
+    void stt
+      .transcribeLong(audio, file.filename, glossary)
+      .then((lines) =>
+        addSource(deps, {
+          schoolId: s.id,
+          title,
+          kind: "notes",
+          data: toMarkdown(captionsToSource(lines)),
+        }),
+      )
+      .catch((err: Error) =>
+        deps.bus.emit({
+          type: "source.status",
+          payload: { schoolId: s.id, sourceId: null, title, status: "error", detail: err.message },
+        }),
+      );
+    return reply.code(202).send({ accepted: true, title });
+  });
+
+  /** V6-04: read a photo of notes on this machine; I correct the text before it's ingested. */
+  app.post<{ Params: { id: string } }>("/api/schools/:id/ocr", async (req, reply) => {
+    if (!school(req.params.id)) return reply.code(404).send({ error: "no such School" });
+    if (!req.isMultipart()) return reply.code(400).send({ error: "Upload a photo." });
+    const file = await req.file();
+    if (!file) return reply.code(400).send({ error: "No photo in the upload." });
+    const ext = extname(file.filename).toLowerCase();
+    if (!OCR_TYPES.has(ext))
+      return reply.code(415).send({
+        error:
+          ext === ".heic" || ext === ".heif"
+            ? "HEIC photos can't be read yet. Share it from your phone as JPEG."
+            : "Use a JPG or PNG photo.",
+      });
+    try {
+      const r = await ocrImage(new Uint8Array(await file.toBuffer()));
+      if (!r.text) return reply.code(422).send({ error: "No text found in that photo." });
+      return { ...r, title: file.filename.replace(/\.[^.]+$/, "") };
+    } catch (err) {
+      return reply.code(500).send({ error: `Reading the photo failed: ${(err as Error).message}` });
+    }
   });
 
   app.get<{ Params: { id: string; sid: string } }>(

@@ -23,6 +23,8 @@ export interface IngestInput {
   title: string;
   kind: SourceKind;
   data: Uint8Array | string;
+  /** V6: where it came from (YouTube or web link), kept for references. */
+  url?: string;
 }
 
 export interface IngestResult {
@@ -32,7 +34,17 @@ export interface IngestResult {
   pageCount?: number;
 }
 
-const EXT: Record<SourceKind, string> = { pdf: "pdf", md: "md", txt: "txt", paste: "txt" };
+const EXT: Record<SourceKind, string> = {
+  pdf: "pdf",
+  md: "md",
+  txt: "txt",
+  paste: "txt",
+  youtube: "md",
+  web: "md",
+  pptx: "pptx",
+  anki: "apkg",
+  notes: "txt",
+};
 
 /** Text sent to the embedder: heading path first, so sections are findable by topic. */
 export const embeddingText = (headingPath: string[], text: string) =>
@@ -64,6 +76,7 @@ export async function ingestSource(deps: IngestDeps, input: IngestInput): Promis
       title: input.title,
       kind: input.kind,
       filePath,
+      url: input.url ?? null,
       status: "queued",
       createdAt: now(),
     })
