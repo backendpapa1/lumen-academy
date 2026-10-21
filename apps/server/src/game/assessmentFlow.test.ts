@@ -275,7 +275,9 @@ describe("exams (E-1..E-5)", () => {
         module_id: string;
       }
     ).module_id;
-    expect(examEligibility(h!, w.classroomId, moduleId)).toMatchObject({
+    expect(
+      examEligibility(h!, w.classroomId, moduleId, cfg.game.exam.unlockTaughtFraction),
+    ).toMatchObject({
       taught: 2,
       total: 2,
       eligible: true,

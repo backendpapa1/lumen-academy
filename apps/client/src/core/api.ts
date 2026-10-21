@@ -112,6 +112,8 @@ export interface Settings {
 export type { Archetype };
 
 export interface DeskView {
+  /** Share of a module that must be taught before its exam (game.yaml). */
+  unlock: number;
   classroom: { id: string; name: string; schoolId: string; schoolName: string };
   cadets: number;
   modules: Array<{

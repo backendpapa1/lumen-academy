@@ -64,7 +64,7 @@ export function registerAssessmentRoutes(app: FastifyInstance, deps: ExamDeps) {
         total,
         fraction,
         eligible,
-      }))(examEligibility(deps.handle, c.id, m.id)),
+      }))(examEligibility(deps.handle, c.id, m.id, deps.game.exam.unlockTaughtFraction)),
     }));
     const assignments = sqlite
       .prepare(
@@ -87,7 +87,14 @@ export function registerAssessmentRoutes(app: FastifyInstance, deps: ExamDeps) {
         )
         .get(c.id) as { n: number }
     ).n;
-    return { classroom: c, cadets, modules, assignments, exams };
+    return {
+      classroom: c,
+      cadets,
+      modules,
+      assignments,
+      exams,
+      unlock: deps.game.exam.unlockTaughtFraction,
+    };
   });
 
   app.post<{ Params: { id: string } }>("/api/classrooms/:id/assignments", async (req, reply) => {

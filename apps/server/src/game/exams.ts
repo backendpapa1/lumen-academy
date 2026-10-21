@@ -29,10 +29,13 @@ export interface ExamDeps {
   bus?: EventBus;
 }
 
-const PASS = 0.7;
-const ELIGIBLE = 0.7;
-
-export function examEligibility(handle: DbHandle, classroomId: string, moduleId: string) {
+/** E-1: `unlock` is the share of the module's concepts that must be taught (game.yaml exam.unlockTaughtFraction). */
+export function examEligibility(
+  handle: DbHandle,
+  classroomId: string,
+  moduleId: string,
+  unlock: number,
+) {
   const rows = handle.sqlite
     .prepare(
       `SELECT c.id, (SELECT avg(l.exposures) FROM ledger_entries l JOIN cadets d ON d.id = l.cadet_id
@@ -46,7 +49,7 @@ export function examEligibility(handle: DbHandle, classroomId: string, moduleId:
     taught,
     total: rows.length,
     fraction,
-    eligible: fraction >= ELIGIBLE,
+    eligible: fraction >= unlock,
     conceptIds: rows.map((r) => r.id),
   };
 }
@@ -56,17 +59,18 @@ export function createExam(
   deps: ExamDeps,
   input: { classroomId: string; moduleId: string; force?: boolean },
 ): { examId: string } {
-  const e = examEligibility(deps.handle, input.classroomId, input.moduleId);
+  const { passThreshold, unlockTaughtFraction } = deps.game.exam;
+  const e = examEligibility(deps.handle, input.classroomId, input.moduleId, unlockTaughtFraction);
   if (!e.eligible && !input.force)
     throw new Error(
-      `Teach at least 70% of this module first (${e.taught} of ${e.total} concepts so far).`,
+      `Teach at least ${Math.round(unlockTaughtFraction * 100)}% of this module first (${e.taught} of ${e.total} concepts so far).`,
     );
   const examId = newId("exam");
   deps.handle.sqlite
     .prepare(
       "INSERT INTO exams (id, classroom_id, module_id, status, pass_threshold, created_at) VALUES (?, ?, ?, 'generating', ?, ?)",
     )
-    .run(examId, input.classroomId, input.moduleId, PASS, new Date().toISOString());
+    .run(examId, input.classroomId, input.moduleId, passThreshold, new Date().toISOString());
   const emit = (status: "generating" | "ready" | "error", detail?: string) =>
     deps.bus?.emit({
       type: "exam.status",
@@ -276,7 +280,7 @@ export async function runExam(deps: ExamDeps, examId: string): Promise<void> {
       .get(exam.classroom_id) as { school_id: string }
   ).school_id;
   // docs/02 §7.1: exam pass = 200 × average score.
-  if (avg >= PASS)
+  if (avg >= deps.game.exam.passThreshold)
     awardXp(
       handle,
       deps.game,

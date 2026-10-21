@@ -460,7 +460,7 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
       h(
         "p",
         { class: "dim", style: "margin-top:0" },
-        "A module exam unlocks once you've taught 70% of its concepts. The cadets sit it in the classroom; the Grader marks it against the source.",
+        `A module exam unlocks once you've taught ${Math.round(d.unlock * 100)}% of its concepts. The cadets sit it in the classroom; the Grader marks it against the source.`,
       ),
       ...d.modules.map((m) => {
         const pct = Math.round(m.eligibility.fraction * 100);
@@ -518,7 +518,10 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
                 style: `width:${pct}%;background:${m.eligibility.eligible ? "var(--aurum)" : "var(--lumen)"}`,
               }),
             ),
-            h("i", { style: "left:70%", title: "70%: exam unlocks" }),
+            h("i", {
+              style: `left:${d.unlock * 100}%`,
+              title: `${Math.round(d.unlock * 100)}%: exam unlocks`,
+            }),
           ),
           ...exams.map((e) =>
             h(
