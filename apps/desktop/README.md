@@ -82,7 +82,7 @@ The APKs land in `src-tauri/gen/android/app/build/outputs/apk/arm64/{debug,relea
 - In `jniLibs/arm64-v8a/`:
   - `libld.so`, glibc's loader;
   - `libsigsys.so`, a small supervisor built from `android/sigsys.c` with the NDK.
-- `assets/lumen-runtime.tar.xz`, which holds:
+- `assets/lumen-runtime-<n>.tar.xz`, four parts the app unpacks in parallel on first run, which hold:
   - Node for linux-arm64 and Debian's glibc, both checked against their published hashes;
   - the server bundle with arm64 natives, without Kokoro.
 
