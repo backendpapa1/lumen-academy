@@ -37,6 +37,12 @@ const started: ServerMessage = {
     resumed: false,
     paused: false,
     transcript: [],
+    xp: {
+      total: 340,
+      rank: "Cadet Instructor",
+      next: { name: "Lecturer", minXp: 500 },
+      progress: 0.68,
+    },
   },
 };
 const run = (msgs: ServerMessage[], s: ClassroomState = initialClassroom(), now = 1000) =>
@@ -64,6 +70,27 @@ describe("applyServerMessage", () => {
       500_000,
     );
     expect(elapsedMs(s, 530_000)).toBe(90_000);
+  });
+
+  it("takes XP gains live", () => {
+    const s = run([
+      started,
+      {
+        type: "xp.update",
+        payload: {
+          delta: 15,
+          reason: "Answered a question",
+          standing: {
+            total: 355,
+            rank: "Cadet Instructor",
+            next: { name: "Lecturer", minXp: 500 },
+            progress: 0.71,
+          },
+        },
+      },
+    ]);
+    expect(s.xp?.total).toBe(355);
+    expect(s.xpGain).toMatchObject({ delta: 15, reason: "Answered a question" });
   });
 
   it("restores a resumed period's transcript and clock", () => {
@@ -184,8 +211,20 @@ describe("applyServerMessage", () => {
     expect(s.cadets.c1!.comprehension).toBe(0);
     s = applyServerMessage(s, {
       type: "period.ended",
-      payload: { periodId: "per_1", turns: 4, minutes: 12, costUsd: 0.01 },
+      payload: {
+        periodId: "per_1",
+        turns: 4,
+        minutes: 12,
+        costUsd: 0.01,
+        xp: {
+          earned: 150,
+          breakdown: [{ kind: "teachingMinute", amount: 120 }],
+          standing: { total: 520, rank: "Lecturer", next: null, progress: 1 },
+          rankedUp: true,
+        },
+      },
     });
-    expect(s).toMatchObject({ status: "ended", ended: { turns: 4 } });
+    expect(s).toMatchObject({ status: "ended", ended: { turns: 4, xp: { earned: 150 } } });
+    expect(s.xp?.rank).toBe("Lecturer");
   });
 });

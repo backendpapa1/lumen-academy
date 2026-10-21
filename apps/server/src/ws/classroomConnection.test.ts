@@ -130,9 +130,24 @@ describe("classroom over WebSocket", () => {
     expect(streamed).toContain("where is the root kept?");
     expect(streamed).not.toContain("###");
 
+    expect(started.payload.xp).toMatchObject({ total: 0, rank: cfg.game.ranks[0]!.name });
+    // Speaking right after the question answers it: XP, live.
+    send("teach.message", { text: "In the block header." });
+    const xp = await until("xp.update");
+    expect(xp.payload).toMatchObject({
+      delta: cfg.game.xp.questionAnswered,
+      reason: "Answered a question",
+    });
+    await until("ledger.update", 2);
+
     send("period.end", {});
     const ended = await until("period.ended");
-    expect(ended.payload.turns).toBe(1);
+    expect(ended.payload.turns).toBe(2);
+    expect(ended.payload.xp).toMatchObject({
+      earned: cfg.game.xp.questionAnswered,
+      breakdown: [{ kind: "questionAnswered", amount: cfg.game.xp.questionAnswered }],
+      rankedUp: false,
+    });
     ws.close();
   });
 

@@ -34,6 +34,7 @@ export const alpha = {
   glass: 0.08,
   /** Dark base under the glass so text stays legible over a bright 3D scene. */
   panelBase: 0.72,
+  modalBase: 0.95,
   focusGlow: 0.35,
   primaryFill: 0.14,
 } as const;

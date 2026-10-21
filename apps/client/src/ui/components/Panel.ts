@@ -11,6 +11,7 @@ export class Panel extends Phaser.GameObjects.Container {
   private pw: number;
   private ph: number;
   private focused = false;
+  private base: number = alpha.panelBase;
 
   constructor(scene: Phaser.Scene, x: number, y: number, width: number, height: number) {
     super(scene, x, y);
@@ -27,6 +28,13 @@ export class Panel extends Phaser.GameObjects.Container {
     this.pw = width;
     this.ph = height;
     this.setSize(width, height);
+    this.redraw();
+    return this;
+  }
+
+  /** Modal cards sit over busy 3D (the holo-board): near-opaque so nothing reads through. */
+  setSolid(on = true): this {
+    this.base = on ? alpha.modalBase : alpha.panelBase;
     this.redraw();
     return this;
   }
@@ -75,7 +83,7 @@ export class Panel extends Phaser.GameObjects.Container {
         g.strokePath();
       }
     }
-    g.fillStyle(color.hull900, alpha.panelBase);
+    g.fillStyle(color.hull900, this.base);
     this.path(g);
     g.fillPath();
     g.fillStyle(color.glass, alpha.glass);

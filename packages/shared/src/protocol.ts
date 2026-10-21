@@ -54,6 +54,14 @@ export const TranscriptLineViewZ = z.object({
 });
 export type TranscriptLineView = z.infer<typeof TranscriptLineViewZ>;
 
+export const XpStandingZ = z.object({
+  total: z.number(),
+  rank: z.string(),
+  next: z.object({ name: z.string(), minXp: z.number() }).nullable(),
+  progress: z.number(),
+});
+export type XpStanding = z.infer<typeof XpStandingZ>;
+
 export const BudgetStateZ = z.enum(["ok", "warn", "degrade", "pause"]);
 
 // --- Client → Server ----------------------------------------------------------------
@@ -105,7 +113,13 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       resumed: z.boolean(),
       paused: z.boolean(),
       transcript: z.array(TranscriptLineViewZ),
+      xp: XpStandingZ,
     }),
+  ),
+  /** XP just earned (e.g. answering a cadet's question). */
+  msg(
+    "xp.update",
+    z.strictObject({ delta: z.number(), reason: z.string(), standing: XpStandingZ }),
   ),
   msg("period.paused", z.strictObject({ paused: z.boolean(), elapsedMs: z.number() })),
   /** "Last time…" arrives after period.started so starting a class never waits on it. */
@@ -165,6 +179,12 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       minutes: z.number(),
       costUsd: z.number(),
       recapOut: z.string().optional(),
+      xp: z.strictObject({
+        earned: z.number(),
+        breakdown: z.array(z.object({ kind: z.string(), amount: z.number() })),
+        standing: XpStandingZ,
+        rankedUp: z.boolean(),
+      }),
     }),
   ),
 ]);

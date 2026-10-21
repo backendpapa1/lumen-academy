@@ -1,4 +1,12 @@
-import type { CadetView, ConceptView, HandView, ReactionState, ServerMessage } from "@lumen/shared";
+import type {
+  CadetView,
+  ConceptView,
+  HandView,
+  ReactionState,
+  ServerMessage,
+  ServerMessageOf,
+  XpStanding,
+} from "@lumen/shared";
 
 // Client-side classroom state, derived from server messages by a pure reducer
 // (applyServerMessage) so it's testable without a browser.
@@ -61,7 +69,11 @@ export interface ClassroomState {
   lastReactionMs?: number;
   thinking: boolean;
   toasts: Toast[];
-  ended?: { turns: number; minutes: number; costUsd: number; recapOut?: string };
+  /** Headmaster rank and XP (all time). */
+  xp: XpStanding | null;
+  /** The last XP gain, for the "+15 XP" flourish. */
+  xpGain?: { delta: number; reason: string; at: number };
+  ended?: Omit<ServerMessageOf<"period.ended">["payload"], "periodId">;
 }
 
 export const initialClassroom = (): ClassroomState => ({
@@ -78,6 +90,7 @@ export const initialClassroom = (): ClassroomState => ({
   cost: { periodUsd: 0, dayUsd: 0, monthUsd: 0, capUsd: 20, state: "ok" },
   thinking: false,
   toasts: [],
+  xp: null,
 });
 
 let toastSeq = 0;
@@ -103,12 +116,19 @@ export function applyServerMessage(
         plannedMinutes: m.payload.plannedMinutes,
         clock: { elapsedMs: m.payload.elapsedMs, at: now, paused: m.payload.paused },
         resumed: m.payload.resumed,
+        xp: m.payload.xp,
         transcript: m.payload.transcript.map((t) => ({
           speaker: t.cadetId ? "cadet" : "headmaster",
           cadetId: t.cadetId,
           messageId: t.messageId,
           text: t.text,
         })),
+      };
+    case "xp.update":
+      return {
+        ...s,
+        xp: m.payload.standing,
+        xpGain: { delta: m.payload.delta, reason: m.payload.reason, at: now },
       };
     case "period.paused":
       return {
@@ -221,7 +241,9 @@ export function applyServerMessage(
           minutes: m.payload.minutes,
           costUsd: m.payload.costUsd,
           recapOut: m.payload.recapOut,
+          xp: m.payload.xp,
         },
+        xp: m.payload.xp.standing,
         speech: null,
         hands: [],
       };

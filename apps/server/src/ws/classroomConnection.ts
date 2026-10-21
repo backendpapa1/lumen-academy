@@ -12,6 +12,7 @@ import type { DbHandle } from "../db/client.js";
 import { cadets, classrooms, ledgerEntries, schools } from "../db/schema.js";
 import { ClassSession } from "../game/ClassSession.js";
 import { rewriteNotes } from "../game/notes.js";
+import { awardXp, periodXp, settleTeachingMinutes, standing, type XpScope } from "../game/xp.js";
 import type { Embedder } from "../ingest/embed.js";
 import type { ModelFactory } from "../models/factory.js";
 import { BudgetPausedError, type UsageMeter } from "../usage/meter.js";
@@ -33,7 +34,8 @@ export interface Runtime {
 export class ClassroomConnection {
   private session: ClassSession | null = null;
   private turnId: string | null = null;
-  private lastSpeaker: { cadetId: string; turnsAgo: number } | null = null;
+  private lastSpeaker: { cadetId: string; turnsAgo: number; kind: string } | null = null;
+  private scope: XpScope | null = null;
   private streamSeq = 0;
   private readonly unsubscribe: () => void;
 
@@ -164,6 +166,7 @@ export class ClassroomConnection {
       },
     );
     this.session = session;
+    this.scope = { schoolId: school.id, classroomId: room.id, periodId: session.periodId };
     this.send({
       type: "period.started",
       payload: {
@@ -178,6 +181,7 @@ export class ClassroomConnection {
         resumed: session.resumed,
         paused: session.paused,
         transcript: session.resumed ? this.transcriptView(session.periodId) : [],
+        xp: standing(handle, game),
       },
     });
     this.sendCost();
@@ -219,8 +223,25 @@ export class ClassroomConnection {
     const reply =
       replyTo ??
       (this.lastSpeaker && this.lastSpeaker.turnsAgo === 0 ? this.lastSpeaker.cadetId : undefined);
+    const answering =
+      !!reply &&
+      this.lastSpeaker?.cadetId === reply &&
+      this.lastSpeaker.turnsAgo === 0 &&
+      ["question", "objection", "claim"].includes(this.lastSpeaker.kind);
     const turn = session.teach(text, reply ? { replyToCadetId: reply } : {});
     this.turnId = turn.turnId;
+    if (answering && this.scope) {
+      const delta = awardXp(this.rt.handle, this.rt.game, this.scope, "questionAnswered");
+      if (delta)
+        this.send({
+          type: "xp.update",
+          payload: {
+            delta,
+            reason: "Answered a question",
+            standing: standing(this.rt.handle, this.rt.game),
+          },
+        });
+    }
     if (this.lastSpeaker) this.lastSpeaker.turnsAgo++;
     this.send({ type: "turn.started", payload: { turnId: turn.turnId, text } });
     const reaction = await turn.reaction;
@@ -253,7 +274,7 @@ export class ClassroomConnection {
         this.send({ type: "cadet.stream", payload: { cadetId, streamId, delta } }),
     });
     if (!spoken) return this.send({ type: "cadet.interrupted", payload: { cadetId, streamId } });
-    this.lastSpeaker = { cadetId, turnsAgo: 0 };
+    this.lastSpeaker = { cadetId, turnsAgo: 0, kind: spoken.utterance.kind };
     this.send({
       type: "cadet.done",
       payload: {
@@ -272,6 +293,16 @@ export class ClassroomConnection {
     const session = this.requireSession();
     this.session = null;
     await session.close();
+    const { handle, game } = this.rt;
+    const before = standing(handle, game);
+    const scope = this.scope ?? {
+      schoolId: "",
+      classroomId: session.classroomId,
+      periodId: session.periodId,
+    };
+    settleTeachingMinutes(handle, game, scope, session.elapsedMs());
+    const breakdown = periodXp(handle, session.periodId);
+    const after = standing(handle, game);
     const { sqlite } = this.rt.handle;
     const taught = session.lines.filter((l) => l.speaker === "Headmaster").map((l) => l.text);
     const idx = session.concepts.findIndex((c) => c.id === session.currentConcept.id);
@@ -308,6 +339,12 @@ export class ClassroomConnection {
         minutes: Math.round(session.periodMinute()),
         costUsd: this.rt.meter.totals(session.periodId).periodUsd ?? 0,
         ...(recapOut ? { recapOut } : {}),
+        xp: {
+          earned: breakdown.reduce((a, b) => a + b.amount, 0),
+          breakdown,
+          standing: after,
+          rankedUp: after.rank !== before.rank,
+        },
       },
     });
   }

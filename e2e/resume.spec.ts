@@ -46,6 +46,12 @@ test.beforeEach(async ({ page }) => {
             concepts: [{ id: "cpt_1", title: "Merkle trees" }],
             cadets: [cadet],
             plannedMinutes: 15,
+            xp: {
+              total: 340,
+              rank: "Cadet Instructor",
+              next: { name: "Lecturer", minXp: 500 },
+              progress: 0.68,
+            },
             elapsedMs: seen ? 240_000 : 0,
             resumed: seen,
             paused: seen,
@@ -64,7 +70,27 @@ test.beforeEach(async ({ page }) => {
         } else if (m.type === "period.pause" || m.type === "period.resume") {
           this.reply("period.paused", { paused: m.type === "period.pause", elapsedMs: 240_000 });
         } else if (m.type === "period.end") {
-          this.reply("period.ended", { periodId: "per_fake", turns: 1, minutes: 4, costUsd: 0.01 });
+          this.reply("period.ended", {
+            periodId: "per_fake",
+            turns: 6,
+            minutes: 12,
+            costUsd: 0.0123,
+            recapOut: "We'll build a Merkle path and prove one transaction is in the block.",
+            xp: {
+              earned: 165,
+              breakdown: [
+                { kind: "teachingMinute", amount: 120 },
+                { kind: "questionAnswered", amount: 45 },
+              ],
+              standing: {
+                total: 505,
+                rank: "Lecturer",
+                next: { name: "Professor", minXp: 2000 },
+                progress: 0,
+              },
+              rankedUp: true,
+            },
+          });
         }
       }
       close() {}
@@ -107,4 +133,6 @@ test("Esc pauses and resumes; a reload continues the period, paused, with its tr
   await page.mouse.click(1671, 50);
   await expect.poll(async () => (await state()).classroom.status).toBe("ended");
   expect(await page.evaluate(() => localStorage.getItem("lumen.liveClassroom"))).toBeNull();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: "docs/screens/m2-bell-out.png" });
 });

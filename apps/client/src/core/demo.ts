@@ -40,6 +40,12 @@ export function loadDemoClassroom(): void {
         elapsedMs: 0,
         resumed: false,
         paused: false,
+        xp: {
+          total: 340,
+          rank: "Cadet Instructor",
+          next: { name: "Lecturer", minXp: 500 },
+          progress: 0.68,
+        },
         transcript: [],
       },
     },

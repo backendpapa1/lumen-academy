@@ -28,6 +28,12 @@ const INTENT_LABEL: Record<HandView["intent"], string> = {
   wrong_claim: "has a claim",
 };
 
+const XP_LABEL: Record<string, string> = {
+  teachingMinute: "teaching",
+  questionAnswered: "questions answered",
+  misconceptionCorrected: "misconceptions fixed",
+};
+
 export class ClassroomHud extends Phaser.Scene {
   private s = 1;
   private top?: Phaser.GameObjects.Container;
@@ -40,6 +46,7 @@ export class ClassroomHud extends Phaser.Scene {
   private recap?: Phaser.GameObjects.Container;
   private conceptMenu?: Phaser.GameObjects.Container;
   private timer?: TimerRing;
+  private xpBar?: Phaser.GameObjects.Container;
   private cost?: Phaser.GameObjects.Text;
   private rosterOpen = false;
   private unsubscribe?: () => void;
@@ -77,6 +84,7 @@ export class ClassroomHud extends Phaser.Scene {
     this.s = uiScale(width, height);
     const c = store.getState().classroom;
     this.buildTop(c);
+    this.buildXp(c);
     this.buildHands(c);
     this.buildLectern();
     this.buildRoster(c);
@@ -108,6 +116,8 @@ export class ClassroomHud extends Phaser.Scene {
     if (c.toasts !== p.toasts) this.buildToasts(c);
     if (c.recap !== p.recap) this.buildRecap(c);
     if (c.cost !== p.cost) this.cost?.setText(this.costText(c));
+    if (c.xp !== p.xp) this.buildXp(c);
+    if (c.xpGain && c.xpGain !== p.xpGain) this.flashXp(c.xpGain.delta, c.xpGain.reason);
   }
 
   override update(): void {
@@ -224,6 +234,69 @@ export class ClassroomHud extends Phaser.Scene {
       panel.add(t);
     });
     this.conceptMenu = panel;
+  }
+
+  // --- XP (docs/02 §3.3: top-right XP bar) ---------------------------------------
+
+  /** Rank and progress to the next, left of End class. */
+  private buildXp(c: ClassroomState) {
+    this.xpBar?.destroy();
+    this.xpBar = undefined;
+    if (!c.xp) return;
+    const s = this.s;
+    const { width } = this.scale.gameSize;
+    const w = 150 * s;
+    const x = width - 28 * s - 290 * s - w;
+    const g = (this.xpBar = this.add.container(x, 28 * s + 8 * s));
+    g.add(label(this, 0, 0, c.xp.rank, "micro", { scale: s }));
+    g.add(
+      label(this, w, 0, `${c.xp.total.toLocaleString()} XP`, "mono", {
+        scale: s * 0.7,
+        color: css.aurum,
+      }).setOrigin(1, 0),
+    );
+    const meter = new Meter(this, 0, 20 * s, w, color.aurum);
+    meter.setValue(c.xp.progress);
+    g.add(meter);
+    if (c.xp.next)
+      g.add(
+        label(
+          this,
+          0,
+          30 * s,
+          `${(c.xp.next.minXp - c.xp.total).toLocaleString()} to ${c.xp.next.name}`,
+          "caption",
+          {
+            scale: s * 0.8,
+          },
+        ),
+      );
+  }
+
+  /** "+15 XP · Answered a question" rises from the XP bar and fades. */
+  private flashXp(delta: number, reason: string) {
+    if (!this.xpBar) return;
+    const s = this.s;
+    const t = label(
+      this,
+      this.xpBar.x,
+      this.xpBar.y + 54 * s,
+      `+${delta} XP · ${reason}`,
+      "caption",
+      {
+        scale: s,
+        color: css.aurum,
+      },
+    );
+    this.tweens.add({
+      targets: t,
+      y: t.y - 14 * s,
+      alpha: { from: 1, to: 0 },
+      delay: 1400,
+      duration: 900,
+      ease: motion.easeOut,
+      onComplete: () => t.destroy(),
+    });
   }
 
   // --- hand queue ------------------------------------------------------------------
@@ -393,7 +466,7 @@ export class ClassroomHud extends Phaser.Scene {
     if (c.status !== "ended" || !c.ended) return;
     const w = 560 * s;
     const recap = c.ended.recapOut ?? "";
-    const panel = new Panel(this, (width - w) / 2, height * 0.22, w, 0);
+    const panel = new Panel(this, (width - w) / 2, height * 0.22, w, 0).setSolid();
     panel.add(label(this, 28 * s, 26 * s, "Class dismissed", "micro", { scale: s }));
     panel.add(label(this, 28 * s, 48 * s, "🔔 That's the bell.", "h1", { scale: s }));
     panel.add(
@@ -403,19 +476,46 @@ export class ClassroomHud extends Phaser.Scene {
         96 * s,
         `${c.ended.turns} turns · ${c.ended.minutes} min · $${c.ended.costUsd.toFixed(4)}`,
         "mono",
-        { scale: s * 0.85, color: css.aurum },
+        { scale: s * 0.85, color: css.inkDim },
       ),
+    );
+    // XP tally: the number, what earned it, and a rank-up if there was one.
+    const xp = c.ended.xp;
+    panel.add(
+      label(this, 28 * s, 124 * s, `+${xp.earned} XP`, "h2", { scale: s, color: css.aurum }),
+    );
+    panel.add(
+      label(
+        this,
+        28 * s,
+        154 * s,
+        xp.breakdown.length
+          ? xp.breakdown.map((b) => `${XP_LABEL[b.kind] ?? b.kind} ${b.amount}`).join(" · ")
+          : "Teach a full minute or answer a question to earn XP.",
+        "caption",
+        { scale: s, wrap: w - 56 * s },
+      ),
+    );
+    panel.add(
+      label(
+        this,
+        w - 28 * s,
+        128 * s,
+        xp.rankedUp ? `New rank: ${xp.standing.rank}` : xp.standing.rank,
+        xp.rankedUp ? "body" : "caption",
+        { scale: s, color: xp.rankedUp ? css.lumen : css.inkDim },
+      ).setOrigin(1, 0),
     );
     const body = label(
       this,
       28 * s,
-      136 * s,
+      190 * s,
       recap ? `Next time…\n${recap.replace(/\*\*/g, "")}` : "",
       "body",
       { scale: s * 0.95, wrap: w - 56 * s },
     );
     panel.add(body);
-    const btnY = 136 * s + body.height + 36 * s;
+    const btnY = 190 * s + body.height + 36 * s;
     panel.add(
       new Button(this, w - 120 * s, btnY, "Back to classes", {
         primary: true,
@@ -424,7 +524,13 @@ export class ClassroomHud extends Phaser.Scene {
       }),
     );
     panel.resize(w, btnY + 40 * s);
-    this.overlay = panel;
+    this.overlay = this.add.container(0, 0, [this.backdrop(), panel]);
+  }
+
+  /** Dims the room behind a modal card (not black: the class is still there) and swallows clicks. */
+  private backdrop() {
+    const { width, height } = this.scale.gameSize;
+    return this.add.rectangle(0, 0, width, height, color.void, 0.6).setOrigin(0).setInteractive();
   }
 
   /** Esc pauses: the class waits, the clock stops. A resumed period opens here too. */
@@ -435,10 +541,8 @@ export class ClassroomHud extends Phaser.Scene {
     const h = 186 * s;
     const left = Math.max(0, c.plannedMinutes - Math.floor(elapsedMs(c) / 60_000));
     const g = this.add.container(0, 0);
-    // Dim the room, not black it out: the class is still there, waiting.
-    const dim = this.add.rectangle(0, 0, width, height, color.void, 0.55).setOrigin(0);
-    dim.setInteractive(); // swallow clicks so nothing behind is called on
-    const panel = new Panel(this, (width - w) / 2, (height - h) / 2, w, h);
+    const dim = this.backdrop();
+    const panel = new Panel(this, (width - w) / 2, (height - h) / 2, w, h).setSolid();
     panel.add(
       label(this, 28 * s, 26 * s, c.resumed ? "Welcome back" : "Paused", "micro", { scale: s }),
     );
