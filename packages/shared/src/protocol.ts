@@ -88,6 +88,8 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
   msg("hand.call", z.strictObject({ cadetId: z.string() })),
   msg("concept.set", z.strictObject({ conceptId: z.string() })),
   msg("period.pause", empty),
+  /** T-7: more time after the bell. */
+  msg("period.extend", z.strictObject({ minutes: z.number().int().min(1).max(30) })),
   msg("period.resume", empty),
   msg("period.end", empty),
   /** Exit ticket (M4-05): ✓ = true, ✗ = false. */
@@ -247,6 +249,7 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
     }),
   ),
   msg("period.paused", z.strictObject({ paused: z.boolean(), elapsedMs: z.number() })),
+  msg("period.extended", z.strictObject({ plannedMinutes: z.number() })),
   /** "Last time…" arrives after period.started so starting a class never waits on it. */
   msg("period.recap", z.strictObject({ periodId: z.string(), text: z.string() })),
   msg("turn.started", z.strictObject({ turnId: z.string(), text: z.string() })),

@@ -116,6 +116,10 @@ export class ClassroomConnection {
             payload: { paused: session.paused, elapsedMs: session.elapsedMs() },
           });
         }
+        case "period.extend": {
+          const plannedMinutes = this.requireSession().extend(msg.payload.minutes);
+          return this.send({ type: "period.extended", payload: { plannedMinutes } });
+        }
         case "period.end":
           return await this.end();
         case "exit.mark": {

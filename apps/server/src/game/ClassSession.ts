@@ -149,7 +149,7 @@ export class ClassSession {
     conceptId: string,
     periodId: string,
     private readonly events: SessionEvents,
-    readonly plannedMinutes: number,
+    private planned: number,
     /** True when this picked up an unfinished period (tab closed, server restarted). */
     readonly resumed: boolean,
     elapsedMs: number,
@@ -310,6 +310,22 @@ export class ClassSession {
 
   periodMinute(): number {
     return this.elapsedMs() / 60_000;
+  }
+
+  get plannedMinutes(): number {
+    return this.planned;
+  }
+
+  /** T-7: extend after the bell; saved so a resumed period keeps it. */
+  extend(minutes: number): number {
+    if (this.closed) throw new Error("period has ended");
+    this.planned = Math.min(this.planned + minutes, this.deps.game.period.maxMinutes + 60);
+    this.deps.handle.db
+      .update(periods)
+      .set({ plannedMinutes: this.planned })
+      .where(eq(periods.id, this.periodId))
+      .run();
+    return this.planned;
   }
 
   get paused(): boolean {

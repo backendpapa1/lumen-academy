@@ -184,6 +184,8 @@ export function applyServerMessage(
         xp: m.payload.standing,
         xpGain: { delta: m.payload.delta, reason: m.payload.reason, at: now },
       };
+    case "period.extended":
+      return { ...s, plannedMinutes: m.payload.plannedMinutes };
     case "period.paused":
       return {
         ...s,

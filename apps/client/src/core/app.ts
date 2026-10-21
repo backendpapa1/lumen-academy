@@ -147,6 +147,11 @@ export const app = {
   resume() {
     if (store.getState().classroom.status === "live") ensureNet().send("period.resume", {});
   },
+  /** T-7: more time after the bell. */
+  extend(minutes = 5) {
+    if (store.getState().classroom.status === "live")
+      ensureNet().send("period.extend", { minutes });
+  },
   togglePause() {
     if (store.getState().classroom.clock.paused) this.resume();
     else this.pause();

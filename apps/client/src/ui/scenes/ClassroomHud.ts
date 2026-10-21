@@ -122,10 +122,32 @@ export class ClassroomHud extends Phaser.Scene {
     if (c.xpGain && c.xpGain !== p.xpGain) this.flashXp(c.xpGain.delta, c.xpGain.reason);
   }
 
+  /** The planned length the bell last rang for (T-7), so it rings once per length. */
+  private bellRangFor: number | null = null;
+
   override update(): void {
     const c = store.getState().classroom;
     if (this.timer && c.status === "live")
       this.timer.set(elapsedMs(c) / 1000, c.plannedMinutes * 60);
+    // The bell: at the planned time, ask (never auto-end): end class, or 5 more minutes.
+    if (
+      c.status === "live" &&
+      !c.clock.paused &&
+      this.bellRangFor !== c.plannedMinutes &&
+      elapsedMs(c) >= c.plannedMinutes * 60_000
+    ) {
+      this.bellRangFor = c.plannedMinutes;
+      this.bellAnswered = false;
+      this.buildOverlay(c);
+    }
+  }
+
+  private bellDue(c: ClassroomState) {
+    return (
+      c.status === "live" &&
+      this.bellRangFor === c.plannedMinutes &&
+      elapsedMs(c) >= c.plannedMinutes * 60_000
+    );
   }
 
   // --- top bar ----------------------------------------------------------------
@@ -464,6 +486,7 @@ export class ClassroomHud extends Phaser.Scene {
       return;
     }
     if (c.status === "live" && c.clock.paused) return this.buildPause(c);
+    if (this.bellDue(c) && !this.bellAnswered) return this.buildBell(c);
     if (c.status !== "ended" || !c.ended) return;
     const w = 560 * s;
     const recap = c.ended.recapOut ?? "";
@@ -537,6 +560,59 @@ export class ClassroomHud extends Phaser.Scene {
     }
     panel.resize(w, btnY + 40 * s);
     this.overlay = this.add.container(0, 0, [this.backdrop(), panel]);
+  }
+
+  private bellAnswered = false;
+
+  /** T-7: the bell at the planned time. The class keeps going until you choose. */
+  private buildBell(c: ClassroomState) {
+    const s = this.s;
+    const { width, height } = this.scale.gameSize;
+    const w = 460 * s;
+    const h = 176 * s;
+    const panel = new Panel(this, (width - w) / 2, (height - h) / 2, w, h).setSolid();
+    panel.add(label(this, 28 * s, 26 * s, "The bell", "micro", { scale: s }));
+    panel.add(
+      label(this, 28 * s, 48 * s, `That's ${c.plannedMinutes} minutes.`, "h1", { scale: s }),
+    );
+    // Answered until the bell rings again at the new length (update() resets it).
+    const choose = (extend: boolean) => {
+      this.bellAnswered = true;
+      if (extend) app.extend(5);
+      else app.endClass();
+      this.buildOverlay(store.getState().classroom);
+    };
+    const end = new Button(this, 0, 0, "End class", {
+      primary: true,
+      scale: s,
+      onClick: () => choose(false),
+    });
+    const more = new Button(this, 0, 0, "5 more minutes", {
+      scale: s,
+      onClick: () => choose(true),
+    });
+    const rowY = h - 44 * s;
+    end.setPosition(28 * s + end.width / 2, rowY);
+    more.setPosition(end.x + end.width / 2 + 12 * s + more.width / 2, rowY);
+    panel.add([end, more]);
+    panel.add(
+      label(this, 28 * s, 90 * s, "Enter ends class · E for 5 more minutes", "caption", {
+        scale: s,
+      }),
+    );
+    this.overlay = this.add.container(0, 0, [this.backdrop(), panel]);
+    const onKey = (e: KeyboardEvent) => {
+      if (!this.bellDue(store.getState().classroom) || this.bellAnswered) return;
+      if (e.key === "Enter") choose(false);
+      else if (e.key.toLowerCase() === "e") choose(true);
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener("keydown", onKey, { capture: true });
+    panel.once(Phaser.GameObjects.Events.DESTROY, () =>
+      window.removeEventListener("keydown", onKey, { capture: true }),
+    );
   }
 
   /** Dims the room behind a modal card (not black: the class is still there) and swallows clicks. */

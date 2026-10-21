@@ -176,6 +176,18 @@ describe("classroom over WebSocket", () => {
     ws.close();
   });
 
+  it("extends the period after the bell, and the extension is saved (T-7)", async () => {
+    const { w, send, until, ws } = await boot();
+    send("period.start", { classroomId: w.classroomId, minutes: 5 });
+    await until("period.started");
+    send("period.extend", { minutes: 5 });
+    expect((await until("period.extended")).payload.plannedMinutes).toBe(10);
+    expect(h!.sqlite.prepare("SELECT planned_minutes FROM periods").get()).toEqual({
+      planned_minutes: 10,
+    });
+    ws.close();
+  });
+
   it("pauses and resumes: the clock stops and teaching is refused while paused", async () => {
     const { w, send, until, ws } = await boot();
     send("period.start", { classroomId: w.classroomId });
