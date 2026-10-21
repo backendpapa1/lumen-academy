@@ -1,6 +1,6 @@
 # Lumen Academy desktop app
 
-A Rust (Tauri 2) shell around the game. The Node server runs beside it, and a tray icon opens the configurator for the API keys and the data folder. See `docs/decisions/ADR-011-desktop-shell.md`.
+A Rust (Tauri 2) shell around the game. The Node server runs beside it, and a tray icon opens the configurator for the API keys and the data folder.
 
 ## Installing it (for anyone)
 
