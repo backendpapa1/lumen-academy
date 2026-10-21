@@ -12,7 +12,10 @@ export type Broadcast = Extract<
       | "curriculum.status"
       | "registration.started"
       | "registration.arrival"
-      | "registration.done";
+      | "registration.done"
+      | "assignment.status"
+      | "exam.status"
+      | "exam.answer";
   }
 >;
 

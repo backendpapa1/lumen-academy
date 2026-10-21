@@ -12,6 +12,7 @@ import type { DbHandle } from "../db/client.js";
 import { cadets, classrooms, ledgerEntries, schools } from "../db/schema.js";
 import { ClassSession } from "../game/ClassSession.js";
 import { rewriteNotes } from "../game/notes.js";
+import { finishExitTickets, issueExitTickets, markExitTicket } from "../game/exitTickets.js";
 import { awardXp, periodXp, settleTeachingMinutes, standing, type XpScope } from "../game/xp.js";
 import type { AssetService } from "../assets/service.js";
 import type { EventBus } from "../events.js";
@@ -44,6 +45,8 @@ export class ClassroomConnection {
   private turnId: string | null = null;
   private lastSpeaker: { cadetId: string; turnsAgo: number; kind: string } | null = null;
   private scope: XpScope | null = null;
+  /** The period that just ended, for its exit tickets. */
+  private ended: { periodId: string; classroomId: string; schoolId: string } | null = null;
   private streamSeq = 0;
   private readonly unsubscribe: () => void;
 
@@ -115,6 +118,28 @@ export class ClassroomConnection {
         }
         case "period.end":
           return await this.end();
+        case "exit.mark": {
+          const r = markExitTicket(this.rt.handle, msg.payload);
+          if (r)
+            this.send({ type: "exit.result", payload: { ticketId: msg.payload.ticketId, ...r } });
+          return;
+        }
+        case "exit.done": {
+          const e = this.ended;
+          if (!e || e.periodId !== msg.payload.periodId) return;
+          const s = finishExitTickets(this.rt.handle, this.rt.game, e);
+          this.send({ type: "exit.summary", payload: { periodId: e.periodId, ...s } });
+          if (s.xp)
+            this.send({
+              type: "xp.update",
+              payload: {
+                delta: s.xp,
+                reason: "Exit ticket",
+                standing: standing(this.rt.handle, this.rt.game),
+              },
+            });
+          return;
+        }
       }
     } catch (err) {
       if (err instanceof BudgetPausedError) {
@@ -375,6 +400,29 @@ export class ClassroomConnection {
         },
       },
     });
+    // Exit ticket (M4-05): a minute of ✓/✗ on what each cadet thinks they learned.
+    this.ended = {
+      periodId: session.periodId,
+      classroomId: session.classroomId,
+      schoolId: scope.schoolId,
+    };
+    if (turns > 0) {
+      const tickets = issueExitTickets(handle, {
+        periodId: session.periodId,
+        classroomId: session.classroomId,
+        conceptId: session.currentConcept.id,
+      });
+      if (tickets.length)
+        this.send({
+          type: "exit.tickets",
+          payload: {
+            periodId: session.periodId,
+            conceptTitle: session.currentConcept.title,
+            seconds: 60,
+            tickets,
+          },
+        });
+    }
   }
 
   // --- views ------------------------------------------------------------------

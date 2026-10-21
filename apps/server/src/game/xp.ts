@@ -18,7 +18,8 @@ export interface XpStanding {
 export interface XpScope {
   schoolId: string;
   classroomId: string;
-  periodId: string;
+  /** Null for XP earned outside a class period (grading, exams). */
+  periodId: string | null;
 }
 
 export function awardXp(
@@ -46,9 +47,10 @@ export function awardXp(
         scope.classroomId,
         scope.periodId,
       );
-    sqlite
-      .prepare("UPDATE periods SET xp_earned = xp_earned + ? WHERE id = ?")
-      .run(amount, scope.periodId);
+    if (scope.periodId)
+      sqlite
+        .prepare("UPDATE periods SET xp_earned = xp_earned + ? WHERE id = ?")
+        .run(amount, scope.periodId);
   })();
   return amount;
 }

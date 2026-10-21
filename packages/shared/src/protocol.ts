@@ -90,6 +90,9 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
   msg("period.pause", empty),
   msg("period.resume", empty),
   msg("period.end", empty),
+  /** Exit ticket (M4-05): ✓ = true, ✗ = false. */
+  msg("exit.mark", z.strictObject({ ticketId: z.string(), verdict: z.boolean() })),
+  msg("exit.done", z.strictObject({ periodId: z.string() })),
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageZ>;
 
@@ -179,6 +182,68 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       classroomId: z.string(),
       status: z.enum(["active", "error"]),
       detail: z.string().optional(),
+    }),
+  ),
+  /** Homework being collected and reference-graded (A-2, A-4). */
+  msg(
+    "assignment.status",
+    z.strictObject({
+      assignmentId: z.string(),
+      classroomId: z.string(),
+      status: z.enum(["collecting", "submitted", "error"]),
+      done: z.number(),
+      total: z.number(),
+      detail: z.string().optional(),
+    }),
+  ),
+  /** Exam arena (E-3): questions are generated, then each graded answer streams in. */
+  msg(
+    "exam.status",
+    z.strictObject({
+      examId: z.string(),
+      classroomId: z.string(),
+      status: z.enum(["generating", "ready", "running", "done", "error"]),
+      detail: z.string().optional(),
+    }),
+  ),
+  msg(
+    "exam.answer",
+    z.strictObject({
+      examId: z.string(),
+      questionId: z.string(),
+      ord: z.number(),
+      cadetId: z.string(),
+      score: z.number(),
+      /** Running class mean so far, 0..1 (the "Class Integrity" bar). */
+      integrity: z.number(),
+    }),
+  ),
+  msg(
+    "exit.tickets",
+    z.strictObject({
+      periodId: z.string(),
+      conceptTitle: z.string(),
+      seconds: z.number(),
+      tickets: z.array(z.object({ id: z.string(), cadetId: z.string(), statement: z.string() })),
+    }),
+  ),
+  msg(
+    "exit.result",
+    z.strictObject({
+      ticketId: z.string(),
+      right: z.boolean(),
+      isTrue: z.boolean(),
+      corrected: z.boolean(),
+    }),
+  ),
+  msg(
+    "exit.summary",
+    z.strictObject({
+      periodId: z.string(),
+      marked: z.number(),
+      total: z.number(),
+      right: z.number(),
+      xp: z.number(),
     }),
   ),
   msg("period.paused", z.strictObject({ paused: z.boolean(), elapsedMs: z.number() })),

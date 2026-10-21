@@ -39,6 +39,23 @@ export interface Toast {
   text: string;
 }
 
+export interface ExitTicketsState {
+  periodId: string;
+  conceptTitle: string;
+  seconds: number;
+  /** Client time the minute started. */
+  at: number;
+  tickets: Array<{
+    id: string;
+    cadetId: string;
+    statement: string;
+    verdict?: boolean;
+    right?: boolean;
+    isTrue?: boolean;
+  }>;
+  summary?: { marked: number; total: number; right: number; xp: number };
+}
+
 export interface ClassroomState {
   status: "idle" | "starting" | "live" | "ending" | "ended";
   periodId?: string;
@@ -74,6 +91,8 @@ export interface ClassroomState {
   /** The last XP gain, for the "+15 XP" flourish. */
   xpGain?: { delta: number; reason: string; at: number };
   ended?: Omit<ServerMessageOf<"period.ended">["payload"], "periodId">;
+  /** The exit-ticket minigame at the bell (M4-05). */
+  exit?: ExitTicketsState;
 }
 
 export const initialClassroom = (): ClassroomState => ({
@@ -130,6 +149,35 @@ export function applyServerMessage(
       if (!c || status !== "ready") return s;
       return { ...s, cadets: { ...s.cadets, [c.id]: { ...c, portraitUrl: url } } };
     }
+    case "exit.tickets":
+      return {
+        ...s,
+        exit: {
+          periodId: m.payload.periodId,
+          conceptTitle: m.payload.conceptTitle,
+          seconds: m.payload.seconds,
+          at: now,
+          tickets: m.payload.tickets.map((t) => ({ ...t })),
+        },
+      };
+    case "exit.result":
+      return s.exit
+        ? {
+            ...s,
+            exit: {
+              ...s.exit,
+              tickets: s.exit.tickets.map((t) =>
+                t.id === m.payload.ticketId
+                  ? { ...t, right: m.payload.right, isTrue: m.payload.isTrue }
+                  : t,
+              ),
+            },
+          }
+        : s;
+    case "exit.summary":
+      return s.exit?.periodId === m.payload.periodId
+        ? { ...s, exit: { ...s.exit, summary: { ...m.payload } } }
+        : s;
     case "xp.update":
       return {
         ...s,
@@ -260,6 +308,9 @@ export function applyServerMessage(
     case "registration.started":
     case "registration.arrival":
     case "registration.done":
+    case "assignment.status":
+    case "exam.status":
+    case "exam.answer":
       return s;
   }
 }

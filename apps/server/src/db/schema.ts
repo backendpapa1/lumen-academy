@@ -253,7 +253,11 @@ export const exitTickets = sqliteTable(
       .references(() => cadets.id),
     conceptId: text("concept_id").references(() => concepts.id),
     statement: text("statement").notNull(),
-    correct: integer("correct", { mode: "boolean" }), // null until marked
+    /** Whether the statement is true to the source (the server knows; the client doesn't). */
+    isTrue: integer("is_true", { mode: "boolean" }).notNull().default(true),
+    /** The Headmaster's ✓ (true) or ✗ (false); null until marked. */
+    verdict: integer("verdict", { mode: "boolean" }),
+    correct: integer("correct", { mode: "boolean" }), // was the verdict right? null until marked
     createdAt: createdAt(),
   },
   (t) => [index("exit_tickets_period").on(t.periodId)],

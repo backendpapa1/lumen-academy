@@ -22,11 +22,30 @@ export function schoolConceptStatuses(
     turns: number | null;
     comp: number | null;
   }>;
+  // E-5: exam results count. latest = the most recent exam covering the concept.
+  const exam = handle.sqlite
+    .prepare(
+      `SELECT q.concept_id AS conceptId, e.created_at AS at, avg(r.score) AS avg
+       FROM exam_results r JOIN exam_questions q ON q.id = r.question_id JOIN exams e ON e.id = r.exam_id
+       JOIN classrooms c ON c.id = e.classroom_id WHERE c.school_id = ? GROUP BY q.concept_id, e.id`,
+    )
+    .all(schoolId) as Array<{ conceptId: string; at: string; avg: number }>;
+  const examOf = (id: string) => {
+    const xs = exam.filter((x) => x.conceptId === id).sort((a, b) => b.at.localeCompare(a.at));
+    if (!xs.length) return { latest: null, mean: null };
+    return { latest: xs[0]!.avg, mean: xs.reduce((s, x) => s + x.avg, 0) / xs.length };
+  };
   return Object.fromEntries(
     rows.map((r) => {
       const turns = r.turns ?? 0;
+      const e = examOf(r.conceptId);
       const status = conceptStatus(
-        { turnsTaught: turns, comprehensionAvg: r.comp, latestAssessmentAvg: null, examAvg: null },
+        {
+          turnsTaught: turns,
+          comprehensionAvg: r.comp,
+          latestAssessmentAvg: e.latest,
+          examAvg: e.mean,
+        },
         cfg,
       );
       return [r.conceptId, { status, comprehension: r.comp, turns: Math.round(turns * 10) / 10 }];
