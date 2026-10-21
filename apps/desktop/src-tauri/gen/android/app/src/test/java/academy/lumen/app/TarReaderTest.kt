@@ -11,22 +11,27 @@ import java.nio.file.Files
 
 /**
  * The first run's unpack (ADR-012), on the build machine: the real
- * lumen-runtime.tar.xz from scripts/bundle-android.mjs comes out exactly like
- * the folders it was made from (build/android/rt and server).
+ * lumen-runtime-*.tar.xz parts from scripts/bundle-android.mjs come out exactly
+ * like the folders they were made from (build/android/rt and server).
  */
 class TarReaderTest {
   private val project = File(System.getProperty("user.dir")!!) // gen/android/app
-  private val archive = File(project, "src/main/assets/lumen-runtime.tar.xz")
+  private val assets = File(project, "src/main/assets")
+  private val parts get() = assets.listFiles { f -> f.name.matches(Regex("lumen-runtime-\\d+\\.tar\\.xz")) }.orEmpty()
   private val source = File(project, "../../../../build/android")
 
   @Test
   fun unpacksTheRuntimeExactly() {
-    assumeTrue("run scripts/bundle-android.mjs first", archive.exists() && source.isDirectory)
+    assumeTrue("run scripts/bundle-android.mjs first", parts.isNotEmpty() && source.isDirectory)
     val out = Files.createTempDirectory("lumen-rt").toFile()
     try {
       val t0 = System.currentTimeMillis()
-      XZInputStream(BufferedInputStream(archive.inputStream(), 1 shl 16)).use { TarReader.extract(it, out) }
-      println("unpacked in ${System.currentTimeMillis() - t0} ms")
+      // In parallel, as on the phone: the parts write into one folder.
+      parts.map { part ->
+        Thread { XZInputStream(BufferedInputStream(part.inputStream(), 1 shl 16)).use { TarReader.extract(it, out) } }
+          .apply { start() }
+      }.forEach { it.join() }
+      println("unpacked ${parts.size} parts in ${System.currentTimeMillis() - t0} ms")
       var files = 0
       for (top in listOf("rt", "server")) {
         File(source, top).walkTopDown().filter { it.isFile }.forEach { f ->

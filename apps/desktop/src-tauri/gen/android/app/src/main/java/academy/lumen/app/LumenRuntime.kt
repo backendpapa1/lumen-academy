@@ -250,12 +250,17 @@ object LumenRuntime {
 
   // --- unpacking ------------------------------------------------------------------
 
-  private fun assetStamp(): String =
-    JSONObject(app.assets.open("lumen-runtime.json").bufferedReader().readText()).getString("stamp")
+  private fun manifest() = JSONObject(app.assets.open("lumen-runtime.json").bufferedReader().readText())
 
+  /**
+   * Unpacks the runtime's parts in parallel (xz decodes at a few MB/s on one core
+   * of a phone), into runtime.next, then swaps it in: a half-done unpack is never
+   * taken for a runtime.
+   */
   private fun unpackIfNeeded() {
     val dir = runtimeDir(app)
-    val stamp = assetStamp()
+    val m = manifest()
+    val stamp = m.getString("stamp")
     val stampFile = File(dir, ".stamp")
     if (stampFile.exists() && stampFile.readText() == stamp) return
     status = "unpacking"
@@ -263,27 +268,41 @@ object LumenRuntime {
     val next = File(app.filesDir, "runtime.next")
     next.deleteRecursively()
     next.mkdirs()
-    val total = app.assets.openFd("lumen-runtime.tar.xz").use { it.length }
-    val raw = app.assets.open("lumen-runtime.tar.xz", android.content.res.AssetManager.ACCESS_STREAMING)
-    val counted = CountingStream(BufferedInputStream(raw, 1 shl 16)) { read ->
-      emit(Event.Progress("unpacking", ((read * 100) / total).toInt().coerceIn(0, 99)))
+    val parts = m.getJSONArray("parts").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("name") } }
+    val total = parts.sumOf { name -> app.assets.openFd(name).use { it.length } }
+    val read = java.util.concurrent.atomic.AtomicLong()
+    val pool = Executors.newFixedThreadPool(minOf(parts.size, maxOf(1, Runtime.getRuntime().availableProcessors())))
+    try {
+      val jobs = parts.map { name ->
+        pool.submit<Unit> {
+          val raw = app.assets.open(name, android.content.res.AssetManager.ACCESS_STREAMING)
+          val counted = CountingStream(BufferedInputStream(raw, 1 shl 16)) { step ->
+            val done = read.addAndGet(step)
+            emit(Event.Progress("unpacking", ((done * 100) / total).toInt().coerceIn(0, 99)))
+          }
+          XZInputStream(counted).use { TarReader.extract(it, next) }
+        }
+      }
+      jobs.forEach { it.get() }
+    } finally {
+      pool.shutdownNow()
     }
-    XZInputStream(counted).use { TarReader.extract(it, next) }
     File(next, ".stamp").writeText(stamp)
     dir.deleteRecursively()
     if (!next.renameTo(dir)) throw IllegalStateException("couldn't move the runtime into place")
-    Log.i(TAG, "unpacked the runtime in ${System.currentTimeMillis() - t0} ms")
+    Log.i(TAG, "unpacked the runtime (${parts.size} parts) in ${System.currentTimeMillis() - t0} ms")
   }
 
   private class CountingStream(inner: InputStream, val onStep: (Long) -> Unit) :
     java.io.FilterInputStream(inner) {
     var read = 0L
     private var lastStep = 0L
+    /** Reports the bytes read since the last report, every MB or so. */
     private fun count(n: Int) {
       if (n > 0) read += n
       if (read - lastStep > 1 shl 20) {
+        onStep(read - lastStep)
         lastStep = read
-        onStep(read)
       }
     }
     override fun read(): Int = super.read().also { if (it >= 0) count(1) }

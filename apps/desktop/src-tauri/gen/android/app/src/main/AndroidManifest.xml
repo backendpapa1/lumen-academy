@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The phone's DNS servers for the server's resolver (LUMEN_DNS). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Hold-to-talk (Android's SpeechRecognizer), asked the first time it's used. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- The quiet "Lumen Academy is running" notification (ADR-012). -->

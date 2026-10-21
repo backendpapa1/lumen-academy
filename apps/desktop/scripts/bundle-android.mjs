@@ -6,9 +6,11 @@
 //                    program we launch; it maps Node and everything else from files/.
 //     libsigsys.so   the seccomp supervisor (android/sigsys.c, built with the NDK)
 //   gen/android/app/src/main/assets/
-//     lumen-runtime.tar.xz    rt/ (Node linux-arm64 + glibc) and server/ (the bundle
-//                             with arm64 natives), unpacked on first run
-//     lumen-runtime.json      its stamp: a new stamp makes the app unpack again
+//     lumen-runtime-<n>.tar.xz  rt/ (Node linux-arm64 + glibc) and server/ (the bundle
+//                               with arm64 natives), in parts unpacked in parallel on
+//                               first run
+//     lumen-runtime.json        the parts and their stamp: a new stamp makes the app
+//                               unpack again
 //
 // Downloads are checked: Node against nodejs.org's SHASUMS256.txt; the Debian
 // packages against the Packages index, whose own hash comes from InRelease; npm
@@ -65,6 +67,8 @@ const LIBS = [
 // Android speaks and listens natively: Kokoro (and the ONNX Runtime under it,
 // which needs ARMv8.2+) stays out of the APK.
 const SPEECH_ONLY = ["@huggingface/transformers", "kokoro-js"];
+// The runtime archive's parts, unpacked in parallel on the phone.
+const PARTS = 4;
 
 const build = join(desktop, "build", "android");
 const cache = join(desktop, "build", "android-cache");
@@ -127,27 +131,57 @@ mkdirSync(jni, { recursive: true });
 copyFileSync(join(outRt, "lib", "ld-linux-aarch64.so.1"), join(jni, "libld.so"));
 buildSigsys(join(jni, "libsigsys.so"));
 
-step("assets: lumen-runtime.tar.xz");
+step(`assets: lumen-runtime-*.tar.xz (${PARTS} parts)`);
 mkdirSync(assets, { recursive: true });
-const archive = join(assets, "lumen-runtime.tar.xz");
-rmSync(archive, { force: true });
-// Reproducible: sorted, no owners, fixed times; xz -9 for the smallest APK.
-execFileSync(
-  "sh",
-  [
-    "-c",
-    `tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - rt server | xz -9 -T0 > "${archive}"`,
-  ],
-  { cwd: build, stdio: ["ignore", "ignore", "inherit"] },
-);
-const stamp = sha256(archive).slice(0, 16);
+for (const f of readdirSync(assets)) if (f.startsWith("lumen-runtime")) rmSync(join(assets, f));
+// xz decodes at a few MB/s on a phone's core, so the runtime ships in parts of
+// about equal size that the app unpacks in parallel (LumenRuntime.kt).
+const files = [];
+const list = (dir) => {
+  for (const e of readdirSync(join(build, dir), { withFileTypes: true })) {
+    const rel = join(dir, e.name);
+    if (e.isDirectory()) list(rel);
+    else files.push({ rel, size: statSync(join(build, rel)).size });
+  }
+};
+list("rt");
+list("server");
+const buckets = Array.from({ length: PARTS }, () => ({ size: 0, files: [] }));
+for (const f of files.sort((x, y) => y.size - x.size || x.rel.localeCompare(y.rel))) {
+  const b = buckets.reduce((m, c) => (c.size < m.size ? c : m));
+  b.size += f.size;
+  b.files.push(f.rel);
+}
+const parts = [];
+const hash = createHash("sha256");
+for (const [i, b] of buckets.entries()) {
+  const name = `lumen-runtime-${i}.tar.xz`;
+  const listFile = join(build, `.part-${i}.txt`);
+  writeFileSync(listFile, b.files.sort().join("\n") + "\n");
+  // Reproducible: sorted, no owners, fixed times. xz at preset 9 with a 16 MiB
+  // dictionary: each decoder on the phone holds its dictionary, and four 64 MiB
+  // ones (plain -9) overflow the app's Java heap.
+  execFileSync(
+    "sh",
+    [
+      "-c",
+      `tar --format=gnu --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - -T "${listFile}" | xz --lzma2=preset=9e,dict=16MiB -T0 > "${join(assets, name)}"`,
+    ],
+    { cwd: build, stdio: ["ignore", "ignore", "inherit"] },
+  );
+  rmSync(listFile);
+  hash.update(readFileSync(join(assets, name)));
+  parts.push({ name, bytes: statSync(join(assets, name)).size });
+}
+const stamp = hash.digest("hex").slice(0, 16);
 const unpacked = mb(outRt) + mb(outServer);
 writeFileSync(
   join(assets, "lumen-runtime.json"),
-  JSON.stringify({ stamp, node: NODE_VERSION, unpackedMb: unpacked }, null, 2) + "\n",
+  JSON.stringify({ stamp, node: NODE_VERSION, unpackedMb: unpacked, parts }, null, 2) + "\n",
 );
+const total = parts.reduce((n, p) => n + p.bytes, 0);
 console.log(
-  `\n✓ lumen-runtime.tar.xz ${Math.round(statSync(archive).size / 1e6)} MB (unpacks to ${unpacked} MB), stamp ${stamp}`,
+  `\n✓ lumen-runtime: ${PARTS} parts, ${Math.round(total / 1e6)} MB (unpacks to ${unpacked} MB), stamp ${stamp}`,
 );
 
 // --- helpers --------------------------------------------------------------------
