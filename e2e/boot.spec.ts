@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("boots Three + Phaser and opens the lobby with Schools from the server, no console errors", async ({
+test("boots the drawn campus and opens the lobby with Schools from the server, no console errors", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -10,14 +10,10 @@ test("boots Three + Phaser and opens the lobby with Schools from the server, no 
   await page.goto("/");
   await page.waitForFunction(() => window.__lumen !== undefined);
   await schools;
-  const info = await page.evaluate(() => ({
-    phaser: window.__lumen?.phaserVersion,
-    three: window.__lumen?.threeRevision,
-    route: window.__lumen?.store.getState().route.name,
-    world: (document.querySelector("#world") as HTMLCanvasElement).getContext("webgl2") !== null,
-  }));
-  expect(info).toMatchObject({ three: "186", route: "boot", world: true });
-  expect(info.phaser).toMatch(/^4\./);
+  expect(await page.evaluate(() => window.__lumen?.store.getState().route.name)).toBe("boot");
+  // ADR-009: no WebGL; the campus is an SVG behind the lobby.
+  await expect(page.locator(".campus svg .hall")).toHaveCount(1);
+  await expect(page.locator("canvas")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Your Schools" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Found a new School" })).toBeVisible();
   await page.waitForTimeout(600);

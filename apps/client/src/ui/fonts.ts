@@ -6,11 +6,6 @@ import "@fontsource/space-mono/700.css";
 import "@fontsource/atkinson-hyperlegible-next/400.css";
 import "@fontsource/atkinson-hyperlegible-next/600.css";
 import "@fontsource/atkinson-hyperlegible-next/700.css";
-// The old faces stay for the screens still using them (arena, gallery).
-import "@fontsource/space-grotesk/500.css";
-import "@fontsource/space-grotesk/700.css";
-import "@fontsource/inter/400.css";
-import "@fontsource/jetbrains-mono/400.css";
 import "./style/tokens.css";
 import "./style/base.css";
 
@@ -22,10 +17,6 @@ export async function loadFonts(): Promise<void> {
     '400 16px "Atkinson Hyperlegible Next"',
     '600 16px "Atkinson Hyperlegible Next"',
     '700 16px "Atkinson Hyperlegible Next"',
-    '500 16px "Space Grotesk"',
-    '700 16px "Space Grotesk"',
-    '400 16px "Inter"',
-    '400 16px "JetBrains Mono"',
   ];
   await Promise.all(faces.map((f) => document.fonts.load(f)));
   await document.fonts.ready;

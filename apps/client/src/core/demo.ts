@@ -4,7 +4,7 @@ import { store } from "./store";
 
 /** ?view=classroom-demo: a believable period without a server, for visual work. */
 export function loadDemoClassroom(): void {
-  const cadets: Array<[string, Parameters<typeof import("../ui/theme").accentOf>[0], number]> = [
+  const cadets: Array<[string, import("@lumen/shared").Archetype, number]> = [
     ["Ines Okoro-Vale", "skeptic", 0],
     ["Tomas Reyes", "lost_signal", 2],
     ["Adaeze Bello", "literalist", 4],

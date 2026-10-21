@@ -3,14 +3,12 @@ import { lectern } from "../ui/dom/lectern";
 import { statsOverlay } from "../ui/dom/stats";
 import { classroomUi } from "../ui/room";
 import { sound } from "./audio";
-import { world } from "../world/anchors";
 import { app } from "./app";
 import { cycle, routeKey } from "./keys";
 import { store } from "./store";
 
 // Input routing (docs/05 §4.4). Keys: a global handler over routeKey().
-// Pointer: the drawn room handles its own (ui/room/Room.ts); `pointer` below
-// routes canvas events into whichever world is on screen.
+// Pointer: the drawn room handles its own (ui/room/Room.ts).
 
 export function installKeyboard(): void {
   window.addEventListener("keydown", (e) => {
@@ -89,25 +87,3 @@ export function installKeyboard(): void {
     e.preventDefault();
   });
 }
-
-/** Pointer events no HUD object handled, in stage pixels. */
-export const pointer = {
-  move(x: number, y: number, canvas: HTMLCanvasElement) {
-    const id = world.pick?.(x, y) ?? null;
-    if (store.getState().hoveredId !== id) {
-      store.setState({ hoveredId: id });
-      canvas.style.cursor = id ? "pointer" : "";
-    }
-    world.pointer = { x, y };
-  },
-  /** The pointer is over the HUD (or left the stage): nothing in the world is hovered. */
-  leave() {
-    if (store.getState().hoveredId) store.setState({ hoveredId: null });
-  },
-  click(x: number, y: number) {
-    const id = world.pick?.(x, y) ?? null;
-    app.select(id);
-    // Clicking a cadet with a raised hand calls on them, like their queue card.
-    if (id && store.getState().classroom.hands.some((h) => h.cadetId === id)) app.call(id);
-  },
-};

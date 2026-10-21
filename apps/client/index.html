@@ -6,7 +6,7 @@
     <title>Lumen Academy</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3l11 6.5v13L16 29 5 22.5v-13z' fill='%2305070D' stroke='%235BE7FF' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%235BE7FF'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='5' y='5' width='24' height='24' fill='%232A40FF'/%3E%3Crect x='3' y='3' width='24' height='24' fill='%23FFC23D' stroke='%232A40FF' stroke-width='2'/%3E%3Cpath d='M9 21V9h3v9h7v3z' fill='%232A40FF'/%3E%3C/svg%3E"
     />
     <style>
       html,
@@ -14,27 +14,16 @@
         margin: 0;
         height: 100%;
         overflow: hidden;
-        background: #05070d; /* void */
+        background: #c6ecff; /* sky */
       }
       #stage {
         position: fixed;
         inset: 0;
       }
-      #world,
-      #ui {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        display: block;
-      }
     </style>
   </head>
   <body>
-    <div id="stage">
-      <canvas id="world"></canvas>
-      <canvas id="ui"></canvas>
-    </div>
+    <div id="stage"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
