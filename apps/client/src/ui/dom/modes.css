@@ -1,5 +1,5 @@
 /* Teaching modes in class (V5). */
-.mode-banner {
+.card.mode-banner {
   position: absolute;
   left: 50%;
   top: 86px;
@@ -16,14 +16,16 @@
   box-shadow: 4px 4px 0 var(--marigold);
   font: 400 14px var(--font-body);
 }
-.mode-banner b {
+.card.mode-banner b {
   font: 400 15px var(--font-display);
   color: var(--marigold);
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
-.mode-panel {
+.card.mode-panel {
   position: absolute;
+  font: 400 15px/1.45 var(--font-body);
+  color: var(--ink);
   right: 16px;
   top: 150px;
   z-index: 6;
@@ -157,8 +159,10 @@
   border-style: dashed;
 }
 /* V5-09 guest lecturer: a model explanation, for me only. */
-.guest-card {
+.card.guest-card {
   position: absolute;
+  font: 400 15px/1.45 var(--font-body);
+  color: var(--ink);
   left: 16px;
   top: 150px;
   z-index: 6;
@@ -169,7 +173,13 @@
   border-color: var(--leaf);
   box-shadow: 6px 6px 0 var(--leaf);
 }
-.guest-card .guest-answer {
+.card.guest-card .guest-answer {
   font: 400 16px/1.5 var(--font-body);
   margin: 8px 0;
+}
+/* `hidden` must win over the display rules above. */
+.card.mode-banner[hidden],
+.card.mode-panel[hidden],
+.card.guest-card[hidden] {
+  display: none;
 }

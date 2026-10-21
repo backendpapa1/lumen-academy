@@ -907,14 +907,21 @@ export class ClassroomConnection {
       return {
         kind: "teach_back",
         title: "Teach-back",
-        lines: r
-          ? [
-              `You caught ${r.caught} of ${r.caught + r.missed} mistake${r.caught + r.missed === 1 ? "" : "s"}${r.falseAlarms ? `, with ${r.falseAlarms} false alarm${r.falseAlarms === 1 ? "" : "s"}` : ", with no false alarms"}.`,
-              r.missed
-                ? "The ones you missed are mix-ups your class still holds."
-                : "Nothing slipped past you.",
-            ]
-          : ["The teach-back wasn't marked this time."],
+        lines: !r
+          ? ["The teach-back wasn't marked this time."]
+          : r.caught + r.missed === 0
+            ? [
+                "Every sentence was true this time: your teaching held up.",
+                r.falseAlarms
+                  ? `You marked ${r.falseAlarms} true sentence${r.falseAlarms === 1 ? "" : "s"} as wrong. Trust what you taught.`
+                  : "And you didn't mark any of it wrong. Good.",
+              ]
+            : [
+                `You caught ${r.caught} of ${r.caught + r.missed} mistake${r.caught + r.missed === 1 ? "" : "s"}${r.falseAlarms ? `, with ${r.falseAlarms} false alarm${r.falseAlarms === 1 ? "" : "s"}` : ", with no false alarms"}.`,
+                r.missed
+                  ? "The ones you missed are mix-ups your class still holds."
+                  : "Nothing slipped past you.",
+              ],
         ...(r ? { score: r.score } : {}),
       };
     }

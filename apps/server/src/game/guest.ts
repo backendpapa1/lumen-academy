@@ -85,6 +85,14 @@ export async function askGuest(
     name,
     question: input.question,
     answer: res.data.answer,
-    citations: rows.map((r) => ({ source: r.t, heading: r.h ?? "", page: r.p })),
+    // One line per distinct reference, even when several chunks share a heading.
+    citations: [
+      ...new Map(
+        rows.map((r) => [
+          `${r.t}|${r.h ?? ""}|${r.p ?? ""}`,
+          { source: r.t, heading: r.h ?? "", page: r.p },
+        ]),
+      ).values(),
+    ],
   };
 }
