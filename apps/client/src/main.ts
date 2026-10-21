@@ -1,13 +1,14 @@
 import * as Phaser from "phaser";
 import * as THREE from "three";
-import { bus } from "./core/bus";
+import { loadDemoClassroom } from "./core/demo";
 import { store } from "./core/store";
 import { loadFonts } from "./ui/fonts";
 import { BootScene } from "./ui/scenes/BootScene";
+import { ClassroomHud } from "./ui/scenes/ClassroomHud";
 import { GalleryScene } from "./ui/scenes/GalleryScene";
-import { loadDemoClassroom } from "./core/demo";
 import { ClassroomScene } from "./world/scenes/ClassroomScene";
 import { WorldDirector } from "./world/WorldDirector";
+import { installKeyboard } from "./core/input";
 
 const worldCanvas = document.querySelector<HTMLCanvasElement>("#world");
 const uiCanvas = document.querySelector<HTMLCanvasElement>("#ui");
@@ -31,7 +32,8 @@ const ui = new Phaser.Game({
   parent: stage,
   transparent: true,
   scale: { mode: Phaser.Scale.RESIZE },
-  scene: view === "gallery" ? [GalleryScene] : view === "classroom-demo" ? [] : [BootScene],
+  // Scenes start per route (applyRoute), never automatically.
+  scene: view === "gallery" ? [GalleryScene] : [],
 });
 
 // One RAF, one clock: Phaser's step drives the Three.js world (docs/05 §4.1).
@@ -41,14 +43,38 @@ ui.events.on(Phaser.Core.Events.PRE_STEP, (time: number, delta: number) => {
 });
 window.addEventListener("resize", () => director.resize());
 
+// Route → 3D scene + HUD scene (docs/05 §4.3).
+let showing: string | null = null;
+function applyRoute() {
+  const route = store.getState().route;
+  if (route.name === showing) return;
+  showing = route.name;
+  if (route.name === "classroom") {
+    director.show(new ClassroomScene());
+    ui.scene.stop("boot");
+    ui.scene.start("classroomHud");
+  } else if (route.name === "boot") {
+    ui.scene.stop("classroomHud");
+    ui.scene.start("boot");
+  }
+}
+store.subscribe(applyRoute);
+
 if (view === "classroom-demo") {
   loadDemoClassroom();
-  director.show(new ClassroomScene());
+  store.setState({ route: { name: "classroom", classroomId: "cls_demo" } });
 }
+ui.events.once(Phaser.Core.Events.READY, () => {
+  if (view !== "gallery") {
+    ui.scene.add("boot", BootScene, false);
+    ui.scene.add("classroomHud", ClassroomHud, false);
+  }
+  showing = null;
+  applyRoute();
+  installKeyboard(ui);
+});
 
-bus.on("ui:ping", () => store.setState((s) => ({ pings: s.pings + 1 })));
-
-// Test hook for the Playwright smoke test.
+// Test hooks for Playwright.
 declare global {
   interface Window {
     __lumen?: {

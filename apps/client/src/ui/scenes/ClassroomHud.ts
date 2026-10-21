@@ -1,0 +1,465 @@
+import * as Phaser from "phaser";
+import { ARCHETYPE_INFO, type HandView } from "@lumen/shared";
+import { app } from "../../core/app";
+import type { ClassroomState } from "../../core/classroom";
+import { store, type AppState } from "../../core/store";
+import { Button } from "../components/Button";
+import { Meter } from "../components/Meter";
+import { Panel } from "../components/Panel";
+import { label } from "../components/text";
+import { TimerRing } from "../components/TimerRing";
+import { lectern } from "../dom/lectern";
+import { transcript } from "../dom/transcript";
+import { accentCss, accentOf, color, css, motion, uiScale } from "../theme";
+
+// Classroom HUD (docs/02 §3.3). At most three regions show at once: top bar,
+// hand queue, lectern. Roster and transcript are drawers (docs/08 §3).
+
+const INTENT_LABEL: Record<HandView["intent"], string> = {
+  clarify: "wants to clarify",
+  challenge: "challenges you",
+  example: "wants an example",
+  connect: "sees a connection",
+  eli10: "wants it simpler",
+  deeper: "wants to go deeper",
+  wrong_claim: "has a claim",
+};
+
+export class ClassroomHud extends Phaser.Scene {
+  private s = 1;
+  private top?: Phaser.GameObjects.Container;
+  private hands?: Phaser.GameObjects.Container;
+  private roster?: Phaser.GameObjects.Container;
+  private lecternFrame?: Panel;
+  private hint?: Phaser.GameObjects.Text;
+  private overlay?: Phaser.GameObjects.Container;
+  private toasts?: Phaser.GameObjects.Container;
+  private recap?: Phaser.GameObjects.Container;
+  private conceptMenu?: Phaser.GameObjects.Container;
+  private timer?: TimerRing;
+  private cost?: Phaser.GameObjects.Text;
+  private rosterOpen = false;
+  private unsubscribe?: () => void;
+
+  constructor() {
+    super("classroomHud");
+  }
+
+  create(): void {
+    this.layout();
+    this.scale.on(Phaser.Scale.Events.RESIZE, () => this.layout());
+    this.unsubscribe = store.subscribe((st, prev) => this.onState(st, prev));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.unsubscribe?.();
+      lectern.hide();
+      transcript.toggle(false);
+    });
+  }
+
+  /** Full rebuild on resize; regions rebuild individually on state changes. */
+  private layout() {
+    const { width, height } = this.scale.gameSize;
+    this.s = uiScale(width, height);
+    const c = store.getState().classroom;
+    this.buildTop(c);
+    this.buildHands(c);
+    this.buildLectern();
+    this.buildRoster(c);
+    this.buildOverlay(c);
+    this.buildToasts(c);
+    this.buildRecap(c);
+  }
+
+  private onState(st: AppState, prev: AppState) {
+    const c = st.classroom;
+    const p = prev.classroom;
+    if (
+      c.concept !== p.concept ||
+      c.school !== p.school ||
+      c.cost.state !== p.cost.state ||
+      st.net !== prev.net ||
+      c.status !== p.status
+    )
+      this.buildTop(c);
+    if (c.hands !== p.hands || c.speech?.cadetId !== p.speech?.cadetId) this.buildHands(c);
+    if (c.cadets !== p.cadets) this.buildRoster(c);
+    if (c.status !== p.status || c.ended !== p.ended) this.buildOverlay(c);
+    if (c.toasts !== p.toasts) this.buildToasts(c);
+    if (c.recap !== p.recap) this.buildRecap(c);
+    if (c.cost !== p.cost) this.cost?.setText(this.costText(c));
+  }
+
+  override update(): void {
+    const c = store.getState().classroom;
+    if (this.timer && c.startedAt && c.status === "live")
+      this.timer.set((Date.now() - c.startedAt) / 1000, c.plannedMinutes * 60);
+  }
+
+  // --- top bar ----------------------------------------------------------------
+
+  private costText(c: ClassroomState) {
+    return `$${c.cost.periodUsd.toFixed(c.cost.periodUsd < 0.1 ? 4 : 2)}`;
+  }
+
+  private buildTop(c: ClassroomState) {
+    this.top?.destroy();
+    const s = this.s;
+    const { width } = this.scale.gameSize;
+    const g = (this.top = this.add.container(0, 0));
+    const pad = 28 * s;
+    g.add(
+      label(
+        this,
+        pad,
+        pad,
+        [c.school?.name, c.classroom?.name].filter(Boolean).join(" · ") || "Lumen Academy",
+        "micro",
+        { scale: s },
+      ),
+    );
+    const concept = label(
+      this,
+      pad,
+      pad + 18 * s,
+      `${c.concept?.title ?? "Connecting…"}  ▾`,
+      "h2",
+      { scale: s },
+    );
+    if (c.concepts.length > 1) {
+      concept
+        .setInteractive({ useHandCursor: true })
+        .on("pointerdown", () => this.toggleConceptMenu(c));
+    }
+    g.add(concept);
+
+    // Right: timer, this period's cost (tap for day/month), end class.
+    const right = width - pad;
+    this.timer = new TimerRing(this, right - 26 * s, pad + 22 * s, 24 * s, s * 0.8);
+    g.add(this.timer);
+    this.cost = label(this, right - 64 * s, pad + 6 * s, this.costText(c), "mono", {
+      scale: s * 0.9,
+    }).setOrigin(1, 0);
+    const costLabel = label(
+      this,
+      right - 64 * s,
+      pad + 28 * s,
+      c.cost.state === "ok"
+        ? "this class"
+        : c.cost.state === "warn"
+          ? "budget 80%"
+          : c.cost.state === "degrade"
+            ? "lighter models"
+            : "paused",
+      "micro",
+      { scale: s, color: c.cost.state === "ok" ? css.inkDim : css.aurum },
+    ).setOrigin(1, 0);
+    this.cost.setInteractive({ useHandCursor: true }).on("pointerdown", () => {
+      const k = store.getState().classroom.cost;
+      this.toast(
+        `Today $${k.dayUsd.toFixed(3)} · this month $${k.monthUsd.toFixed(2)} of $${k.capUsd}`,
+      );
+    });
+    g.add([this.cost, costLabel]);
+    if (c.status === "live")
+      g.add(
+        new Button(this, right - 220 * s, pad + 22 * s, "End class", {
+          scale: s * 0.85,
+          onClick: () => app.endClass(),
+        }),
+      );
+    const net = store.getState().net;
+    if (net === "connecting" || net === "closed")
+      g.add(
+        label(
+          this,
+          width / 2,
+          pad,
+          net === "connecting" ? "Connecting…" : "Reconnecting…",
+          "caption",
+          { scale: s, color: css.aurum },
+        ).setOrigin(0.5, 0),
+      );
+  }
+
+  private toggleConceptMenu(c: ClassroomState) {
+    if (this.conceptMenu) {
+      this.conceptMenu.destroy();
+      this.conceptMenu = undefined;
+      return;
+    }
+    const s = this.s;
+    const rowH = 30 * s;
+    const h = Math.min(c.concepts.length, 12) * rowH + 24 * s;
+    const panel = new Panel(this, 28 * s, 76 * s, 380 * s, h);
+    c.concepts.slice(0, 12).forEach((k, i) => {
+      const t = label(this, 16 * s, 12 * s + i * rowH, k.title, "body", {
+        scale: s * 0.9,
+        color: k.id === c.concept?.id ? css.lumen : css.ink,
+      });
+      t.setInteractive({ useHandCursor: true }).on("pointerdown", () => {
+        app.setConcept(k.id);
+        this.toggleConceptMenu(c);
+      });
+      panel.add(t);
+    });
+    this.conceptMenu = panel;
+  }
+
+  // --- hand queue ------------------------------------------------------------------
+
+  private buildHands(c: ClassroomState) {
+    this.hands?.destroy();
+    const s = this.s;
+    const { width } = this.scale.gameSize;
+    const w = 340 * s;
+    const x = width - w - 28 * s;
+    const g = (this.hands = this.add.container(x, 110 * s));
+    g.add(
+      label(this, 0, 0, c.hands.length ? "Hands raised" : "No hands up", "micro", { scale: s }),
+    );
+    c.hands.slice(0, 5).forEach((h, i) => {
+      const cadet = c.cadets[h.cadetId];
+      if (!cadet) return;
+      const y = 22 * s + i * 86 * s;
+      const card = new Panel(this, 0, y, w, 76 * s);
+      card.add(label(this, 14 * s, 12 * s, String(i + 1), "mono", { scale: s, color: css.lumen }));
+      const dot = this.add.circle(42 * s, 22 * s, 4 * s, accentOf(cadet.archetype));
+      card.add(dot);
+      card.add(
+        label(this, 54 * s, 12 * s, cadet.name.split(" ")[0]!, "body", {
+          scale: s,
+          color: accentCss(cadet.archetype),
+        }),
+      );
+      card.add(
+        label(
+          this,
+          54 * s + 0,
+          32 * s,
+          `${ARCHETYPE_INFO[cadet.archetype].label} · ${INTENT_LABEL[h.intent]}`,
+          "caption",
+          { scale: s * 0.9 },
+        ),
+      );
+      card.add(
+        label(this, 14 * s, 50 * s, `“${h.preview}”`, "caption", {
+          scale: s * 0.95,
+          color: css.ink,
+          wrap: w - 28 * s,
+        }).setLineSpacing(0),
+      );
+      card.setInteractive({
+        hitArea: new Phaser.Geom.Rectangle(0, 0, w, 76 * s),
+        hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+        useHandCursor: true,
+      });
+      card
+        .on("pointerover", () => card.setFocused(true))
+        .on("pointerout", () => card.setFocused(false));
+      card.on("pointerdown", () => app.call(h.cadetId));
+      card.setAlpha(0);
+      this.tweens.add({ targets: card, alpha: 1, duration: motion.panel, delay: i * 40 });
+      g.add(card);
+    });
+  }
+
+  // --- lectern -----------------------------------------------------------------------
+
+  private buildLectern() {
+    const s = this.s;
+    const { width, height } = this.scale.gameSize;
+    const w = Math.min(880 * s, width - 2 * 400 * s);
+    const h = 74 * s;
+    const x = (width - w) / 2;
+    const y = height - h - 46 * s;
+    this.lecternFrame?.destroy();
+    this.hint?.destroy();
+    this.lecternFrame = new Panel(this, x, y, w, h).setFocused(
+      document.activeElement === lectern.el,
+    );
+    lectern.place(x, y, w, h, s);
+    lectern.el.onfocus = () => this.lecternFrame?.setFocused(true);
+    lectern.el.onblur = () => this.lecternFrame?.setFocused(false);
+    this.hint = label(
+      this,
+      width / 2,
+      y + h + 12 * s,
+      "Enter teach · 1–5 call on a hand · R roster · ` transcript",
+      "micro",
+      { scale: s },
+    ).setOrigin(0.5, 0);
+  }
+
+  // --- roster drawer -------------------------------------------------------------------
+
+  toggleRoster() {
+    this.rosterOpen = !this.rosterOpen;
+    this.buildRoster(store.getState().classroom);
+  }
+
+  private buildRoster(c: ClassroomState) {
+    this.roster?.destroy();
+    this.roster = undefined;
+    if (!this.rosterOpen) return;
+    const s = this.s;
+    const cadets = Object.values(c.cadets).sort((a, b) => a.seat - b.seat);
+    const rowH = 34 * s;
+    const panel = new Panel(this, 28 * s, 110 * s, 300 * s, 40 * s + cadets.length * rowH);
+    panel.add(
+      label(
+        this,
+        16 * s,
+        14 * s,
+        `Roster · understanding of ${c.concept?.title ?? ""}`.slice(0, 44),
+        "micro",
+        { scale: s },
+      ),
+    );
+    cadets.forEach((cadet, i) => {
+      const y = 38 * s + i * rowH;
+      panel.add(this.add.circle(20 * s, y + 9 * s, 4 * s, accentOf(cadet.archetype)));
+      panel.add(
+        label(this, 32 * s, y, cadet.name.split(" ")[0]!, "caption", { scale: s, color: css.ink }),
+      );
+      panel.add(
+        new Meter(this, 120 * s, y + 7 * s, 120 * s, accentOf(cadet.archetype)).setValue(
+          cadet.comprehension,
+        ),
+      );
+      panel.add(
+        label(this, 252 * s, y, `${Math.round(cadet.comprehension * 100)}%`, "monoSmall", {
+          scale: s,
+        }),
+      );
+    });
+    this.roster = panel;
+  }
+
+  // --- overlays: starting, bell-out --------------------------------------------------------
+
+  private buildOverlay(c: ClassroomState) {
+    this.overlay?.destroy();
+    this.overlay = undefined;
+    const s = this.s;
+    const { width, height } = this.scale.gameSize;
+    if (c.status === "starting") {
+      this.overlay = this.add.container(width / 2, height / 2, [
+        label(this, 0, 0, "Cadets are taking their seats…", "h2", { scale: s }).setOrigin(0.5),
+      ]);
+      return;
+    }
+    if (c.status === "ending") {
+      this.overlay = this.add.container(width / 2, height / 2, [
+        label(this, 0, 0, "Ringing the bell…", "h2", { scale: s }).setOrigin(0.5),
+      ]);
+      return;
+    }
+    if (c.status !== "ended" || !c.ended) return;
+    const w = 560 * s;
+    const recap = c.ended.recapOut ?? "";
+    const panel = new Panel(this, (width - w) / 2, height * 0.22, w, 0);
+    panel.add(label(this, 28 * s, 26 * s, "Class dismissed", "micro", { scale: s }));
+    panel.add(label(this, 28 * s, 48 * s, "🔔 That's the bell.", "h1", { scale: s }));
+    panel.add(
+      label(
+        this,
+        28 * s,
+        96 * s,
+        `${c.ended.turns} turns · ${c.ended.minutes} min · $${c.ended.costUsd.toFixed(4)}`,
+        "mono",
+        { scale: s * 0.85, color: css.aurum },
+      ),
+    );
+    const body = label(
+      this,
+      28 * s,
+      136 * s,
+      recap ? `Next time…\n${recap.replace(/\*\*/g, "")}` : "",
+      "body",
+      { scale: s * 0.95, wrap: w - 56 * s },
+    );
+    panel.add(body);
+    const btnY = 136 * s + body.height + 36 * s;
+    panel.add(
+      new Button(this, w - 120 * s, btnY, "Back to classes", {
+        primary: true,
+        scale: s,
+        onClick: () => app.backToBoot(),
+      }),
+    );
+    panel.resize(w, btnY + 40 * s);
+    this.overlay = panel;
+  }
+
+  // --- toasts and recap card -------------------------------------------------------------
+
+  private toast(text: string) {
+    store.setState((st) => ({
+      classroom: {
+        ...st.classroom,
+        toasts: [...st.classroom.toasts, { id: Date.now(), level: "info" as const, text }].slice(
+          -3,
+        ),
+      },
+    }));
+    const id = store.getState().classroom.toasts.at(-1)!.id;
+    setTimeout(
+      () =>
+        store.setState((st) => ({
+          classroom: { ...st.classroom, toasts: st.classroom.toasts.filter((t) => t.id !== id) },
+        })),
+      4000,
+    );
+  }
+
+  private buildToasts(c: ClassroomState) {
+    this.toasts?.destroy();
+    const s = this.s;
+    const { width } = this.scale.gameSize;
+    const g = (this.toasts = this.add.container(width / 2, 78 * s));
+    c.toasts.forEach((t, i) => {
+      const text = label(this, 0, i * 34 * s, t.text, "caption", {
+        scale: s,
+        color: t.level === "info" ? css.ink : css.aurum,
+      }).setOrigin(0.5, 0);
+      const bg = this.add
+        .rectangle(
+          0,
+          i * 34 * s - 6 * s,
+          text.width + 28 * s,
+          text.height + 12 * s,
+          color.hull900,
+          0.85,
+        )
+        .setOrigin(0.5, 0)
+        .setStrokeStyle(1, t.level === "info" ? color.hull500 : color.aurum);
+      g.add([bg, text]);
+    });
+  }
+
+  private buildRecap(c: ClassroomState) {
+    this.recap?.destroy();
+    this.recap = undefined;
+    if (!c.recap || c.status !== "live") return;
+    const s = this.s;
+    const { height } = this.scale.gameSize;
+    const w = 360 * s;
+    const body = label(this, 16 * s, 34 * s, c.recap.replace(/\*\*/g, ""), "caption", {
+      scale: s,
+      color: css.ink,
+      wrap: w - 32 * s,
+    });
+    const panel = new Panel(this, 28 * s, height - body.height - 200 * s, w, body.height + 52 * s);
+    panel.add([label(this, 16 * s, 14 * s, "Last time…", "micro", { scale: s }), body]);
+    this.recap = panel;
+    // It's a reminder, not a wall: fade after a while (ADHD rule 5).
+    this.time.delayedCall(14000, () =>
+      this.tweens.add({
+        targets: panel,
+        alpha: 0,
+        duration: motion.panel,
+        onComplete: () => panel.destroy(),
+      }),
+    );
+  }
+}

@@ -12,6 +12,6 @@ test("classroom scene renders within the draw-call budget, no console errors", a
   console.log(`stats: ${JSON.stringify(stats)}`);
   expect(stats.drawCalls).toBeGreaterThan(0);
   expect(stats.drawCalls).toBeLessThanOrEqual(150);
-  await page.screenshot({ path: "docs/screens/m2-classroom-empty.png" });
+  await page.screenshot({ path: "docs/screens/m2-classroom-hud.png" });
   expect(errors).toEqual([]);
 });

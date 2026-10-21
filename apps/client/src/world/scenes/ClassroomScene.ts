@@ -46,10 +46,11 @@ export class ClassroomScene implements WorldScene {
     front.position.set(0, 2.2, -1);
     this.scene.add(key, fill, front);
 
-    // Above the top row's heads (~3.3m) so it never hides a cadet.
-    this.board.group.position.set(3.9, 4.25, -5.2);
-    this.board.group.rotation.y = -0.5;
-    this.board.group.scale.setScalar(0.74);
+    // Centre of the back wall, above the top row's heads (~3.3m): the class
+    // faces it, nothing hides it, and the HUD's right rail stays clear.
+    this.board.group.position.set(0.4, 4.55, -10.4);
+    this.board.group.lookAt(CAMERA_POS.x, 4.55, CAMERA_POS.z);
+    this.board.group.scale.setScalar(1.15);
     this.scene.add(
       this.floor.mesh,
       this.amphitheater.group,

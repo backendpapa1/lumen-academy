@@ -106,8 +106,8 @@ const BILLBOARD_W = 1.0;
 const BILLBOARD_H = 1.4;
 const quad = new THREE.PlaneGeometry(BILLBOARD_W, BILLBOARD_H);
 quad.translate(0, BILLBOARD_H / 2, 0);
-const beamGeo = new THREE.CylinderGeometry(0.055, 0.055, 6, 12, 1, true);
-beamGeo.translate(0, 3, 0);
+const beamGeo = new THREE.CylinderGeometry(0.055, 0.055, 3.1, 12, 1, true); // stops below the board
+beamGeo.translate(0, 1.55, 0);
 const discGeo = new THREE.PlaneGeometry(2.2, 2.2);
 discGeo.rotateX(-Math.PI / 2);
 
