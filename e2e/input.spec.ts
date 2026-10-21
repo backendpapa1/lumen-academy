@@ -48,9 +48,18 @@ test("the lectern owns typing; Esc leaves it; Enter returns to it", async ({ pag
   await page.keyboard.press("Escape");
   await expect(page.locator("#transcript")).not.toHaveClass(/open/);
   await page.keyboard.press("f");
+  // Any toast: a dev server on :5174, if one is running, may answer the demo with its own.
   await expect
-    .poll(() => page.evaluate(() => window.__lumen!.store.getState().classroom.toasts.at(-1)?.text))
-    .toContain("Hyperfocus");
+    .poll(() =>
+      page.evaluate(() =>
+        window.__lumen!.store
+          .getState()
+          .classroom.toasts.map((t) => t.text)
+          .join(" | "),
+      ),
+    )
+    .toContain("Hyperfocus on");
+  expect(JSON.stringify(await sent(page))).toContain('"type":"focus.toggle"');
 });
 
 test("hovering a cadet tags them; clicking a raised hand calls on them", async ({ page }) => {
