@@ -1,9 +1,16 @@
 import { createStore } from "zustand/vanilla";
 import { initialClassroom, type ClassroomState } from "./classroom";
+import { initialSetup, type SetupState } from "./setup";
 
 // Shared client state. Phaser and Three both subscribe; no React (CLAUDE.md).
 export interface AppState {
-  route: { name: "boot" } | { name: "classroom"; classroomId: string } | { name: "gallery" };
+  route:
+    | { name: "boot" }
+    | { name: "school"; schoolId: string; tab: "sources" | "curriculum" | "classes" }
+    | { name: "registration"; classroomId: string; schoolId: string }
+    | { name: "classroom"; classroomId: string }
+    | { name: "gallery" };
+  setup: SetupState;
   /** idle = never connected (e.g. demo mode). */
   net: "idle" | "connecting" | "open" | "closed";
   classroom: ClassroomState;
@@ -18,6 +25,7 @@ export const store = createStore<AppState>(() => ({
   route: { name: "boot" },
   net: "idle",
   classroom: initialClassroom(),
+  setup: initialSetup(),
   selectedId: null,
   hoveredId: null,
   pings: 0,

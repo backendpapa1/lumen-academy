@@ -143,6 +143,10 @@ export class CadetHologram {
   private hand = 0;
   private speakTarget = 0;
   private speak = 0;
+  private born: number;
+  private portraitUrl: string | null = null;
+  private portraitMix = 0;
+  private portraitReady = false;
   private lookTarget = 0;
   private look = 0;
   private glyphTarget = 0;
@@ -155,7 +159,10 @@ export class CadetHologram {
     readonly seat: number,
     readonly accent: number,
     seed: number,
+    /** Arrive with the registration effect (teleport beam, bottom-up reveal). */
+    materialize = false,
   ) {
+    this.born = materialize ? 0 : 1;
     const pose = seatPose(seat);
     this.group.position.copy(pose.position);
     this.group.rotation.y = pose.facing;
@@ -179,6 +186,7 @@ export class CadetHologram {
           uSkeptic: { value: 0 },
           uSpeaking: { value: 0 },
           uHasPortrait: { value: 0 },
+          uMaterialize: { value: materialize ? 0 : 1 },
           uPortrait: { value: null },
           uSeed: { value: seed % 1000 },
         },
@@ -271,6 +279,21 @@ export class CadetHologram {
     this.lookTarget = level;
   }
 
+  /** Swap the silhouette for a generated portrait, crossfading once it has loaded. */
+  setPortrait(url: string | null): void {
+    if (url === this.portraitUrl) return;
+    this.portraitUrl = url;
+    if (!url) return;
+    loadPortrait(url).then(
+      (t) => {
+        if (this.portraitUrl !== url) return;
+        this.holo.material.uniforms.uPortrait!.value = t;
+        this.portraitReady = true;
+      },
+      () => undefined,
+    );
+  }
+
   /** What pointer rays test against: the billboard quad. */
   get hitTarget(): THREE.Object3D {
     return this.holo;
@@ -291,6 +314,11 @@ export class CadetHologram {
     this.hand += (this.handTarget - this.hand) * k;
     this.speak += (this.speakTarget - this.speak) * k;
     this.look += (this.lookTarget - this.look) * k;
+    if (this.born < 1) this.born = Math.min(1, this.born + dt / 1.6);
+    if (this.portraitReady && this.portraitMix < 1) {
+      this.portraitMix = Math.min(1, this.portraitMix + dt / 0.9);
+      this.holo.material.uniforms.uHasPortrait!.value = this.portraitMix;
+    }
     // Glyphs pop, then settle to a quieter presence after 3s.
     const glyphAge = this.time - this.glyphChangedAt;
     const glyphGoal = this.glyphTarget * (glyphAge < 3 ? 1 : 0.35);
@@ -315,8 +343,11 @@ export class CadetHologram {
     u.uSpeaking!.value = this.speak;
     this.pad.material.opacity = c.pad * (0.55 + (motion ? 0.25 * Math.sin(this.time * 5) : 0));
 
-    this.beam.visible = this.hand > 0.02;
-    this.beam.material.uniforms.uStrength!.value = this.hand;
+    u.uMaterialize!.value = this.still ? 1 : easeOut(this.born);
+    // The arrival beam: a column of light that fades as the cadet resolves.
+    const arrival = this.still ? 0 : Math.max(0, 1 - this.born * 1.25);
+    this.beam.visible = this.hand > 0.02 || arrival > 0.01;
+    this.beam.material.uniforms.uStrength!.value = Math.max(this.hand, arrival);
     this.beam.material.uniforms.uTime!.value = this.time;
     this.spotlight.material.opacity = this.speak * 0.7;
 
@@ -336,4 +367,21 @@ export class CadetHologram {
     this.beam.material.dispose();
     this.spotlight.material.dispose();
   }
+}
+
+const easeOut = (t: number) => 1 - (1 - t) ** 3;
+
+const portraits = new Map<string, Promise<THREE.Texture>>();
+const texLoader = new THREE.TextureLoader();
+/** One texture per portrait URL, shared by every hologram and reused across scenes. */
+function loadPortrait(url: string): Promise<THREE.Texture> {
+  let p = portraits.get(url);
+  if (!p) {
+    p = texLoader.loadAsync(url).then((t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    });
+    portraits.set(url, p);
+  }
+  return p;
 }

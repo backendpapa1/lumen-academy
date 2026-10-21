@@ -6,6 +6,7 @@ import { findConfigDir, loadConfig } from "./config/load.js";
 import { activeProfile } from "@lumen/shared";
 import { dataDir, dbPath, loadDotEnv } from "./config/paths.js";
 import { openDb, runMigrations } from "./db/client.js";
+import { loadSavedSettings } from "./settings.js";
 import { OpenAIEmbedder } from "./ingest/embed.js";
 import { ModelFactory } from "./models/factory.js";
 import { UsageMeter } from "./usage/meter.js";
@@ -17,6 +18,7 @@ loadDotEnv(dirname(findConfigDir()));
 const config = loadConfig();
 const handle = openDb(dbPath(config));
 runMigrations(handle);
+loadSavedSettings(handle, config);
 const meter = new UsageMeter({
   db: handle.db,
   pricing: config.pricing,

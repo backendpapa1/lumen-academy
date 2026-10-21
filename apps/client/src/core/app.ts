@@ -1,5 +1,7 @@
 import type { ServerMessage } from "@lumen/shared";
+import { api, type SchoolDetail, type SchoolSummary } from "./api";
 import { applyServerMessage, dismissToast } from "./classroom";
+import { applySetupMessage } from "./setup";
 import { Net } from "./net";
 import { store } from "./store";
 
@@ -23,7 +25,14 @@ const remember = (id: string | null) => {
 
 function receive(m: ServerMessage) {
   const wasStarting = store.getState().classroom.status === "starting";
-  store.setState((s) => ({ classroom: applyServerMessage(s.classroom, m) }));
+  store.setState((s) => ({
+    classroom: applyServerMessage(s.classroom, m),
+    setup: applySetupMessage(s.setup, m),
+  }));
+  if (m.type === "source.status" && (m.payload.status === "ready" || m.payload.status === "error"))
+    void app.refreshSchool().catch(() => undefined);
+  if (m.type === "curriculum.status" && m.payload.status !== "building")
+    void app.refreshSchool().catch(() => undefined);
   // A class that can't start (archived, no cadets…) sends you back to the picker.
   if (m.type === "error" && wasStarting) {
     remember(null);
@@ -49,6 +58,63 @@ function ensureNet(): Net {
 }
 
 export const app = {
+  /** Connects at launch so School setup progress arrives on every screen. */
+  connect() {
+    ensureNet();
+  },
+  async loadSchools() {
+    const schools = await api.get<SchoolSummary[]>("/api/schools");
+    store.setState((s) => ({ setup: { ...s.setup, schools } }));
+    return schools;
+  },
+  async createSchool(name: string, description: string) {
+    const { id } = await api.post<{ id: string }>("/api/schools", {
+      name,
+      description: description || undefined,
+    });
+    this.openSchool(id, "sources");
+    return id;
+  },
+  openSchool(schoolId: string, tab: "sources" | "curriculum" | "classes" = "sources") {
+    store.setState((s) => ({
+      route: { name: "school", schoolId, tab },
+      setup:
+        s.setup.school?.id === schoolId
+          ? s.setup
+          : { ...s.setup, school: null, sourceJobs: {}, curriculumJob: null },
+    }));
+    void this.refreshSchool().catch((e: Error) => this.notify(e.message, "error"));
+  },
+  async refreshSchool() {
+    const route = store.getState().route;
+    if (route.name !== "school") return;
+    const school = await api.get<SchoolDetail>(`/api/schools/${route.schoolId}`);
+    store.setState((s) => ({ setup: { ...s.setup, school } }));
+  },
+  async openClassroom(schoolId: string, difficulty: "gentle" | "standard" | "ruthless") {
+    const r = await api.post<{ classroomId: string; name: string; total: number }>(
+      `/api/schools/${schoolId}/classrooms`,
+      { difficulty },
+    );
+    store.setState((s) => ({
+      route: { name: "registration", classroomId: r.classroomId, schoolId },
+      setup: {
+        ...s.setup,
+        // registration.started may already have arrived; keep its arrivals.
+        registration:
+          s.setup.registration?.classroomId === r.classroomId
+            ? s.setup.registration
+            : {
+                classroomId: r.classroomId,
+                schoolId,
+                name: r.name,
+                total: r.total,
+                arrivals: [],
+                status: "arriving",
+              },
+      },
+    }));
+  },
   startClass(classroomId: string, opts: { minutes?: number; conceptId?: string } = {}) {
     store.setState((s) => ({
       route: { name: "classroom", classroomId },
@@ -106,5 +172,6 @@ export const app = {
   backToBoot() {
     remember(null);
     store.setState({ route: { name: "boot" } });
+    void this.loadSchools().catch(() => undefined);
   },
 };

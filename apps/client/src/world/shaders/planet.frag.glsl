@@ -1,13 +1,16 @@
-// Procedural gas giant: latitude bands with turbulence, lit by a distant sun,
-// atmosphere rim. Textures from the asset pipeline replace the bands in M3.
+// Gas giant: the generated band texture when loaded (docs/07 §1.1), procedural
+// latitude bands until then; lit by a distant sun with an atmosphere rim.
 uniform vec3 uSunDir;
 uniform float uTime;
 uniform vec3 uBandA;
 uniform vec3 uBandB;
 uniform vec3 uAtmos;
 uniform vec3 uViewDirW;
+uniform sampler2D uMap;
+uniform float uUseMap;
 varying vec3 vNormalW;
 varying vec3 vPos;
+varying vec2 vUv;
 
 float hash(vec3 p) { return fract(sin(dot(p, vec3(17.1, 113.7, 41.3))) * 43758.5453); }
 float noise(vec3 p) {
@@ -24,6 +27,13 @@ void main() {
   float bands = 0.5 + 0.5 * sin(lat * 22.0 + swirl * 6.0);
   vec3 col = mix(uBandA, uBandB, bands);
   col *= 0.85 + 0.3 * noise(p * 9.0);
+  if (uUseMap > 0.5) {
+    // Mirror u so the generated (non-tiling) map has no seam round the sphere;
+    // the bands run horizontally, so the mirror is invisible. Slow drift.
+    float u = fract(vUv.x + uTime * 0.0015);
+    vec3 tex = texture2D(uMap, vec2(1.0 - abs(2.0 * u - 1.0), vUv.y)).rgb;
+    col = mix(col, tex, uUseMap);
+  }
   float light = clamp(dot(vNormalW, normalize(uSunDir)) * 1.1 + 0.05, 0.0, 1.0);
   float rim = pow(1.0 - clamp(dot(vNormalW, -normalize(uViewDirW)), 0.0, 1.0), 3.0);
   vec3 outCol = col * light + uAtmos * rim * (0.35 + light * 0.9);

@@ -6,7 +6,9 @@ import type { AppConfig } from "./config/load.js";
 import { registerAssetRoutes } from "./routes/assets.js";
 import { registerClassroomRoutes } from "./routes/classrooms.js";
 import { registerSchoolRoutes } from "./routes/schools.js";
+import { registerSettingsRoutes } from "./routes/settings.js";
 import { EventBus } from "./events.js";
+import { backfillEmblems } from "./jobs.js";
 import { ClassroomConnection, type Runtime } from "./ws/classroomConnection.js";
 import { parseClientFrame, wsError } from "./ws/handler.js";
 
@@ -45,14 +47,13 @@ export async function buildApp({
   if (runtime) registerClassroomRoutes(app, runtime.handle);
   if (runtime && assetsDir) registerAssetRoutes(app, runtime.handle, assetsDir);
   if (runtime) {
+    registerSettingsRoutes(app, runtime.handle, config);
     runtime.bus ??= new EventBus();
-    if (dataDir)
-      await registerSchoolRoutes(app, {
-        ...runtime,
-        bus: runtime.bus,
-        art: config.artPrompts,
-        dataDir,
-      });
+    if (dataDir) {
+      const jobs = { ...runtime, bus: runtime.bus, art: config.artPrompts, dataDir };
+      await registerSchoolRoutes(app, jobs);
+      backfillEmblems(jobs);
+    }
   }
 
   // Open periods must finish closing (DB writes) before the server shuts down.

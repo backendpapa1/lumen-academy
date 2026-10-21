@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { ClassroomState } from "../../core/classroom";
+import { SERVER_HTTP } from "../../core/net";
 import { accentOf } from "../../ui/theme";
 import { CadetHologram } from "./CadetHologram";
 
@@ -8,6 +9,8 @@ export class CadetLayer {
   readonly group = new THREE.Group();
   private readonly holograms = new Map<string, CadetHologram>();
   private time = 0;
+  /** New cadets arrive with the registration effect (set during registration). */
+  materializeNew = false;
 
   sync(c: ClassroomState): void {
     for (const [id, h] of this.holograms) {
@@ -22,13 +25,20 @@ export class CadetLayer {
     for (const cadet of Object.values(c.cadets)) {
       let h = this.holograms.get(cadet.id);
       if (!h) {
-        h = new CadetHologram(cadet.id, cadet.seat, accentOf(cadet.archetype), hash(cadet.id));
+        h = new CadetHologram(
+          cadet.id,
+          cadet.seat,
+          accentOf(cadet.archetype),
+          hash(cadet.id),
+          this.materializeNew,
+        );
         this.holograms.set(cadet.id, h);
         this.group.add(h.group);
       }
       h.setState(cadet.state, this.time);
       h.setHandRaised(raised.has(cadet.id) && speaking !== cadet.id);
       h.setSpeaking(speaking === cadet.id);
+      h.setPortrait(cadet.portraitUrl ? SERVER_HTTP + cadet.portraitUrl : null);
     }
   }
 

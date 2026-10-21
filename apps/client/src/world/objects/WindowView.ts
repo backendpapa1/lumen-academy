@@ -1,15 +1,12 @@
 import * as THREE from "three";
-import planetFrag from "../shaders/planet.frag.glsl?raw";
-import planetVert from "../shaders/planet.vert.glsl?raw";
-import ringFrag from "../shaders/ring.frag.glsl?raw";
-import ringVert from "../shaders/ring.vert.glsl?raw";
+import { GasGiant } from "./GasGiant";
 
 // The window wall (left third of the view): stars, the gas giant and its rings,
 // behind curved glass with lumen-edged mullions (docs/08 §4.2).
 
 export class WindowView {
   readonly group = new THREE.Group();
-  private readonly planet: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
+  private readonly giant = new GasGiant({ radius: 26 });
   private readonly disposables: Array<{ dispose(): void }> = [];
   private time = 0;
 
@@ -36,45 +33,12 @@ export class WindowView {
     });
     this.group.add(new THREE.Points(starGeo, starMat));
 
-    this.planet = new THREE.Mesh(
-      new THREE.SphereGeometry(26, 96, 64),
-      new THREE.ShaderMaterial({
-        vertexShader: planetVert,
-        fragmentShader: planetFrag,
-        uniforms: {
-          uSunDir: { value: new THREE.Vector3(0.9, 0.35, 0.5) },
-          uTime: { value: 0 },
-          uBandA: { value: new THREE.Color(0xc9a27a) },
-          uBandB: { value: new THREE.Color(0x6e5a8a) },
-          uAtmos: { value: new THREE.Color(0x5be7ff) },
-          uViewDirW: { value: new THREE.Vector3() },
-        },
-      }),
-    );
-    // Placed so the camera sees it ~35° left, ~8° up, through the window.
-    // ~32° left and ~7° up from the lectern, ~11° across: framed by the window, not filling it.
-    this.planet.position.set(-68, 18, -105);
-    this.planet.rotation.z = 0.32;
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(34, 58, 160, 1),
-      new THREE.ShaderMaterial({
-        vertexShader: ringVert,
-        fragmentShader: ringFrag,
-        uniforms: {
-          uColor: { value: new THREE.Color(0xd8c6a8) },
-          uInner: { value: 34 },
-          uOuter: { value: 58 },
-        },
-        transparent: true,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      }),
-    );
-    ring.rotation.x = Math.PI / 2 - 0.25;
-    ring.rotation.y = 0.32;
-    this.planet.add(ring);
-    this.group.add(this.planet);
-    camera.getWorldDirection(this.planet.material.uniforms.uViewDirW!.value);
+    // Placed so the camera sees it ~32° left and ~7° up from the lectern,
+    // ~11° across: framed by the window, not filling it.
+    this.giant.group.position.set(-68, 18, -105);
+    this.giant.group.rotation.z = 0.32;
+    this.giant.lookFrom(camera);
+    this.group.add(this.giant.group);
 
     // Glass + mullions along the left wall.
     const glass = new THREE.Mesh(
@@ -114,10 +78,7 @@ export class WindowView {
     this.disposables.push(
       starGeo,
       starMat,
-      this.planet.geometry,
-      this.planet.material,
-      ring.geometry,
-      ring.material,
+      this.giant,
       glass.geometry,
       glass.material,
       mullionMat,
@@ -129,8 +90,7 @@ export class WindowView {
 
   update(dt: number): void {
     this.time += dt;
-    this.planet.rotation.y += dt * 0.006; // slow, calm rotation
-    this.planet.material.uniforms.uTime!.value = this.time;
+    this.giant.update(dt);
   }
 
   dispose(): void {

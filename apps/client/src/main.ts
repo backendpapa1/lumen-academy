@@ -5,9 +5,10 @@ import { applyServerMessage } from "./core/classroom";
 import { loadDemoClassroom } from "./core/demo";
 import { store } from "./core/store";
 import { loadFonts } from "./ui/fonts";
-import { BootScene } from "./ui/scenes/BootScene";
 import { ClassroomHud } from "./ui/scenes/ClassroomHud";
 import { GalleryScene } from "./ui/scenes/GalleryScene";
+import { installScreens } from "./ui/screens";
+import { BackdropScene } from "./world/scenes/BackdropScene";
 import { ClassroomScene } from "./world/scenes/ClassroomScene";
 import { world } from "./world/anchors";
 import { WorldDirector } from "./world/WorldDirector";
@@ -48,19 +49,33 @@ ui.events.on(Phaser.Core.Events.PRE_STEP, (time: number, delta: number) => {
 });
 window.addEventListener("resize", () => director.resize());
 
-// Route → 3D scene + HUD scene (docs/05 §4.3).
+// Route → 3D scene + UI layer (docs/05 §4.3). The classroom uses the Phaser
+// HUD; setup screens (lobby, School Wing, registration) are DOM (D14).
 let showing: string | null = null;
+let showingWorld: "backdrop" | "classroom" | null = null;
 function applyRoute() {
   const route = store.getState().route;
-  if (route.name === showing) return;
-  showing = route.name;
+  const key =
+    route.name === "classroom" || route.name === "registration"
+      ? `${route.name}:${route.classroomId}`
+      : route.name;
+  if (key === showing) return;
+  showing = key;
+  if (route.name === "gallery") return;
   if (route.name === "classroom") {
-    director.show(new ClassroomScene());
-    ui.scene.stop("boot");
+    // Registration already shows this room; keep it so the cadets stay put.
+    if (showingWorld !== "classroom") director.show(new ClassroomScene());
+    showingWorld = "classroom";
     ui.scene.start("classroomHud");
-  } else if (route.name === "boot") {
-    ui.scene.stop("classroomHud");
-    ui.scene.start("boot");
+    return;
+  }
+  ui.scene.stop("classroomHud");
+  if (route.name === "registration") {
+    director.show(new ClassroomScene({ arrivals: true }));
+    showingWorld = "classroom";
+  } else if (showingWorld !== "backdrop") {
+    director.show(new BackdropScene());
+    showingWorld = "backdrop";
   }
 }
 store.subscribe(applyRoute);
@@ -69,11 +84,12 @@ if (view === "classroom-demo") {
   loadDemoClassroom();
   store.setState({ route: { name: "classroom", classroomId: "cls_demo" } });
 } else if (view !== "gallery") {
+  installScreens();
+  app.connect();
   app.rejoin(); // a reload mid-period continues it
 }
 ui.events.once(Phaser.Core.Events.READY, () => {
   if (view !== "gallery") {
-    ui.scene.add("boot", BootScene, false);
     ui.scene.add("classroomHud", ClassroomHud, false);
   }
   showing = null;

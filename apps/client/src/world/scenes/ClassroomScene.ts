@@ -36,7 +36,9 @@ export class ClassroomScene implements WorldScene {
   private readonly head = new THREE.Vector3();
   private readonly ray = new THREE.Raycaster();
 
-  constructor() {
+  /** arrivals: cadets materialize as they join (registration). */
+  constructor(opts: { arrivals?: boolean } = {}) {
+    this.cadetLayer.materializeNew = !!opts.arrivals;
     this.scene.background = new THREE.Color(0x05070d);
     this.scene.fog = new THREE.FogExp2(0x05070d, 0.018);
     this.camera.position.copy(CAMERA_POS);

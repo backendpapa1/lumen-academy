@@ -1,5 +1,6 @@
-// Cadet hologram (docs/08 §4.3). Until portraits exist (M3) the subject is a
-// procedural head-and-shoulders silhouette; uPortrait blends a texture in.
+// Cadet hologram (docs/08 §4.3). A procedural head-and-shoulders silhouette
+// until the generated portrait loads, then a crossfade to the portrait
+// (uHasPortrait 0..1). uMaterialize reveals it from the projector upward.
 uniform vec3 uAccent;
 uniform float uTime;
 uniform float uBrightness;   // 1 normal, 0.6 bored, pulses when excited
@@ -8,7 +9,8 @@ uniform float uSweepPeriod;  // 4..7 s, per cadet
 uniform float uSweepOffset;
 uniform float uSkeptic;      // 0..1 narrowed side vignette
 uniform float uSpeaking;     // 0..1 extra rim and lift
-uniform float uHasPortrait;  // 0 = silhouette
+uniform float uHasPortrait;  // 0 = silhouette, 1 = portrait
+uniform float uMaterialize;  // 0..1, registration arrival
 uniform sampler2D uPortrait;
 uniform float uSeed;
 varying vec2 vUv;
@@ -38,10 +40,19 @@ void main() {
   float rimBand = smoothstep(-0.035, 0.0, d) * mask;         // inner edge glow ("fresnel")
   vec3 base = mix(vec3(0.78, 0.92, 1.0), uAccent, 0.2);       // pale holo light × 20% accent
   vec3 col = base * (0.42 + 0.25 * (1.0 - vUv.y * 0.6));
-  if (uHasPortrait > 0.5) {
-    vec4 tex = texture2D(uPortrait, vUv);
-    col = mix(col, tex.rgb * mix(vec3(1.0), uAccent, 0.2), 0.85);
-    mask = max(mask, tex.a);
+  if (uHasPortrait > 0.001) {
+    // The square portrait fills the upper square of the 1×1.4 billboard.
+    vec2 pu = vec2(vUv.x, (vUv.y - 0.2857) / 0.7143);
+    float inside = step(0.0, pu.y);
+    vec4 tex = texture2D(uPortrait, clamp(pu, 0.0, 1.0));
+    float pa = tex.a * inside;
+    // Hologram treatment: luminance-led, tinted toward pale holo light and the accent.
+    float lum = dot(tex.rgb, vec3(0.299, 0.587, 0.114));
+    // Mostly light, a little of the photo's colour: reads as a projection, not a picture.
+    vec3 holo = mix(tex.rgb, base * (0.22 + lum * 1.35), 0.68) * mix(vec3(1.0), uAccent, 0.25);
+    col = mix(col, holo, uHasPortrait);
+    mask = mix(mask, pa, uHasPortrait);
+    rimBand = mix(rimBand, smoothstep(0.35, 0.0, pa) * pa, uHasPortrait);
   }
   col += uAccent * pow(rimBand, 1.6) * (1.4 + uSpeaking * 1.2); // rim, power ~2.5 look
   // Scanlines: 220 lines, 6%, drifting up.
@@ -59,6 +70,12 @@ void main() {
   col *= 1.0 - side * uSkeptic * 0.8;
   // Emitted from the seat projector: fade at the bottom edge.
   float alpha = mask * smoothstep(0.0, 0.22, vUv.y) * uBrightness;
+  // Materialize: revealed bottom-up with a bright scan edge.
+  float edge = uMaterialize * 1.15;
+  float shown = 1.0 - smoothstep(edge - 0.06, edge, vUv.y);
+  float scanEdge = exp(-pow((vUv.y - edge) * 40.0, 2.0)) * step(uMaterialize, 0.999);
+  col += uAccent * scanEdge * 2.0;
+  alpha = alpha * shown + mask * scanEdge * 0.8;
   gl_FragColor = vec4(col * uBrightness, alpha);
   #include <colorspace_fragment>
 }

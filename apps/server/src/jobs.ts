@@ -69,6 +69,19 @@ export async function generateEmblem(deps: JobDeps, schoolId: string): Promise<v
     .run(asset.id, accent, schoolId);
 }
 
+/** Schools made before emblems existed (or whose emblem failed) get one, once each. */
+export function backfillEmblems(deps: JobDeps): number {
+  if (!deps.assets) return 0;
+  const rows = deps.handle.sqlite
+    .prepare(
+      `SELECT s.id FROM schools s LEFT JOIN assets a ON a.id = s.emblem_asset_id
+       WHERE s.archived = 0 AND (s.emblem_asset_id IS NULL OR a.status = 'error')`,
+    )
+    .all() as Array<{ id: string }>;
+  for (const r of rows) void generateEmblem(deps, r.id).catch(() => undefined);
+  return rows.length;
+}
+
 /** S-2/S-3: index a source; status streams on the bus. */
 export function addSource(
   deps: JobDeps,

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("boots Three + Phaser and lists classes from the server, no console errors", async ({
+test("boots Three + Phaser and opens the lobby with Schools from the server, no console errors", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -18,7 +18,9 @@ test("boots Three + Phaser and lists classes from the server, no console errors"
   }));
   expect(info).toMatchObject({ three: "186", route: "boot", world: true });
   expect(info.phaser).toMatch(/^4\./);
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: "docs/screens/m2-boot.png" });
+  await expect(page.getByRole("heading", { name: "Your Schools" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Found a new School" })).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: "docs/screens/m3-lobby.png" });
   expect(errors).toEqual([]);
 });
