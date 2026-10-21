@@ -127,6 +127,15 @@ function view(d: DebriefView, classroomId: string, schoolId: string): HTMLElemen
             d.passed ? "Passed" : `Below the ${pctOf(d.passThreshold)} pass mark`,
           ),
           d.xpEarned > 0 && h("span", { class: "chip gold" }, `+${d.xpEarned} XP`),
+          d.openBook &&
+            h(
+              "span",
+              {
+                class: "chip",
+                title: "You checked your sources (/source) within the hour before this exam.",
+              },
+              "Open-book",
+            ),
         ),
       ),
     ),

@@ -1,3 +1,4 @@
+import { peekedRecently } from "./sourceCheck.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {
   DebriefContentZ,
@@ -70,11 +71,25 @@ export function createExam(
       `Teach at least ${Math.round(unlockTaughtFraction * 100)}% of this module first (${e.taught} of ${e.total} concepts so far).`,
     );
   const examId = newId("exam");
+  // V6-06: an exam right after I checked my sources is an open-book one.
+  const schoolId = (
+    deps.handle.sqlite
+      .prepare("SELECT school_id s FROM classrooms WHERE id = ?")
+      .get(input.classroomId) as { s: string } | undefined
+  )?.s;
+  const openBook = schoolId ? peekedRecently(deps.handle, schoolId) : false;
   deps.handle.sqlite
     .prepare(
-      "INSERT INTO exams (id, classroom_id, module_id, status, pass_threshold, created_at) VALUES (?, ?, ?, 'generating', ?, ?)",
+      "INSERT INTO exams (id, classroom_id, module_id, status, pass_threshold, open_book, created_at) VALUES (?, ?, ?, 'generating', ?, ?, ?)",
     )
-    .run(examId, input.classroomId, input.moduleId, passThreshold, new Date().toISOString());
+    .run(
+      examId,
+      input.classroomId,
+      input.moduleId,
+      passThreshold,
+      openBook ? 1 : 0,
+      new Date().toISOString(),
+    );
   const emit = (status: "generating" | "ready" | "error", detail?: string) =>
     deps.bus?.emit({
       type: "exam.status",
@@ -352,13 +367,14 @@ export function debriefView(
   const { sqlite } = handle;
   const exam = sqlite
     .prepare(
-      "SELECT e.classroom_id, e.module_id, e.pass_threshold, e.class_average, m.title FROM exams e JOIN modules m ON m.id = e.module_id WHERE e.id = ?",
+      "SELECT e.classroom_id, e.module_id, e.pass_threshold, e.class_average, e.open_book, m.title FROM exams e JOIN modules m ON m.id = e.module_id WHERE e.id = ?",
     )
     .get(examId) as
     | {
         classroom_id: string;
         module_id: string;
         pass_threshold: number;
+        open_book: number;
         class_average: number | null;
         title: string;
       }
@@ -464,6 +480,7 @@ export function debriefView(
     classAverage,
     passed: classAverage >= exam.pass_threshold,
     passThreshold: exam.pass_threshold,
+    openBook: exam.open_book === 1,
     concepts,
     heatmap,
     teacherErrors: errors,

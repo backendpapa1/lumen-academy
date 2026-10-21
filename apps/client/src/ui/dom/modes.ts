@@ -16,7 +16,12 @@ const guest = h("aside", {
   hidden: true,
   "aria-label": "Guest lecturer",
 });
-document.querySelector("#stage")!.append(banner, panel, guest);
+const source = h("aside", {
+  class: "guest-card source-card card",
+  hidden: true,
+  "aria-label": "From your sources",
+});
+document.querySelector("#stage")!.append(banner, panel, guest, source);
 
 let marked = new Set<number>();
 let markedFor: string | null = null;
@@ -39,6 +44,7 @@ function render(c: ClassroomState, route: string) {
     );
   }
   renderGuest(c, live);
+  renderSource(c, live);
   const tb = c.teachBack;
   panel.hidden = !live || !(tb || c.analogy || c.eli || c.sub);
   if (panel.hidden) return;
@@ -388,6 +394,41 @@ function renderGuest(c: ClassroomState, live: boolean) {
       "p",
       { class: "dim small", style: "margin-bottom:0" },
       `Only you hear the guest; your class learns from you. ${g.left} visit${g.left === 1 ? "" : "s"} left this week.`,
+    ),
+  );
+}
+
+// --- V6-06 /source -------------------------------------------------------------------
+
+function renderSource(c: ClassroomState, live: boolean) {
+  const p = c.sourcePassage;
+  source.hidden = !live || !p || !!c.guest;
+  if (!p || source.dataset.for === p.text) return;
+  source.dataset.for = p.text;
+  const ref = `${p.source}${p.heading ? ` › ${p.heading}` : ""}${p.page ? ` (p.${p.page})` : ""}`;
+  fill(
+    source,
+    h(
+      "div",
+      { class: "row", style: "gap:8px" },
+      h("div", { class: "micro", style: "flex:1" }, "From your sources"),
+      h(
+        "button",
+        { class: "btn small quiet", onclick: () => app.dismissSource(), "aria-label": "Close" },
+        "×",
+      ),
+    ),
+    h("p", { class: "dim small", style: "margin:4px 0" }, `Checking: “${p.query}”`),
+    h("p", { class: "guest-answer" }, p.text.length > 900 ? `${p.text.slice(0, 897)}…` : p.text),
+    h(
+      "p",
+      { class: "dim small" },
+      p.url ? h("a", { href: p.url, target: "_blank", rel: "noreferrer" }, ref) : ref,
+    ),
+    h(
+      "p",
+      { class: "dim small", style: "margin-bottom:0" },
+      "Only you see this. An exam set in the next hour counts as open-book.",
     ),
   );
 }

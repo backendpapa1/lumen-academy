@@ -1,3 +1,4 @@
+import { checkSource } from "../game/sourceCheck.js";
 import { askGuest, guestsLeft } from "../game/guest.js";
 import { AnalogyLab, EliLadder, SubstituteLessonRunner, type ModeHost } from "./modeRunners.js";
 import { withUsageContext } from "../usage/meter.js";
@@ -233,6 +234,8 @@ export class ClassroomConnection {
             this.send({ type: "exit.result", payload: { ticketId: msg.payload.ticketId, ...r } });
           return;
         }
+        case "source.check":
+          return await this.checkSource(msg.payload.text);
         case "guest.invite":
           return await this.inviteGuest(msg.payload.question);
         case "analogy.judge":
@@ -813,6 +816,24 @@ export class ClassroomConnection {
         ...s,
       },
     });
+  }
+
+  /** V6-06: the passage of my sources matching what I just said. Students never see it. */
+  private async checkSource(text?: string) {
+    const session = this.requireSession();
+    const toast = (t: string) => this.send({ type: "toast", payload: { level: "info", text: t } });
+    if (!this.rt.embedder) return toast("Checking your sources needs an OpenAI key in .env.");
+    const q =
+      text?.trim() || [...session.lines].reverse().find((l) => l.speaker === "Teacher")?.text;
+    if (!q) return toast("Say something first (or /source <what to check>).");
+    const p = await withUsageContext({ periodId: session.periodId }, () =>
+      checkSource(
+        { handle: this.rt.handle, embedder: this.rt.embedder! },
+        { schoolId: this.scope?.schoolId ?? "", periodId: session.periodId, query: q },
+      ),
+    );
+    if (!p) return toast("Nothing in your sources matches that.");
+    this.send({ type: "source.passage", payload: p });
   }
 
   /**

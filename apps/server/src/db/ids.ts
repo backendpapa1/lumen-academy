@@ -22,6 +22,8 @@ export const ID_PREFIXES = {
   asset: "ast",
   parked: "prk",
   sticker: "stk",
+  peek: "pek",
+  term: "trm",
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIXES;

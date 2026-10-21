@@ -1,3 +1,5 @@
+import { parseExamDate, studyPlan } from "../game/studyPlan.js";
+import { dayIn } from "../game/campus.js";
 import { glossaryFor } from "../speech/glossary.js";
 import { captionsToSource, fetchYouTube, youtubeId } from "../ingest/sources/youtube.js";
 import { fetchArticle } from "../ingest/sources/web.js";
@@ -394,6 +396,34 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
         }),
       );
     return reply.code(202).send({ accepted: true, title });
+  });
+
+  /** V6-07: "I have an exam on Friday". A date, a weekday or "in 5 days"; null clears it. */
+  const GoalZ = z.strictObject({ when: z.string().trim().max(40).nullable() });
+  app.put<{ Params: { id: string } }>("/api/schools/:id/goal", async (req, reply) => {
+    const s = school(req.params.id);
+    if (!s) return reply.code(404).send({ error: "no such School" });
+    const body = GoalZ.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: "When is the exam?" });
+    if (body.data.when === null) {
+      sqlite.prepare("UPDATE schools SET exam_date = NULL WHERE id = ?").run(s.id);
+      return { plan: null };
+    }
+    const today = dayIn(deps.game.streak.timezone, new Date());
+    const date = parseExamDate(body.data.when, today);
+    if (!date)
+      return reply.code(400).send({ error: 'Try a date, a weekday ("Friday") or "in 5 days".' });
+    if (date < today) return reply.code(400).send({ error: "That date has passed." });
+    if (Date.parse(date) - Date.parse(today) > 366 * 86_400_000)
+      return reply.code(400).send({ error: "Pick a date within the next year." });
+    sqlite.prepare("UPDATE schools SET exam_date = ? WHERE id = ?").run(date, s.id);
+    return { plan: studyPlan(deps.handle, deps.game, s.id) };
+  });
+
+  app.get<{ Params: { id: string } }>("/api/schools/:id/plan", async (req, reply) => {
+    const s = school(req.params.id);
+    if (!s) return reply.code(404).send({ error: "no such School" });
+    return { plan: studyPlan(deps.handle, deps.game, s.id) };
   });
 
   /** V6-04: read a photo of notes on this machine; I correct the text before it's ingested. */

@@ -1,3 +1,4 @@
+import { planStrip } from "./planStrip";
 import { openModePicker } from "./modePicker";
 import { api, ApiError, type SchoolDetail, type SourceRow } from "../../core/api";
 import { SERVER_HTTP } from "../../core/net";
@@ -41,7 +42,7 @@ export function mountSchool(root: HTMLElement, schoolId: string): () => void {
   const header = h("header", { class: "topbar" });
   const tabs = h("div", { class: "seg tabs", role: "tablist", "aria-label": "School sections" });
   const panel = h("section", { role: "tabpanel" });
-  root.append(h("div", { class: "wrap" }, header, tabs, panel));
+  root.append(h("div", { class: "wrap" }, header, planStrip(schoolId), tabs, panel));
 
   let tab: Tab | null = null;
   let unmountPanel: (() => void) | null = null;

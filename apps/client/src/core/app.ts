@@ -301,6 +301,9 @@ export const app = {
       }
       case "assign":
         return this.notify("At the bell, “Set homework” takes you straight to the Class Desk.");
+      case "source":
+        ensureNet().send("source.check", arg ? { text: arg } : {});
+        return;
       case "guest":
         ensureNet().send("guest.invite", arg ? { question: arg } : {});
         return;
@@ -309,7 +312,7 @@ export const app = {
         return void this.park(arg);
       default:
         return this.notify(
-          "Lectern commands: /board <text> (| for a new line, /board clear) · /park <thought> · /guest <question> · /focus · /recap · /assign",
+          "Lectern commands: /board <text> (| for a new line, /board clear) · /park <thought> · /source · /guest <question> · /focus · /recap · /assign",
         );
     }
   },
@@ -395,6 +398,9 @@ export const app = {
       delete classroom.event;
       return { classroom };
     });
+  },
+  dismissSource() {
+    store.setState((s) => ({ classroom: { ...s.classroom, sourcePassage: null } }));
   },
   dismissGuest() {
     store.setState((s) => ({ classroom: { ...s.classroom, guest: null } }));

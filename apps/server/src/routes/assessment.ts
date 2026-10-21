@@ -76,7 +76,7 @@ export function registerAssessmentRoutes(app: FastifyInstance, deps: ExamDeps) {
       .all(c.id);
     const exams = sqlite
       .prepare(
-        `SELECT e.id, e.module_id AS moduleId, m.title AS moduleTitle, e.status, e.class_average AS classAverage, e.pass_threshold AS passThreshold, e.created_at AS createdAt
+        `SELECT e.id, e.module_id AS moduleId, m.title AS moduleTitle, e.status, e.class_average AS classAverage, e.pass_threshold AS passThreshold, e.open_book AS openBook, e.created_at AS createdAt
          FROM exams e JOIN modules m ON m.id = e.module_id WHERE e.classroom_id = ? ORDER BY e.created_at DESC`,
       )
       .all(c.id);
@@ -156,7 +156,7 @@ export function registerAssessmentRoutes(app: FastifyInstance, deps: ExamDeps) {
   app.get<{ Params: { id: string } }>("/api/exams/:id", async (req, reply) => {
     const e = sqlite
       .prepare(
-        "SELECT e.id, e.classroom_id AS classroomId, e.module_id AS moduleId, m.title AS moduleTitle, e.status, e.class_average AS classAverage, e.pass_threshold AS passThreshold FROM exams e JOIN modules m ON m.id = e.module_id WHERE e.id = ?",
+        "SELECT e.id, e.classroom_id AS classroomId, e.module_id AS moduleId, m.title AS moduleTitle, e.status, e.class_average AS classAverage, e.pass_threshold AS passThreshold, e.open_book AS openBook FROM exams e JOIN modules m ON m.id = e.module_id WHERE e.id = ?",
       )
       .get(req.params.id) as Record<string, unknown> | undefined;
     if (!e) return reply.code(404).send({ error: "no such exam" });

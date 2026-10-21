@@ -24,6 +24,8 @@ export const schools = sqliteTable("schools", {
   accentColor: text("accent_color"),
   campusSlot: integer("campus_slot").notNull(),
   archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+  /** V6-07: "I have an exam on Friday": the date (YYYY-MM-DD) the plan works back from. */
+  examDate: text("exam_date"),
   createdAt: createdAt(),
 });
 
@@ -331,6 +333,8 @@ export const exams = sqliteTable(
     status: text("status", { enum: ["generating", "ready", "running", "done"] }).notNull(),
     passThreshold: real("pass_threshold").notNull().default(0.7),
     classAverage: real("class_average"),
+    /** V6-06: set when I looked at my sources (/source) shortly before. */
+    openBook: integer("open_book", { mode: "boolean" }).notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [index("exams_classroom").on(t.classroomId)],
@@ -539,3 +543,49 @@ export const stickers = sqliteTable(
   },
   (t) => [index("stickers_classroom").on(t.classroomId, t.createdAt)],
 );
+
+/** V6-06: each time I checked myself against my sources in class (/source). */
+export const sourcePeeks = sqliteTable(
+  "source_peeks",
+  {
+    id: text("id").primaryKey(),
+    schoolId: text("school_id")
+      .notNull()
+      .references(() => schools.id),
+    periodId: text("period_id"),
+    query: text("query").notNull(),
+    chunkId: text("chunk_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("source_peeks_school").on(t.schoolId, t.createdAt)],
+);
+
+/** V6-08: the glossary wall: terms I defined, in my words, checked against the key facts. */
+export const glossaryTerms = sqliteTable(
+  "glossary_terms",
+  {
+    id: text("id").primaryKey(),
+    schoolId: text("school_id")
+      .notNull()
+      .references(() => schools.id),
+    term: text("term").notNull(),
+    definition: text("definition").notNull(),
+    /** false when the Director found it disagrees with the key facts. */
+    agrees: integer("agrees", { mode: "boolean" }).notNull().default(true),
+    note: text("note"),
+    conceptId: text("concept_id"),
+    periodId: text("period_id"),
+    createdAt: createdAt(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("glossary_school_term").on(t.schoolId, t.term)],
+);
+
+/** V6-09: the diagram on the board in a period (boxes, arrows, labels), as objects. */
+export const diagrams = sqliteTable("diagrams", {
+  periodId: text("period_id")
+    .primaryKey()
+    .references(() => periods.id),
+  json: text("json").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});

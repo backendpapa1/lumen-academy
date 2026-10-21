@@ -92,6 +92,8 @@ export interface DebriefView {
   classAverage: number;
   passed: boolean;
   passThreshold: number;
+  /** V6-06: I checked my sources (/source) within the hour before setting it. */
+  openBook?: boolean;
   concepts: ConceptResult[];
   /** score per cadet per concept, 0..1 */
   heatmap: Array<{ cadetId: string; name: string; scores: Record<string, number> }>;

@@ -138,6 +138,8 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
       reason: z.string().max(600),
     }),
   ),
+  /** V6-06: show me the passage of my sources that matches what I just said. */
+  msg("source.check", z.strictObject({ text: z.string().max(1000).optional() })),
   /** V5-09: invite the guest lecturer (on a question, or the class's latest one). */
   msg("guest.invite", z.strictObject({ question: z.string().max(500).optional() })),
   /** V5-08: I object to the substitute's line i; finish ends the lesson. */
@@ -412,6 +414,18 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       reasonScore: z.number(),
       feedback: z.string(),
       breaks: z.string(),
+    }),
+  ),
+  /** V6-06: the matching passage from my sources (mine only). */
+  msg(
+    "source.passage",
+    z.strictObject({
+      query: z.string(),
+      text: z.string(),
+      source: z.string(),
+      heading: z.string(),
+      page: z.number().nullable(),
+      url: z.string().nullable(),
     }),
   ),
   /** V5-09: the guest lecturer's answer, from my sources only, with references. */

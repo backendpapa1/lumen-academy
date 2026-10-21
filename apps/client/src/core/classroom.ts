@@ -153,6 +153,8 @@ export interface ClassroomState {
     objections: Record<number, { planted: boolean; correction: string }>;
     result?: ServerMessageOf<"sub.result">["payload"];
   } | null;
+  /** V6-06: the passage of my sources I asked to see (to me only). */
+  sourcePassage: ServerMessageOf<"source.passage">["payload"] | null;
   /** V5-09: the guest lecturer's latest answer (to me only). */
   guest: ServerMessageOf<"guest.answer">["payload"] | null;
   /** V5-03: the teach-back to mark, then its result. */
@@ -197,6 +199,7 @@ export const initialClassroom = (): ClassroomState => ({
   eli: null,
   sub: null,
   guest: null,
+  sourcePassage: null,
   hyperfocus: false,
 });
 
@@ -322,6 +325,8 @@ export function applyServerMessage(
         ...s,
         cadets: { ...s.cadets, [m.payload.cadet.id]: { ...m.payload.cadet } },
       };
+    case "source.passage":
+      return { ...s, sourcePassage: m.payload };
     case "guest.answer":
       return { ...s, guest: m.payload };
     case "analogy.cards":
