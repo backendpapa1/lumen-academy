@@ -294,6 +294,8 @@ export type GameConfig = z.infer<typeof GameConfigZ>;
 export const ArtPromptsConfigZ = z.strictObject({
   style: z.record(z.string(), z.string()).refine((s) => "global" in s, "style.global is required"),
   constraints: z.record(z.string(), z.string()),
+  templates: z.strictObject({ portrait: z.string(), emblem: z.string() }),
+  archetypeVisual: z.record(z.string(), z.string()),
 });
 export type ArtPromptsConfig = z.infer<typeof ArtPromptsConfigZ>;
 

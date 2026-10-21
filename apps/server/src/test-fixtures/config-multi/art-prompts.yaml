@@ -18,3 +18,29 @@ style:
 constraints:
   default: "No text. No words. No letters. No watermark."
   transparent_fallback: "Plain solid #00FF00 chroma-green background, no shadow on background."
+
+# Prompt templates (docs/07 §2). {{style.x}}, {{constraints.x}} and {{var}}
+# are filled in code (apps/server/src/assets/prompts.ts).
+templates:
+  portrait: >
+    {{style.global}} {{style.portrait}}
+    Subject: {{ageRange}} {{genderPresentation}} cadet of {{heritageHint}} heritage
+    from {{homeworld}}. Personality reads as {{archetypeVisual}}.
+    Distinctive detail: {{visualQuirk}}. Hair: {{hair}}. Accent color: {{accent}}.
+    Isolated on a fully transparent background, nothing behind the figure.
+    {{constraints.default}}
+  emblem: >
+    {{style.global}} {{style.emblem}}
+    Symbolizes the subject "{{schoolName}}": {{emblemMotifs}}.
+    {{constraints.default}}
+
+# How each archetype reads on a face (docs/07 §2.1).
+archetypeVisual:
+  skeptic: sharp, appraising gaze, one brow slightly raised
+  lost_signal: earnest, slightly puzzled, open expression
+  overachiever: bright, eager, intensely focused
+  literalist: precise, composed, attentive to detail
+  connector: warm, curious, a hint of a smile
+  pragmatist: grounded, practical, steady eye contact
+  quiet: thoughtful, reserved, soft gaze
+  saboteur: confident, faintly mischievous half-smile

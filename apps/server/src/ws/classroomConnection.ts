@@ -13,6 +13,7 @@ import { cadets, classrooms, ledgerEntries, schools } from "../db/schema.js";
 import { ClassSession } from "../game/ClassSession.js";
 import { rewriteNotes } from "../game/notes.js";
 import { awardXp, periodXp, settleTeachingMinutes, standing, type XpScope } from "../game/xp.js";
+import type { AssetService } from "../assets/service.js";
 import type { Embedder } from "../ingest/embed.js";
 import type { ModelFactory } from "../models/factory.js";
 import { BudgetPausedError, type UsageMeter } from "../usage/meter.js";
@@ -27,9 +28,13 @@ export interface Runtime {
   meter: UsageMeter;
   game: GameConfig;
   embedder?: Embedder;
+  /** Image generation; absent in tests and when no OpenAI key is set. */
+  assets?: AssetService;
   /** Recaps and notes are on by default; tests switch them off. */
   extras?: { recaps?: boolean; notes?: boolean };
 }
+
+export const assetUrl = (id: string) => `/api/assets/${id}`;
 
 export class ClassroomConnection {
   private session: ClassSession | null = null;
@@ -39,10 +44,26 @@ export class ClassroomConnection {
   private streamSeq = 0;
   private readonly unsubscribe: () => void;
 
+  private readonly offAssets: () => void;
+
   constructor(
     private readonly rt: Runtime,
     private readonly sendRaw: (frame: string) => void,
   ) {
+    this.offAssets =
+      rt.assets?.onSettled((a) =>
+        this.send({
+          type: "asset.ready",
+          payload: {
+            assetId: a.id,
+            kind: a.kind,
+            ownerType: a.ownerType,
+            ownerId: a.ownerId,
+            status: a.status === "ready" ? "ready" : "error",
+            url: a.status === "ready" ? assetUrl(a.id) : null,
+          },
+        }),
+      ) ?? (() => {});
     this.unsubscribe = rt.meter.onStateChange((state) => {
       const text = {
         warn: "You've used 80% of this month's AI budget.",
@@ -108,6 +129,7 @@ export class ClassroomConnection {
   close(): Promise<void> {
     this.closing ??= (async () => {
       this.unsubscribe();
+      this.offAssets();
       const session = this.session;
       this.session = null;
       if (session) await session.suspend();
@@ -389,10 +411,19 @@ export class ClassroomConnection {
         seat: row.seat,
         homeworld: row.homeworld,
         quirk: row.quirk,
+        portraitUrl: this.portraitUrl(row.portraitAssetId),
         comprehension: ledger?.c ?? 0,
         state: r.lastState as ReactionState,
       };
     });
+  }
+
+  private portraitUrl(assetId: string | null): string | null {
+    if (!assetId) return null;
+    const a = this.rt.handle.sqlite
+      .prepare("SELECT status FROM assets WHERE id = ?")
+      .get(assetId) as { status: string } | undefined;
+    return a?.status === "ready" ? assetUrl(assetId) : null;
   }
 
   private sendCost() {

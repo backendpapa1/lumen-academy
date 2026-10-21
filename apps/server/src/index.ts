@@ -1,7 +1,9 @@
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { OpenAIImages } from "./assets/images.js";
+import { AssetService } from "./assets/service.js";
 import { buildApp } from "./app.js";
 import { findConfigDir, loadConfig } from "./config/load.js";
-import { dbPath, loadDotEnv } from "./config/paths.js";
+import { dataDir, dbPath, loadDotEnv } from "./config/paths.js";
 import { openDb, runMigrations } from "./db/client.js";
 import { OpenAIEmbedder } from "./ingest/embed.js";
 import { ModelFactory } from "./models/factory.js";
@@ -21,11 +23,23 @@ const meter = new UsageMeter({
 });
 const factory = new ModelFactory({ config: config.models, env: process.env, meter });
 const embedder = new OpenAIEmbedder({ config: config.models, env: process.env, meter });
+const assetsDir = join(dataDir(config), "generated");
+// Images need an OpenAI key; without one the game keeps its silhouettes.
+const assets = process.env[config.models.providers.openai.apiKeyEnv]
+  ? new AssetService({
+      handle,
+      gen: new OpenAIImages({ config: config.models, env: process.env, meter }),
+      art: config.artPrompts,
+      pricing: config.pricing,
+      dir: assetsDir,
+    })
+  : undefined;
 
 const app = await buildApp({
   config,
   logger: true,
-  runtime: { handle, factory, meter, embedder, game: config.game },
+  assetsDir,
+  runtime: { handle, factory, meter, embedder, assets, game: config.game },
 });
 await app.listen({ host: HOST, port: config.env.LUMEN_PORT });
 

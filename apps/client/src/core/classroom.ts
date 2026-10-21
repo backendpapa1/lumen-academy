@@ -124,6 +124,12 @@ export function applyServerMessage(
           text: t.text,
         })),
       };
+    case "asset.ready": {
+      const { ownerType, ownerId, status, url } = m.payload;
+      const c = ownerType === "cadet" && ownerId ? s.cadets[ownerId] : undefined;
+      if (!c || status !== "ready") return s;
+      return { ...s, cadets: { ...s.cadets, [c.id]: { ...c, portraitUrl: url } } };
+    }
     case "xp.update":
       return {
         ...s,

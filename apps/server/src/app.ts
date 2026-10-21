@@ -3,6 +3,7 @@ import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance } from "fastify";
 import { APP_NAME, WS_PATH } from "@lumen/shared";
 import type { AppConfig } from "./config/load.js";
+import { registerAssetRoutes } from "./routes/assets.js";
 import { registerClassroomRoutes } from "./routes/classrooms.js";
 import { ClassroomConnection, type Runtime } from "./ws/classroomConnection.js";
 import { parseClientFrame, wsError } from "./ws/handler.js";
@@ -14,12 +15,15 @@ export interface AppDeps {
   config: AppConfig;
   /** DB, models and meter. Without it the server only answers health and ping. */
   runtime?: Runtime;
+  /** Where generated images live (<dataDir>/generated). */
+  assetsDir?: string;
   logger?: boolean;
 }
 
 export async function buildApp({
   config,
   runtime,
+  assetsDir,
   logger = false,
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger });
@@ -34,6 +38,7 @@ export async function buildApp({
     time: new Date().toISOString(),
   }));
   if (runtime) registerClassroomRoutes(app, runtime.handle);
+  if (runtime && assetsDir) registerAssetRoutes(app, runtime.handle, assetsDir);
 
   // Open periods must finish closing (DB writes) before the server shuts down.
   const connections = new Set<ClassroomConnection>();

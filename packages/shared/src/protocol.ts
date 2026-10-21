@@ -32,6 +32,8 @@ export const CadetViewZ = z.object({
   /** On the current concept, 0..1. */
   comprehension: z.number(),
   state: ReactionStateZ,
+  /** Portrait image URL (server-relative), once generated. */
+  portraitUrl: z.string().nullable().optional(),
 });
 export type CadetView = z.infer<typeof CadetViewZ>;
 
@@ -120,6 +122,18 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
   msg(
     "xp.update",
     z.strictObject({ delta: z.number(), reason: z.string(), standing: XpStandingZ }),
+  ),
+  /** A generated image is ready (or failed). url is server-relative: /api/assets/<id>. */
+  msg(
+    "asset.ready",
+    z.strictObject({
+      assetId: z.string(),
+      kind: z.string(),
+      ownerType: z.string().nullable(),
+      ownerId: z.string().nullable(),
+      status: z.enum(["ready", "error"]),
+      url: z.string().nullable(),
+    }),
   ),
   msg("period.paused", z.strictObject({ paused: z.boolean(), elapsedMs: z.number() })),
   /** "Last time…" arrives after period.started so starting a class never waits on it. */

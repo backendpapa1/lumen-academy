@@ -72,6 +72,23 @@ describe("applyServerMessage", () => {
     expect(elapsedMs(s, 530_000)).toBe(90_000);
   });
 
+  it("attaches a cadet's portrait when its asset is ready", () => {
+    const ready = (status: "ready" | "error", ownerId = "c1"): ServerMessage => ({
+      type: "asset.ready",
+      payload: {
+        assetId: "ast_1",
+        kind: "portrait",
+        ownerType: "cadet",
+        ownerId,
+        status,
+        url: status === "ready" ? "/api/assets/ast_1" : null,
+      },
+    });
+    expect(run([started, ready("error")]).cadets.c1!.portraitUrl).toBeUndefined();
+    expect(run([started, ready("ready", "nobody")]).cadets.c1!.portraitUrl).toBeUndefined();
+    expect(run([started, ready("ready")]).cadets.c1!.portraitUrl).toBe("/api/assets/ast_1");
+  });
+
   it("takes XP gains live", () => {
     const s = run([
       started,
