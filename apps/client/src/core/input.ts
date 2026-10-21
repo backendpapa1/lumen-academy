@@ -19,11 +19,6 @@ interface HudControls {
   readonly hasOpen: boolean;
 }
 
-const NOT_YET = {
-  hyperfocus: "Hyperfocus mode isn't built yet. It comes with the P1 features.",
-  notes: "Peeking at a cadet's notes isn't built yet. It comes with the P1 features.",
-};
-
 export function installKeyboard(game: Phaser.Game): void {
   window.addEventListener("keydown", (e) => {
     const st = store.getState();
@@ -93,11 +88,11 @@ export function installKeyboard(game: Phaser.Game): void {
       case "mute":
         app.notify(sound.toggleMute() ? "Sound off (M to turn it back on)." : "Sound on.");
         break;
-      case "notYet":
-        if (action.feature === "notes") void import("../ui/dom/notes").then((m) => m.toggleNotes());
-        else if (action.feature === "hyperfocus")
-          void import("./hyperfocus").then((m) => m.toggleHyperfocus());
-        else app.notify(NOT_YET[action.feature]);
+      case "notes":
+        void import("../ui/dom/notes").then((m) => m.toggleNotes());
+        break;
+      case "hyperfocus":
+        void import("./hyperfocus").then((m) => m.toggleHyperfocus());
         break;
     }
     e.preventDefault();

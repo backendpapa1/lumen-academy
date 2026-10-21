@@ -19,8 +19,8 @@ describe("routeKey", () => {
     expect(routeKey(ctx(" "))).toEqual({ do: "callSelected" });
     expect(routeKey(ctx("3"))).toEqual({ do: "callPosition", index: 2 });
     expect(routeKey(ctx("Escape"))).toEqual({ do: "pause" });
-    expect(routeKey(ctx("F"))).toEqual({ do: "notYet", feature: "hyperfocus" });
-    expect(routeKey(ctx("n"))).toEqual({ do: "notYet", feature: "notes" });
+    expect(routeKey(ctx("F"))).toEqual({ do: "hyperfocus" });
+    expect(routeKey(ctx("n"))).toEqual({ do: "notes" });
     expect(routeKey(ctx("`"))).toEqual({ do: "transcript" });
     expect(routeKey(ctx("r"))).toEqual({ do: "roster" });
     expect(routeKey(ctx("p"))).toEqual({ do: "stats" });

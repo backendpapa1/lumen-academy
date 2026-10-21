@@ -28,7 +28,8 @@ export type KeyAction =
   | { do: "roster" }
   | { do: "stats" }
   | { do: "mute" }
-  | { do: "notYet"; feature: "hyperfocus" | "notes" };
+  | { do: "hyperfocus" }
+  | { do: "notes" };
 
 const NONE: KeyAction = { do: "none" };
 
@@ -55,9 +56,9 @@ export function routeKey(k: KeyContext): KeyAction {
     case "m":
       return { do: "mute" };
     case "f":
-      return { do: "notYet", feature: "hyperfocus" };
+      return { do: "hyperfocus" };
     case "n":
-      return { do: "notYet", feature: "notes" };
+      return { do: "notes" };
   }
   return NONE;
 }
