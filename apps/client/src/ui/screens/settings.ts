@@ -1,5 +1,6 @@
 import { api, ApiError, type Settings } from "../../core/api";
 import { app } from "../../core/app";
+import { sound } from "../../core/audio";
 import { h } from "./dom";
 import { openModal } from "./modal";
 
@@ -77,6 +78,18 @@ function form(s: Settings, close: () => void): HTMLElement {
       `Class period (${s.minMinutes}–${s.maxMinutes} minutes)`,
     ),
     minutes,
+    h(
+      "label",
+      { class: "row", style: "gap:8px;margin-top:14px;font-size:14px" },
+      (() => {
+        const box = h("input", { type: "checkbox", checked: !sound.muted });
+        box.addEventListener("change", () => {
+          if (box.checked === sound.muted) sound.toggleMute();
+        });
+        return box;
+      })(),
+      "Sound (ambient pads and cues; M toggles anywhere)",
+    ),
     keys,
     err,
     h(

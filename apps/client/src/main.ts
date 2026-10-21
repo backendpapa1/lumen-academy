@@ -15,6 +15,7 @@ import { world } from "./world/anchors";
 import { WorldDirector } from "./world/WorldDirector";
 import { app } from "./core/app";
 import { installKeyboard } from "./core/input";
+import { installSound, sound } from "./core/audio";
 import { statsOverlay } from "./ui/dom/stats";
 
 const worldCanvas = document.querySelector<HTMLCanvasElement>("#world");
@@ -87,6 +88,7 @@ function applyRoute() {
 }
 store.subscribe(applyRoute);
 
+if (view !== "gallery") installSound();
 if (view === "campus-demo") {
   // Visual check: one wing per tier, 0 Blueprint → 4 Landmark (no server).
   const campus = new CampusScene();
@@ -135,6 +137,7 @@ declare global {
       receive(m: ServerMessage): void;
       world: typeof world;
       app: typeof app;
+      sound: typeof sound;
     };
   }
 }
@@ -147,5 +150,6 @@ window.__lumen = {
   stats: director.stats,
   world,
   app,
+  sound,
   receive: (m) => store.setState((s) => ({ classroom: applyServerMessage(s.classroom, m) })),
 };

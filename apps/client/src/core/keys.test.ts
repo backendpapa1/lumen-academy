@@ -24,6 +24,7 @@ describe("routeKey", () => {
     expect(routeKey(ctx("`"))).toEqual({ do: "transcript" });
     expect(routeKey(ctx("r"))).toEqual({ do: "roster" });
     expect(routeKey(ctx("p"))).toEqual({ do: "stats" });
+    expect(routeKey(ctx("m"))).toEqual({ do: "mute" });
   });
 
   it("lets the lectern own typing, but not Tab, Esc, or Space when empty", () => {
