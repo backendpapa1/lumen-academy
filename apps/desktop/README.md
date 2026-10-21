@@ -45,3 +45,45 @@ The packages land in `apps/desktop/src-tauri/target/release/bundle/{deb,appimage
 - `cd apps/desktop/src-tauri && cargo build` gives a debug build at `target/debug/lumen-academy`.
 
 Linux build needs: `libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev patchelf`, plus Rust.
+
+## Android
+
+The same Tauri project builds an Android app for arm64 phones on Android 10 or newer. The whole of Lumen runs on the phone: its Node server runs inside the app, and the game opens in the app's window. Classes still run online on DeepSeek, and indexing and pictures on OpenAI.
+
+**Installing it:** copy the `.apk` to the phone and open it, or connect the phone over USB and run `adb install -r <the apk>`. Some phones (Xiaomi, for one) ask you to tap **Install** on the phone, and need "Install via USB" switched on in the developer options.
+
+**First launch:**
+
+1. Lumen unpacks itself, which takes a little while, once.
+2. The keys page opens. Paste each key, test it, then save.
+3. The game opens on the campus.
+
+On the phone:
+
+- Your keys are encrypted with a key kept in the Android Keystore.
+- Your data lives inside the app. Use a School's export and import to move it between devices.
+- Students speak with the phone's own voices (Android's text-to-speech).
+- Hold-to-talk uses the phone's speech recogniser. It asks for the microphone the first time.
+- A quiet notification shows while Lumen runs. Swiping the app away stops it, unless a class or a curriculum build is still going.
+
+**Building it:**
+
+```bash
+rustup target add aarch64-linux-android
+export ANDROID_HOME=~/Android/Sdk NDK_HOME=~/Android/Sdk/ndk/<version> JAVA_HOME=<a JDK 17>
+pnpm --filter @lumen/desktop android:debug   # a debug APK
+pnpm --filter @lumen/desktop android:build   # a signed release APK
+```
+
+The APKs land in `src-tauri/gen/android/app/build/outputs/apk/arm64/{debug,release}/`.
+
+`android:bundle` (`scripts/bundle-android.mjs`) builds what the app carries beside its Rust and Kotlin code:
+
+- In `jniLibs/arm64-v8a/`:
+  - `libld.so`, glibc's loader;
+  - `libsigsys.so`, a small supervisor built from `android/sigsys.c` with the NDK.
+- `assets/lumen-runtime.tar.xz`, which holds:
+  - Node for linux-arm64 and Debian's glibc, both checked against their published hashes;
+  - the server bundle with arm64 natives, without Kokoro.
+
+Release signing reads `src-tauri/gen/android/keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`), else `~/.config/lumen-android/keystore.properties`, or the `LUMEN_KEYSTORE`, `LUMEN_KEYSTORE_PASSWORD`, `LUMEN_KEY_ALIAS` and `LUMEN_KEY_PASSWORD` variables. Keep the keystore outside the repo, and use the same one for every release: Android installs an update only when it's signed with the same key.

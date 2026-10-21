@@ -31,6 +31,8 @@ function paintData() {
 
 async function load() {
   setup = await invoke("get_setup");
+  // The Android app (ADR-012): no folder choice or login item; Close goes back to the game.
+  document.body.dataset.platform = setup.platform ?? "desktop";
   paintKey("deepseek");
   paintKey("openai");
   paintData();
@@ -94,7 +96,10 @@ $("autostart").onchange = async (e) => {
     say(`Couldn't change that: ${err}`, true);
   }
 };
-$("close").onclick = () => window.__TAURI__.window.getCurrentWindow().close();
+$("close").onclick = () =>
+  setup?.platform === "android"
+    ? invoke("plugin:lumen|open_game")
+    : window.__TAURI__.window.getCurrentWindow().close();
 $("save").onclick = async (e) => {
   const b = e.currentTarget;
   b.disabled = true;

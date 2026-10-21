@@ -1,3 +1,8 @@
+/* Pages for one platform only (the Android app has no folder choice: ADR-012). */
+body[data-platform="android"] [data-only="desktop"],
+body:not([data-platform="android"]) [data-only="android"] {
+  display: none !important;
+}
 .cfg {
   width: min(560px, calc(100vw - 32px));
   margin: 0 auto;
