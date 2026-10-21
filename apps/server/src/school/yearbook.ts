@@ -167,6 +167,12 @@ export function yearbookMarkdown(handle: DbHandle, game: GameConfig, schoolId: s
     .all(schoolId) as Array<{ cadetId: string; kind: StickerKind; reason: string }>;
   if (students.length) {
     out.push("## Your students", "");
+    // V7-02: class photos saved at graduation.
+    const photos = sqlite
+      .prepare("SELECT id, name FROM classrooms WHERE school_id = ? AND photo_svg IS NOT NULL")
+      .all(schoolId) as Array<{ id: string; name: string }>;
+    for (const p of photos)
+      out.push(`![${p.name}, class photo](/api/classrooms/${p.id}/photo.svg)`, "");
     if (given.length) out.push(`${given.length} stickers on the corkboard.`, "");
     for (const st of students) {
       const arc = ARCS[st.archetype];

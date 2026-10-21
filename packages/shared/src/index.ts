@@ -8,3 +8,4 @@ export * from "./speech.js";
 export * from "./arcs.js";
 export * from "./modes.js";
 export * from "./diagram.js";
+export * from "./upgrades.js";

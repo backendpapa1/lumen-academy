@@ -198,6 +198,11 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       glossary: z.array(GlossaryTermZ).optional(),
       /** V6-09: the diagram on the board this period, if I drew one. */
       diagram: DiagramZ.optional(),
+      /** V7-01: room upgrades in this classroom, and which are new since the last class. */
+      upgrades: z.array(z.string()).optional(),
+      newUpgrades: z.array(z.string()).optional(),
+      /** V7-01: the School's accent and emblem for the subject poster. */
+      emblemUrl: z.string().nullable().optional(),
     }),
   ),
   /** XP just earned (e.g. answering a cadet's question). */

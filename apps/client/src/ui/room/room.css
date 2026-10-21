@@ -865,3 +865,104 @@
 .board-text.with-diagram .b-wall {
   display: none;
 }
+/* V7-01 room upgrades, in the room's line style. */
+.room .upgrades path,
+.room .upgrades rect,
+.room .upgrades circle {
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.room .upgrades .poster {
+  fill: var(--marigold-wash);
+}
+.room .upgrades .poster-shadow {
+  fill: var(--cobalt);
+  stroke: none;
+}
+.room .upgrades .poster-mark {
+  fill: var(--coral);
+}
+.room .upgrades .poster-initial {
+  font: 400 26px var(--font-display);
+  fill: #fff;
+}
+.room .upgrades .poster-term {
+  font: 700 12px var(--font-ui);
+  fill: var(--navy);
+  text-transform: uppercase;
+}
+.room .upgrades .bowl {
+  fill: rgba(255, 255, 255, 0.55);
+}
+.room .upgrades .water {
+  fill: var(--sky);
+  stroke: none;
+}
+.room .upgrades .fish path {
+  fill: var(--coral);
+  stroke-width: 1.5;
+}
+.room .upgrades .fish {
+  animation: swim 6s ease-in-out infinite;
+}
+@keyframes swim {
+  50% {
+    transform: translateX(-12px);
+  }
+}
+.room .upgrades .bubble-dot {
+  fill: #fff;
+  stroke-width: 1;
+}
+.room .upgrades .cat-body,
+.room .upgrades .cat-head {
+  fill: var(--marigold);
+}
+.room .upgrades .cat-tail,
+.room .upgrades .cat-eye,
+.room .upgrades .wire,
+.room .upgrades .stand,
+.room .upgrades .arc {
+  fill: none;
+}
+.room .upgrades .shelf {
+  fill: var(--paper);
+}
+.room .upgrades .beanbag {
+  fill: var(--coral);
+}
+.room .upgrades .bulb {
+  stroke-width: 1.5;
+}
+.room .upgrades .bulb.b0 {
+  fill: var(--marigold);
+}
+.room .upgrades .bulb.b1 {
+  fill: var(--coral-wash);
+}
+.room .upgrades .bulb.b2 {
+  fill: var(--leaf-wash);
+}
+.room.night .upgrades .bulb,
+.room.focus .upgrades .bulb {
+  filter: drop-shadow(0 0 6px var(--marigold));
+}
+.room .upgrades .earth {
+  fill: var(--sky);
+}
+.room .upgrades .land {
+  fill: var(--leaf);
+  stroke-width: 1.5;
+}
+.room .upgrades .rug {
+  fill: var(--coral-wash);
+  stroke-width: 2;
+  opacity: 0.85;
+}
+.room .upgrades .rug-stripe {
+  fill: none;
+  stroke: var(--coral);
+  stroke-width: 6;
+  opacity: 0.35;
+}

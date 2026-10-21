@@ -1,3 +1,5 @@
+import { openClassPhoto } from "./classPhoto";
+import { openDecorate } from "./decorate";
 import { planStrip } from "./planStrip";
 import { openModePicker } from "./modePicker";
 import { api, ApiError, type SchoolDetail, type SourceRow } from "../../core/api";
@@ -574,6 +576,17 @@ function mountClasses(root: HTMLElement, schoolId: string): () => void {
                 { class: "btn", onclick: () => openModePicker(c.id) },
                 "Other ways to teach",
               ),
+            graduated
+              ? h(
+                  "button",
+                  { class: "btn primary", onclick: () => openClassPhoto(c.id) },
+                  "Class photo",
+                )
+              : h(
+                  "button",
+                  { class: "btn quiet", onclick: () => openDecorate(c.id, c.name) },
+                  "Decorate",
+                ),
             h(
               "button",
               {

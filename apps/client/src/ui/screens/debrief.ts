@@ -150,6 +150,16 @@ function view(d: DebriefView, classroomId: string, schoolId: string): HTMLElemen
             { class: "dim", style: "margin:4px 0 0" },
             "Every module passed. Your students graduate, and the School's building grows.",
           ),
+          // V7-02: everyone in caps and gowns for the photo.
+          h(
+            "button",
+            {
+              class: "btn primary",
+              style: "margin-top:12px",
+              onclick: () => void import("./classPhoto").then((m) => m.openClassPhoto(classroomId)),
+            },
+            "Take the class photo",
+          ),
         )
       : h("span"),
     d.analysis

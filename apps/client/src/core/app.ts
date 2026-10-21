@@ -1,4 +1,4 @@
-import type { Diagram, PeriodKind, ServerMessage } from "@lumen/shared";
+import { UPGRADES, type Diagram, type PeriodKind, type ServerMessage } from "@lumen/shared";
 import {
   api,
   type ArchivedSchool,
@@ -64,6 +64,15 @@ function receive(m: ServerMessage) {
   if (m.type === "period.started") rememberHair(m.payload.cadets.map((c) => [c.id, c.hair]));
   if (m.type === "registration.arrival") rememberHair([[m.payload.cadet.id, m.payload.cadet.hair]]);
   if (m.type === "cadet.joined") rememberHair([[m.payload.cadet.id, m.payload.cadet.hair]]);
+  // V7-01: the class notices what's new in the room.
+  if (m.type === "period.started" && m.payload.newUpgrades?.length) {
+    const kids = m.payload.cadets;
+    m.payload.newUpgrades.forEach((item, i) => {
+      const u = UPGRADES.find((x) => x.item === item);
+      const who = kids[(i * 3 + 1) % Math.max(1, kids.length)]?.name.split(" ")[0];
+      if (u && who) setTimeout(() => app.notify(`${who}: “${u.react}”`), 1500 + i * 2500);
+    });
+  }
   // V4-03/06: growth moments and stickers get their own little cheer.
   if (m.type === "cadet.arc" && m.payload.moment)
     queueMicrotask(() => app.notify(m.payload.moment));

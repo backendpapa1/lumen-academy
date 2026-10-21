@@ -64,7 +64,7 @@ export async function buildApp({
     profile: config.models.profile,
     time: new Date().toISOString(),
   }));
-  if (runtime) registerClassroomRoutes(app, runtime.handle);
+  if (runtime) registerClassroomRoutes(app, runtime.handle, runtime.game);
   if (runtime && assetsDir) registerAssetRoutes(app, runtime.handle, assetsDir);
   if (runtime) {
     registerSettingsRoutes(app, runtime.handle, config);

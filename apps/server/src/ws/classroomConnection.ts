@@ -1,3 +1,5 @@
+import { newSinceLastPeriod, upgradeState } from "../game/upgrades.js";
+import { schoolDecalUrl } from "../game/campus.js";
 import { diagramText, type Diagram } from "@lumen/shared";
 import { loadDiagram, saveDiagram } from "../game/diagrams.js";
 import { pinDefinitions, wallTerms } from "../game/glossaryWall.js";
@@ -395,6 +397,9 @@ export class ClassroomConnection {
         stickers: recentStickers(handle, room.id),
         hotSeat: session.hotSeat,
         glossary: wallTerms(handle, school.id),
+        upgrades: upgradeState(handle, game, room.id).chosen,
+        newUpgrades: session.resumed ? [] : newSinceLastPeriod(handle, room.id, session.periodId),
+        emblemUrl: schoolDecalUrl(handle, school.id),
         ...(() => {
           const d = loadDiagram(handle, session.periodId);
           return d ? { diagram: d } : {};

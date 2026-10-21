@@ -1,5 +1,6 @@
 import { REACTION_GLYPHS, type Diagram, type ReactionState } from "@lumen/shared";
 import { arrowEnds, type Point } from "./sketch";
+import { upgradeArt } from "./upgradeArt";
 import type { CadetState, ClassroomState } from "../../core/classroom";
 import { app } from "../../core/app";
 import { store } from "../../core/store";
@@ -214,6 +215,7 @@ function roomMarkup(): string {
       <rect class="marker m3" x="728" y="364" width="54" height="9" rx="3"/>
       <rect class="eraser" x="900" y="358" width="70" height="16"/>
     </g>
+    <g class="upgrades"></g>
     <g class="desks"></g>
     <g class="teacher-desk">
       <rect class="td-top" x="-20" y="936" width="${W + 40}" height="80"/>
@@ -386,6 +388,7 @@ export class Room {
     }
     this.board(c);
     this.corkboard(c);
+    this.upgrades(c);
     // V6-09: the saved diagram, unless I'm drawing (then the editor draws).
     if (!this.drawing) this.renderDiagram(c.diagram);
     this.boardText.classList.toggle("with-diagram", hasObjects(this.drawing ?? c.diagram));
@@ -547,6 +550,20 @@ export class Room {
           : ""
       }
       ${parked ? `<div class="b-sticky" title="Parked thoughts: they wait for you at the bell"><b>${parked}</b>parked</div>` : ""}`;
+  }
+
+  /** V7-01: room upgrades on their fixed spots (the rug sits under the desks). */
+  private upgrades(c: ClassroomState) {
+    const g = this.root.querySelector<SVGGElement>(".upgrades");
+    if (!g) return;
+    const term = c.glossary[0]?.term ?? null;
+    const key = `${c.upgrades.join(",")}|${term}|${c.emblemUrl}`;
+    if (g.dataset.key === key) return;
+    g.dataset.key = key;
+    const ctx = { emblemUrl: c.emblemUrl, term, school: c.school?.name ?? "" };
+    // The rug first, so everything else sits on top of it.
+    const order = [...c.upgrades].sort((a, b) => (a === "rug" ? -1 : b === "rug" ? 1 : 0));
+    g.innerHTML = order.map((u) => upgradeArt(u, ctx)).join("");
   }
 
   /** V4-06: the class's stickers, pinned over the corkboard notes (latest on top). */

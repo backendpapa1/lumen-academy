@@ -6,6 +6,7 @@ import type {
   ServerMessage,
   ServerMessageOf,
   Diagram,
+  UpgradeItem,
   PeriodKind,
   StickerView,
   XpStanding,
@@ -154,6 +155,9 @@ export interface ClassroomState {
     objections: Record<number, { planted: boolean; correction: string }>;
     result?: ServerMessageOf<"sub.result">["payload"];
   } | null;
+  /** V7-01: room upgrades in this classroom, and the School's emblem for the poster. */
+  upgrades: UpgradeItem[];
+  emblemUrl: string | null;
   /** V6-09: the diagram on the board this period. */
   diagram: Diagram | null;
   /** V6-08: the glossary wall, latest first. */
@@ -207,6 +211,8 @@ export const initialClassroom = (): ClassroomState => ({
   sourcePassage: null,
   glossary: [],
   diagram: null,
+  upgrades: [],
+  emblemUrl: null,
   hyperfocus: false,
 });
 
@@ -241,6 +247,8 @@ export function applyServerMessage(
         hotSeat: m.payload.hotSeat ?? null,
         glossary: m.payload.glossary ?? [],
         diagram: m.payload.diagram ?? null,
+        upgrades: (m.payload.upgrades ?? []) as UpgradeItem[],
+        emblemUrl: m.payload.emblemUrl ?? null,
         energy: m.payload.energy ?? null,
         transcript: m.payload.transcript.map((t) => ({
           speaker: t.cadetId ? "cadet" : "headmaster",
