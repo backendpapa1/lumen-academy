@@ -70,6 +70,7 @@ const TABLES: Array<[table: string, where: string]> = [
   ["parking_lot", "school_id = :school"],
   ["stickers", "classroom_id IN (SELECT id FROM classrooms WHERE school_id = :school)"],
   ["glossary_terms", "school_id = :school"],
+  ["study_notes", "school_id = :school"],
   ["room_upgrades", "classroom_id IN (SELECT id FROM classrooms WHERE school_id = :school)"],
   ["trophies", "school_id = :school"],
   ["source_peeks", "school_id = :school"],

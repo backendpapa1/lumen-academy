@@ -5,15 +5,20 @@
   background: var(--paper-2);
 }
 .sh-wrap {
-  max-width: 1280px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 28px 24px 40px;
+  padding: 24px 24px 40px;
 }
 .sh-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 18px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
+}
+.sh-top .sh-school {
+  width: auto;
+  max-width: 260px;
 }
 .sh-top .display {
   font-size: 44px;
@@ -21,7 +26,7 @@
 }
 .sh-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+  grid-template-columns: minmax(0, 1.8fr) minmax(320px, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -255,11 +260,128 @@
 .sh-side .lot {
   margin-top: 0;
 }
+/* The timer sits in the header: always there, never loud. */
+.sh-timer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--paper);
+  border: var(--line);
+  box-shadow: var(--shadow-sm);
+}
 .sh-digits {
-  margin: 8px 0 12px;
-  font: 400 72px var(--font-display);
+  min-width: 96px;
+  font: 400 34px var(--font-display);
   color: var(--navy);
   line-height: 1;
+}
+.sh-company {
+  margin: -6px 0 0;
+}
+
+/* --- the reader --------------------------------------------------------------- */
+.sh-reader {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 150px);
+  min-height: 520px;
+  padding: 0;
+  overflow: hidden;
+}
+.sh-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: var(--line);
+  background: var(--paper);
+}
+.sh-bar select {
+  width: auto;
+  max-width: 340px;
+}
+.sh-title {
+  font: 700 15px var(--font-ui);
+  color: var(--navy);
+}
+.sh-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: #fff;
+}
+.sh-pdf {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.sh-text {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 28px 48px;
+  font: 400 17px/1.65 var(--font-body);
+  color: var(--ink);
+}
+.sh-text h3 {
+  margin: 28px 0 8px;
+  font: 700 18px var(--font-ui);
+  color: var(--cobalt);
+}
+.sh-text h4 {
+  margin: 20px 0 6px;
+  font: 700 15px var(--font-ui);
+  color: var(--navy);
+}
+.sh-text p {
+  margin: 0 0 12px;
+}
+.sh-text ::selection {
+  background: var(--marigold-wash);
+}
+.sh-pagemark {
+  margin: 18px 0 6px;
+  color: var(--ink-dim);
+  border-top: 1px dashed var(--cobalt-wash);
+  padding-top: 4px;
+}
+.sh-empty {
+  margin: auto;
+  max-width: 420px;
+  padding: 32px;
+  text-align: center;
+}
+.pad {
+  padding: 16px;
+}
+
+/* --- the notebook ------------------------------------------------------------- */
+.field.sh-notebook {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 300px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  resize: vertical;
+  font: 400 15px/23px var(--font-body);
+  /* Ruled like a notebook, one rule under each line of text. */
+  background-image: linear-gradient(transparent 22px, rgba(42, 64, 255, 0.1) 22px);
+  background-size: 100% 23px;
+  background-position: 0 10px;
+  background-attachment: local;
+}
+.sh-side .sh-scene {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+@media (max-width: 900px) {
+  .sh-reader {
+    height: 70vh;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

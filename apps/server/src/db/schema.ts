@@ -634,3 +634,12 @@ export const trophies = sqliteTable("trophies", {
   note: text("note").notNull().default(""),
   createdAt: text("created_at").notNull(),
 });
+
+/** Paul's note: one study notebook per School, written in the study hall. */
+export const studyNotes = sqliteTable("study_notes", {
+  schoolId: text("school_id")
+    .primaryKey()
+    .references(() => schools.id),
+  body: text("body").notNull().default(""),
+  updatedAt: text("updated_at").notNull(),
+});

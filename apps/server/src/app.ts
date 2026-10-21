@@ -14,6 +14,7 @@ import { registerClassroomRoutes } from "./routes/classrooms.js";
 import { registerSchoolRoutes } from "./routes/schools.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
 import { registerSpeechRoutes } from "./routes/speech.js";
+import { registerStudyRoutes } from "./routes/study.js";
 import { EventBus } from "./events.js";
 import { backfillEmblems } from "./jobs.js";
 import { ClassroomConnection, type Runtime } from "./ws/classroomConnection.js";
@@ -65,6 +66,7 @@ export async function buildApp({
     time: new Date().toISOString(),
   }));
   if (runtime) registerClassroomRoutes(app, runtime.handle, runtime.game);
+  if (runtime) registerStudyRoutes(app, runtime.handle);
   if (runtime && assetsDir) registerAssetRoutes(app, runtime.handle, assetsDir);
   if (runtime) {
     registerSettingsRoutes(app, runtime.handle, config);
