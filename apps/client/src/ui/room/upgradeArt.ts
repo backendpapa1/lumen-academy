@@ -49,7 +49,8 @@ export function upgradeArt(
         <path class="cat-tail" d="M-40 20 C -54 14 -54 0 -44 -2"/>
         <path class="cat-eye" d="M28 2 q3 2 6 0 M38 2 q3 2 6 0"/></g>`;
     case "reading_corner":
-      return `<g class="u-reading" transform="translate(24 868)">
+      // On the floor left of the desks, clear of the teaching bar.
+      return `<g class="u-reading" transform="translate(28 560)">
         <rect class="shelf" x="0" y="0" width="76" height="110"/>
         <line class="shelf-line" x1="0" y1="52" x2="76" y2="52"/>
         <rect class="book b1" x="6" y="12" width="12" height="40"/><rect class="book b2" x="20" y="18" width="10" height="34"/>
@@ -59,13 +60,15 @@ export function upgradeArt(
     case "string_lights": {
       const bulbs = Array.from({ length: 14 }, (_, i) => {
         const x = 30 + i * 82;
-        const y = 22 + Math.sin((i / 13) * Math.PI * 3) * 6 + 10;
+        const y = 66 + Math.sin((i / 13) * Math.PI * 3) * 5;
         return `<circle class="bulb b${i % 3}" cx="${x}" cy="${y + 6}" r="6"/>`;
       }).join("");
-      return `<g class="u-lights"><path class="wire" d="M10 24 Q 300 60 600 30 T 1200 30"/>${bulbs}</g>`;
+      // Draped over the windows and the board, below the HUD strip.
+      return `<g class="u-lights"><path class="wire" d="M10 70 Q 300 96 600 74 T 1200 74"/>${bulbs}</g>`;
     }
     case "globe":
-      return `<g class="u-globe" transform="translate(1290 832)">
+      // On my desk, on top of the stack of books.
+      return `<g class="u-globe" transform="translate(1400 826)">
         <path class="stand" d="M-18 46 h36 M0 46 v-8"/>
         <path class="arc" d="M-28 4 A 30 30 0 0 0 26 22"/>
         <circle class="earth" cx="0" cy="8" r="24"/>
