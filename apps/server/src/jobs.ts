@@ -54,7 +54,7 @@ export async function generateEmblem(deps: JobDeps, schoolId: string): Promise<v
   };
   const accent = s.accent ?? schoolAccent(s.slot);
   const motifs = await emblemMotifs(deps.factory, s).catch(
-    () => "an abstract geometric seal of light",
+    () => "an open book with a small star above it",
   );
   const asset = deps.assets.request({
     kind: "emblem",

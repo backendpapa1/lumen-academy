@@ -157,7 +157,7 @@ function view(d: DebriefView, classroomId: string, schoolId: string): HTMLElemen
               h("span", { style: `width:${pctOf(c.score)};background:${heat(c.score)}` }),
             ),
             c.score < d.passThreshold &&
-              c.references.length &&
+              c.references.length > 0 &&
               h(
                 "details",
                 {},

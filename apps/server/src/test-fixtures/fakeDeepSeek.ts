@@ -120,7 +120,7 @@ export const agentOf = (body: FakeRequest) => {
   if (sys.includes("You direct the crowd")) return "crowdReactor";
   if (sys.includes("You are the Class Director")) return "classDirector";
   if (sys.includes("You are the Registrar")) return "registrar";
-  if (sys.includes("You design emblems")) return "artDirector";
+  if (sys.includes("You design badges")) return "artDirector";
   if (sys.includes("You are the Examiner")) return "examiner";
   if (sys.includes("You are the Debrief Analyst")) return "debriefAnalyst";
   if (sys.includes("You grade a student's answer")) return "grader";

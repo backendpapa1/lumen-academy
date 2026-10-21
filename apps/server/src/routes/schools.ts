@@ -78,6 +78,14 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
   });
 
   // P-6: the Yearbook, your study notes from everything you taught.
+  // S-4: draw the emblem again (e.g. in the new style); the old one shows until it lands.
+  app.post<{ Params: { id: string } }>("/api/schools/:id/emblem", async (req, reply) => {
+    if (!school(req.params.id)) return reply.code(404).send({ error: "no such School" });
+    if (!deps.assets) return reply.code(503).send({ error: "Image generation isn't set up." });
+    void generateEmblem(deps, req.params.id).catch(() => undefined);
+    return reply.code(202).send({ ok: true });
+  });
+
   // Archive puts a School away (off the lobby and the campus) without deleting
   // anything; restore brings it back exactly as it was.
   app.get("/api/schools/archived", async () =>

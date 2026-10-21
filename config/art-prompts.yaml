@@ -14,8 +14,8 @@ style:
   emblem: >
     A school badge: one simple, memorable symbolic object for the subject, drawn
     big and centered inside a round badge, accent colour {{accent}} used for one
-    or two shapes, a plain solid #E3F6FF background filling the square, readable at
-    small sizes, no letters, no numbers.
+    or two shapes, on a transparent background, readable at small sizes, no letters,
+    no numbers.
   space: >
     Deep-space backdrop in the style of long-exposure astrophotography. Only gas,
     dust and stars: no buildings, no rooms, no furniture, no spacecraft, no

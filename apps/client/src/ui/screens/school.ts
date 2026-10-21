@@ -78,6 +78,28 @@ export function mountSchool(root: HTMLElement, schoolId: string): () => void {
             "button",
             {
               class: "btn quiet",
+              id: "redraw-emblem",
+              title: "Draw this School's emblem again, in the illustrated style",
+              onclick: async () => {
+                const ok = await confirmDialog(
+                  "Redraw the emblem?",
+                  "A new badge in the illustrated style, drawn by the image model (about 4 cents). The current one stays until the new one is ready.",
+                  "Redraw emblem",
+                );
+                if (!ok) return;
+                await api
+                  .post(`/api/schools/${s.id}/emblem`)
+                  .then(() => app.notify("Drawing a new emblem. It appears here in a minute."))
+                  .catch((e: Error) => app.notify(e.message, "error"));
+              },
+            },
+            icon(ICONS.sparkle),
+            "Redraw emblem",
+          ),
+          h(
+            "button",
+            {
+              class: "btn quiet",
               id: "archive-school",
               onclick: async () => {
                 const ok = await confirmDialog(
