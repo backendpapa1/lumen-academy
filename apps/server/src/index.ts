@@ -3,6 +3,7 @@ import { OpenAIImages } from "./assets/images.js";
 import { AssetService } from "./assets/service.js";
 import { buildApp } from "./app.js";
 import { findConfigDir, loadConfig } from "./config/load.js";
+import { activeProfile } from "@lumen/shared";
 import { dataDir, dbPath, loadDotEnv } from "./config/paths.js";
 import { openDb, runMigrations } from "./db/client.js";
 import { OpenAIEmbedder } from "./ingest/embed.js";
@@ -20,6 +21,7 @@ const meter = new UsageMeter({
   db: handle.db,
   pricing: config.pricing,
   budget: config.models.budget,
+  imageModel: activeProfile(config.models).image.model,
 });
 const factory = new ModelFactory({ config: config.models, env: process.env, meter });
 const embedder = new OpenAIEmbedder({ config: config.models, env: process.env, meter });
@@ -39,6 +41,7 @@ const app = await buildApp({
   config,
   logger: true,
   assetsDir,
+  dataDir: dataDir(config),
   runtime: { handle, factory, meter, embedder, assets, game: config.game },
 });
 await app.listen({ host: HOST, port: config.env.LUMEN_PORT });

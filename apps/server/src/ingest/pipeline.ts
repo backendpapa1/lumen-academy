@@ -13,7 +13,7 @@ export interface IngestDeps {
   embedder: Embedder;
   /** Uploaded files are copied to <dataDir>/uploads/. */
   dataDir: string;
-  onStatus?: (status: SourceStatus, detail?: string) => void;
+  onStatus?: (status: SourceStatus, detail?: string, sourceId?: string) => void;
 }
 
 export type SourceStatus = "queued" | "parsing" | "embedding" | "ready" | "error";
@@ -47,7 +47,7 @@ export async function ingestSource(deps: IngestDeps, input: IngestInput): Promis
       .set({ status, ...extra })
       .where(eq(sources.id, sourceId))
       .run();
-    deps.onStatus?.(status, extra.error ?? undefined);
+    deps.onStatus?.(status, extra.error ?? undefined, sourceId);
   };
 
   let filePath: string | undefined;

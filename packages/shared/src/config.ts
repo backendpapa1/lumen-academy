@@ -32,6 +32,7 @@ export const AGENT_NAMES = [
   "recapWriter",
   "yearbookEditor",
   "alumniPinger",
+  "artDirector",
 ] as const;
 export const AgentNameZ = z.enum(AGENT_NAMES);
 export type AgentName = z.infer<typeof AgentNameZ>;
@@ -112,6 +113,8 @@ export const BudgetZ = z
     softWarnAt: z.number().gt(0).lt(1), // fraction of cap → toast
     degradeAt: z.number().gt(0).max(1), // fraction of cap → all roles to fastest
     onCap: z.enum(["degrade_then_pause", "pause"]), // at 100% of cap agents pause
+    /** Image spend allowed inside the monthly cap (docs/07 §6). */
+    imagesUsdCap: z.number().nonnegative().default(5),
   })
   .refine((b) => b.softWarnAt <= b.degradeAt, "softWarnAt must be <= degradeAt");
 

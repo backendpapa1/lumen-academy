@@ -20,7 +20,9 @@
     "cli:curriculum": "pnpm --filter @lumen/server cli:curriculum",
     "cli:register": "pnpm --filter @lumen/server cli:register",
     "eval:agents": "pnpm --filter @lumen/server eval:agents",
-    "cli:teach": "pnpm --filter @lumen/server cli:teach"
+    "cli:teach": "pnpm --filter @lumen/server cli:teach",
+    "assets:gen": "pnpm --filter @lumen/server assets:gen",
+    "assets:preview": "pnpm --filter @lumen/server assets:gen --preview"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

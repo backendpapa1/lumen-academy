@@ -24,6 +24,7 @@ const budget = {
   softWarnAt: 0.5,
   degradeAt: 0.7,
   onCap: "degrade_then_pause" as const,
+  imagesUsdCap: 1,
 };
 
 describe("budget guard end to end (M1-14)", () => {

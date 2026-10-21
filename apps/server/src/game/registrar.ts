@@ -32,6 +32,8 @@ export interface RegisterInput {
   difficulty?: Difficulty;
   name?: string;
   seed?: number;
+  /** Fires once the Classroom row exists and the cohort size is known. */
+  onCreated?: (classroomId: string, name: string, total: number) => void;
   /** Fires as each cadet is enrolled (RegistrationScene in M3, CLI now). */
   onArrival?: (cadet: RegisteredCadet, index: number, total: number) => void;
 }
@@ -92,64 +94,75 @@ export async function registerClassroom(deps: RegisterDeps, input: RegisterInput
   const plan = planCohort(seed, difficulty, game);
   const enrolled: RegisteredCadet[] = [];
   const taken = new Set<string>();
+  input.onCreated?.(classroomId, name, plan.length);
 
-  for (let start = 0; start < plan.length; start += game.registration.batchSize) {
-    const batch = plan.slice(start, start + game.registration.batchSize);
-    const usedQuirks = enrolled.map((c) => c.quirk);
-    let flavour = await flavourBatch(deps, school, batch, start, taken, usedQuirks);
-    const dupes = flavour.cadets.filter(
-      (c) =>
-        taken.has(c.name.toLowerCase()) ||
-        flavour.cadets.filter((o) => o.name.toLowerCase() === c.name.toLowerCase()).length > 1,
-    );
-    if (dupes.length)
-      flavour = await flavourBatch(
-        deps,
-        school,
-        batch,
-        start,
-        new Set([...taken, ...flavour.cadets.map((c) => c.name.toLowerCase())]),
-        usedQuirks,
+  try {
+    for (let start = 0; start < plan.length; start += game.registration.batchSize) {
+      const batch = plan.slice(start, start + game.registration.batchSize);
+      const usedQuirks = enrolled.map((c) => c.quirk);
+      let flavour = await flavourBatch(deps, school, batch, start, taken, usedQuirks);
+      const dupes = flavour.cadets.filter(
+        (c) =>
+          taken.has(c.name.toLowerCase()) ||
+          flavour.cadets.filter((o) => o.name.toLowerCase() === c.name.toLowerCase()).length > 1,
       );
+      if (dupes.length)
+        flavour = await flavourBatch(
+          deps,
+          school,
+          batch,
+          start,
+          new Set([...taken, ...flavour.cadets.map((c) => c.name.toLowerCase())]),
+          usedQuirks,
+        );
 
-    batch.forEach((p, k) => {
-      const index = start + k + 1;
-      const f = flavour.cadets.find((c) => c.index === index) ?? flavour.cadets[k];
-      if (!f) throw new Error(`Registrar returned no cadet for index ${index}`);
-      if (taken.has(f.name.toLowerCase()))
-        throw new Error(`Registrar repeated the name "${f.name}"`);
-      taken.add(f.name.toLowerCase());
-      const cadet: RegisteredCadet = {
-        ...p,
-        id: newId("cadet"),
-        name: f.name,
-        quirk: f.quirk,
-        voiceNotes: f.voiceNotes,
-        backstory: f.backstory,
-      };
-      handle.db
-        .insert(cadets)
-        .values({
-          id: cadet.id,
-          classroomId,
-          seat: p.seat,
+      batch.forEach((p, k) => {
+        const index = start + k + 1;
+        const f = flavour.cadets.find((c) => c.index === index) ?? flavour.cadets[k];
+        if (!f) throw new Error(`Registrar returned no cadet for index ${index}`);
+        if (taken.has(f.name.toLowerCase()))
+          throw new Error(`Registrar repeated the name "${f.name}"`);
+        taken.add(f.name.toLowerCase());
+        const cadet: RegisteredCadet = {
+          ...p,
+          id: newId("cadet"),
           name: f.name,
-          homeworld: p.homeworld,
-          archetype: p.archetype,
-          traitsJson: JSON.stringify({
-            ...p.traits,
-            appearance: { ...p.appearance, visualQuirk: f.visualQuirk, hair: f.hair },
-          }),
-          learningStyle: p.learningStyle,
           quirk: f.quirk,
           voiceNotes: f.voiceNotes,
-          backstory: f.backstory || null,
-          enrolledAt: now(),
-        })
-        .run();
-      enrolled.push(cadet);
-      input.onArrival?.(cadet, enrolled.length, plan.length);
-    });
+          backstory: f.backstory,
+        };
+        handle.db
+          .insert(cadets)
+          .values({
+            id: cadet.id,
+            classroomId,
+            seat: p.seat,
+            name: f.name,
+            homeworld: p.homeworld,
+            archetype: p.archetype,
+            traitsJson: JSON.stringify({
+              ...p.traits,
+              appearance: { ...p.appearance, visualQuirk: f.visualQuirk, hair: f.hair },
+            }),
+            learningStyle: p.learningStyle,
+            quirk: f.quirk,
+            voiceNotes: f.voiceNotes,
+            backstory: f.backstory || null,
+            enrolledAt: now(),
+          })
+          .run();
+        enrolled.push(cadet);
+        input.onArrival?.(cadet, enrolled.length, plan.length);
+      });
+    }
+  } catch (err) {
+    // A half-registered class can't be taught: archive it so it never shows as active.
+    handle.db
+      .update(classrooms)
+      .set({ status: "archived" })
+      .where(eq(classrooms.id, classroomId))
+      .run();
+    throw err;
   }
 
   handle.db

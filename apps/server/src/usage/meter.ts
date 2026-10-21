@@ -58,6 +58,8 @@ export interface MeterDeps {
   pricing: PricingConfig;
   budget: ModelsConfig["budget"];
   now?: () => Date;
+  /** The image role's model id, for imagePrice(). */
+  imageModel?: string;
 }
 
 /**
@@ -121,6 +123,47 @@ export class UsageMeter {
     if (this.budgetState() === "pause") {
       throw new BudgetPausedError(this.monthUsd, this.deps.budget.monthlyUsdCap);
     }
+  }
+
+  /** Image spend this month (usage_log rows tagged image*). */
+  imageMonthUsd(): number {
+    return (
+      this.deps.db
+        .select({ usd: sql<number>`coalesce(sum(${usageLog.estUsd}), 0)` })
+        .from(usageLog)
+        .where(
+          and(
+            gte(usageLog.ts, startOfMonth(this.now()).toISOString()),
+            sql`${usageLog.agent} LIKE 'image%'`,
+          ),
+        )
+        .get()?.usd ?? 0
+    );
+  }
+
+  /** Price of one image of the configured image model at this quality, if known. */
+  imagePrice(quality: "low" | "medium" | "high", model?: string): number | null {
+    const m = model ?? this.deps.imageModel;
+    if (!m) return null;
+    return estimateUsd(this.deps.pricing, {
+      provider: "openai",
+      model: m,
+      images: 1,
+      imageQuality: quality,
+      at: this.now(),
+    });
+  }
+
+  /** Images left before the image cap, in USD. */
+  imageBudgetLeft(): number {
+    return Math.max(0, (this.deps.budget.imagesUsdCap ?? 5) - this.imageMonthUsd());
+  }
+
+  /** Throws when the whole budget or the image share is spent. */
+  assertCanCallImage(): void {
+    this.assertCanCall();
+    if (this.imageBudgetLeft() <= 0)
+      throw new BudgetPausedError(this.imageMonthUsd(), this.deps.budget.imagesUsdCap ?? 5);
   }
 
   /** Fires on every state transition (ok → warn → degrade → pause, and back at rollover). */

@@ -253,7 +253,13 @@ export function applyServerMessage(
         speech: null,
         hands: [],
       };
+    // School setup progress is handled by the setup screens, not the classroom.
     case "pong":
+    case "source.status":
+    case "curriculum.status":
+    case "registration.started":
+    case "registration.arrival":
+    case "registration.done":
       return s;
   }
 }

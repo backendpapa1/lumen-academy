@@ -14,6 +14,7 @@ const budget: ModelsConfig["budget"] = {
   softWarnAt: 0.8,
   degradeAt: 0.95,
   onCap: "degrade_then_pause",
+  imagesUsdCap: 1,
 };
 const spend = (usd: number) => ({
   agent: "cadetTalk",
@@ -112,5 +113,29 @@ describe("UsageMeter", () => {
     expect(t.monthUsd).toBeCloseTo(3.25);
     expect(t.capUsd).toBe(10);
     expect(meter.totals().periodUsd).toBeNull();
+  });
+});
+
+describe("image budget", () => {
+  it("counts only image spend against imagesUsdCap and refuses past it", async () => {
+    const { openDb, runMigrations } = await import("../db/client.js");
+    const h = openDb(":memory:");
+    runMigrations(h);
+    const pricing = {
+      openai: { models: { "img-x": { perImage: { low: 0.4, medium: 0.4, high: 0.4 } } } },
+      deepseek: { models: {} },
+    } as unknown as ConstructorParameters<typeof UsageMeter>[0]["pricing"];
+    const meter = new UsageMeter({ db: h.db, pricing, budget });
+    meter.record({ agent: "classDirector", provider: "openai", model: "img-x", images: 1 }); // not an image agent
+    expect(meter.imageMonthUsd()).toBe(0);
+    meter.record({ agent: "image:portrait", provider: "openai", model: "img-x", images: 1 });
+    meter.record({ agent: "image:emblem", provider: "openai", model: "img-x", images: 1 });
+    expect(meter.imageMonthUsd()).toBeCloseTo(0.8);
+    expect(meter.imageBudgetLeft()).toBeCloseTo(0.2);
+    expect(() => meter.assertCanCallImage()).not.toThrow();
+    meter.record({ agent: "image:portrait", provider: "openai", model: "img-x", images: 1 });
+    expect(() => meter.assertCanCallImage()).toThrow(BudgetPausedError);
+    expect(() => meter.assertCanCall()).not.toThrow(); // text agents carry on
+    h.close();
   });
 });

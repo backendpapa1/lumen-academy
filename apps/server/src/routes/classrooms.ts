@@ -9,7 +9,12 @@ export function registerClassroomRoutes(app: FastifyInstance, handle: DbHandle) 
   app.get("/api/schools", async () => {
     const schools = sqlite
       .prepare(
-        "SELECT id, name, description, building_tier AS buildingTier FROM schools WHERE archived = 0 ORDER BY campus_slot",
+        `SELECT s.id, s.name, s.description, s.building_tier AS buildingTier, s.accent_color AS accent,
+           CASE WHEN (SELECT status FROM assets a WHERE a.id = s.emblem_asset_id) = 'ready'
+             THEN '/api/assets/' || s.emblem_asset_id END AS emblemUrl,
+           (SELECT count(*) FROM sources x WHERE x.school_id = s.id AND x.status = 'ready') AS sources,
+           (SELECT count(*) FROM concepts c JOIN modules m ON m.id = c.module_id WHERE m.school_id = s.id) AS concepts
+         FROM schools s WHERE s.archived = 0 ORDER BY s.campus_slot`,
       )
       .all() as Array<{ id: string; name: string }>;
     const rooms = sqlite
@@ -19,7 +24,7 @@ export function registerClassroomRoutes(app: FastifyInstance, handle: DbHandle) 
            (SELECT max(p.started_at) FROM periods p WHERE p.classroom_id = c.id) AS lastPeriodAt,
            (SELECT p.elapsed_ms FROM periods p WHERE p.classroom_id = c.id AND p.ended_at IS NULL
               ORDER BY p.started_at DESC LIMIT 1) AS openPeriodElapsedMs
-         FROM classrooms c ORDER BY c.created_at`,
+         FROM classrooms c WHERE c.status != 'archived' ORDER BY c.created_at`,
       )
       .all() as Array<{ schoolId: string }>;
     return schools.map((s) => ({ ...s, classrooms: rooms.filter((r) => r.schoolId === s.id) }));

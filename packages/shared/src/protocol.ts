@@ -135,6 +135,52 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       url: z.string().nullable(),
     }),
   ),
+  /** Background jobs started over REST report here (docs/05 §7.6). */
+  msg(
+    "source.status",
+    z.strictObject({
+      schoolId: z.string(),
+      sourceId: z.string().nullable(),
+      title: z.string(),
+      status: z.enum(["queued", "parsing", "embedding", "ready", "error"]),
+      detail: z.string().optional(),
+    }),
+  ),
+  msg(
+    "curriculum.status",
+    z.strictObject({
+      schoolId: z.string(),
+      status: z.enum(["building", "ready", "error"]),
+      detail: z.string().optional(),
+    }),
+  ),
+  /** Registration (docs/02 §4): the class exists, then cadets arrive one by one. */
+  msg(
+    "registration.started",
+    z.strictObject({
+      classroomId: z.string(),
+      schoolId: z.string(),
+      name: z.string(),
+      total: z.number(),
+    }),
+  ),
+  msg(
+    "registration.arrival",
+    z.strictObject({
+      classroomId: z.string(),
+      cadet: CadetViewZ,
+      index: z.number(),
+      total: z.number(),
+    }),
+  ),
+  msg(
+    "registration.done",
+    z.strictObject({
+      classroomId: z.string(),
+      status: z.enum(["active", "error"]),
+      detail: z.string().optional(),
+    }),
+  ),
   msg("period.paused", z.strictObject({ paused: z.boolean(), elapsedMs: z.number() })),
   /** "Last time…" arrives after period.started so starting a class never waits on it. */
   msg("period.recap", z.strictObject({ periodId: z.string(), text: z.string() })),

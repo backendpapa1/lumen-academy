@@ -63,9 +63,11 @@ agents:
   recapWriter: { role: fast }
   yearbookEditor: { role: standard }
   alumniPinger: { role: fast }
+  artDirector: { role: fast, maxOutputTokens: 120 } # emblem motifs (docs/07 §2.2)
 
 budget:
   monthlyUsdCap: 20
+  imagesUsdCap: 5 # images' share of the cap (docs/07 §6)
   softWarnAt: 0.8 # 80% → toast
   degradeAt: 0.95 # 95% → all roles degrade to fastest (degrade_then_pause only)
   onCap: degrade_then_pause # at 100% agents pause; the cap is hard

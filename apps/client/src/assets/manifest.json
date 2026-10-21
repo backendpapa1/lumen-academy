@@ -1,0 +1,274 @@
+{
+  "version": 1,
+  "defaults": { "quality": "medium" },
+  "assets": [
+    {
+      "id": "boot_key_art",
+      "group": "splash",
+      "style": "global",
+      "size": "1536x1024",
+      "quality": "high",
+      "outPx": 1536,
+      "prompt": "Wide establishing view of an elegant orbital academy: a ring of glass-and-graphite towers with soft cyan light lines, suspended above a banded gas giant at dusk, calm and luminous, lots of quiet negative space in the upper third",
+      "out": "generated/splash/boot.webp"
+    },
+    {
+      "id": "planet_gas_giant_a",
+      "group": "planet",
+      "style": "space",
+      "globalStyle": false,
+      "size": "1536x1024",
+      "outPx": 1536,
+      "prompt": "A flat, full-frame texture map of a gas giant's cloud bands: horizontal stripes of deep teal, indigo and pale gold running edge to edge across the whole image, soft turbulent eddies along the band edges, one oval storm in the lower third. Not a sphere, no planet outline, no space background",
+      "out": "generated/planet/gas_giant_a.webp"
+    },
+    {
+      "id": "nebula_a",
+      "group": "nebula",
+      "style": "space",
+      "globalStyle": false,
+      "size": "1536x1024",
+      "outPx": 1536,
+      "prompt": "Soft deep-space nebula, wisps of indigo and cyan gas on near-black, sparse faint stars, very subtle, no bright centre",
+      "out": "generated/nebula/a.webp"
+    },
+    {
+      "id": "nebula_b",
+      "group": "nebula",
+      "style": "space",
+      "globalStyle": false,
+      "size": "1536x1024",
+      "outPx": 1536,
+      "prompt": "Faint violet and teal nebula filaments drifting diagonally across black space, delicate, low contrast",
+      "out": "generated/nebula/b.webp"
+    },
+    {
+      "id": "nebula_c",
+      "group": "nebula",
+      "style": "space",
+      "globalStyle": false,
+      "size": "1536x1024",
+      "outPx": 1536,
+      "prompt": "Distant warm gold and rose dust cloud at the edge of a dark starfield, soft and dim",
+      "out": "generated/nebula/c.webp"
+    },
+    {
+      "id": "silhouette",
+      "group": "silhouette",
+      "style": "global",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 512,
+      "prompt": "Neutral head-and-shoulders silhouette of an academy cadet in a high-collar uniform, front view, made of soft white light with faint horizontal scanlines, no facial features, isolated on a fully transparent background",
+      "out": "generated/cadets/silhouette.webp"
+    },
+    {
+      "id": "badge_skeptic",
+      "group": "badges",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#FFB547" },
+      "prompt": "Badge symbol: a stylized raised eyebrow merged with a magnifying lens",
+      "out": "generated/badges/skeptic.webp"
+    },
+    {
+      "id": "badge_lost_signal",
+      "group": "badges",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#FF6B6B" },
+      "prompt": "Badge symbol: a radio wave signal arc with one broken, flickering segment",
+      "out": "generated/badges/lost_signal.webp"
+    },
+    {
+      "id": "badge_overachiever",
+      "group": "badges",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#A78BFA" },
+      "prompt": "Badge symbol: an upward arrow piercing a ring of three stars",
+      "out": "generated/badges/overachiever.webp"
+    },
+    {
+      "id": "badge_literalist",
+      "group": "badges",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#22D3EE" },
+      "prompt": "Badge symbol: a precise ruler and a single straight line meeting at a right angle",
+      "out": "generated/badges/literalist.webp"
+    },
+    {
+      "id": "badge_pragmatist",
+      "group": "badges",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#A3E635" },
+      "prompt": "Badge symbol: a simple gear interlocked with a wrench",
+      "out": "generated/badges/pragmatist.webp"
+    },
+    {
+      "id": "badge_connector",
+      "group": "badges",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#2DD4BF" },
+      "prompt": "Badge symbol: three nodes joined by curved links forming a small network",
+      "out": "generated/badges/connector.webp"
+    },
+    {
+      "id": "badge_quiet",
+      "group": "badges",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#94A3B8" },
+      "prompt": "Badge symbol: a crescent moon cradling a small open book",
+      "out": "generated/badges/quiet.webp"
+    },
+    {
+      "id": "badge_saboteur",
+      "group": "badges",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#F472B6" },
+      "prompt": "Badge symbol: a playing card with a small lightning bolt across it",
+      "out": "generated/badges/saboteur.webp"
+    },
+    {
+      "id": "rank_cadet_instructor",
+      "group": "ranks",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#5BE7FF" },
+      "prompt": "Rank insignia: a single chevron under a small star",
+      "out": "generated/ranks/cadet_instructor.webp"
+    },
+    {
+      "id": "rank_lecturer",
+      "group": "ranks",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#5BE7FF" },
+      "prompt": "Rank insignia: two chevrons under a small star",
+      "out": "generated/ranks/lecturer.webp"
+    },
+    {
+      "id": "rank_professor",
+      "group": "ranks",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#F5C66B" },
+      "prompt": "Rank insignia: three chevrons crowned by a laurel arc and a star",
+      "out": "generated/ranks/professor.webp"
+    },
+    {
+      "id": "rank_dean",
+      "group": "ranks",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#F5C66B" },
+      "prompt": "Rank insignia: a shield with a star and two laurel branches",
+      "out": "generated/ranks/dean.webp"
+    },
+    {
+      "id": "rank_chancellor",
+      "group": "ranks",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#F5C66B" },
+      "prompt": "Rank insignia: a radiant hexagonal seal with three stars",
+      "out": "generated/ranks/chancellor.webp"
+    },
+    {
+      "id": "rank_archon",
+      "group": "ranks",
+      "style": "emblem",
+      "size": "1024x1024",
+      "transparent": true,
+      "outPx": 256,
+      "vars": { "accent": "#F5C66B" },
+      "prompt": "Rank insignia: an orbit ring around a bright star, with wings of light",
+      "out": "generated/ranks/archon.webp"
+    },
+    {
+      "id": "panel_hull",
+      "group": "panels",
+      "style": "texture",
+      "size": "1024x1024",
+      "outPx": 1024,
+      "prompt": "Graphite spaceship hull plates with fine seams and tiny rivets",
+      "out": "generated/panels/hull.webp"
+    },
+    {
+      "id": "panel_floor",
+      "group": "panels",
+      "style": "texture",
+      "size": "1024x1024",
+      "outPx": 1024,
+      "prompt": "Dark polished floor tiles with thin cyan inlay lines in a hexagonal pattern",
+      "out": "generated/panels/floor.webp"
+    },
+    {
+      "id": "panel_glass_frame",
+      "group": "panels",
+      "style": "texture",
+      "size": "1024x1024",
+      "outPx": 1024,
+      "prompt": "Brushed titanium window frame trim, clean bevels",
+      "out": "generated/panels/glass_frame.webp"
+    },
+    {
+      "id": "panel_trim",
+      "group": "panels",
+      "style": "texture",
+      "size": "1024x1024",
+      "outPx": 1024,
+      "prompt": "Navy composite trim panel with a single glowing cyan strip",
+      "out": "generated/panels/trim.webp"
+    },
+    {
+      "id": "panel_holo_grid",
+      "group": "panels",
+      "style": "texture",
+      "size": "1024x1024",
+      "outPx": 1024,
+      "prompt": "Faint holographic grid of thin cyan lines on deep navy",
+      "out": "generated/panels/holo_grid.webp"
+    },
+    {
+      "id": "panel_vent",
+      "group": "panels",
+      "style": "texture",
+      "size": "1024x1024",
+      "outPx": 1024,
+      "prompt": "Slotted graphite vent panel with soft inner glow",
+      "out": "generated/panels/vent.webp"
+    }
+  ]
+}

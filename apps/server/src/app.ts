@@ -5,6 +5,8 @@ import { APP_NAME, WS_PATH } from "@lumen/shared";
 import type { AppConfig } from "./config/load.js";
 import { registerAssetRoutes } from "./routes/assets.js";
 import { registerClassroomRoutes } from "./routes/classrooms.js";
+import { registerSchoolRoutes } from "./routes/schools.js";
+import { EventBus } from "./events.js";
 import { ClassroomConnection, type Runtime } from "./ws/classroomConnection.js";
 import { parseClientFrame, wsError } from "./ws/handler.js";
 
@@ -17,6 +19,8 @@ export interface AppDeps {
   runtime?: Runtime;
   /** Where generated images live (<dataDir>/generated). */
   assetsDir?: string;
+  /** Uploads go to <dataDir>/uploads. Needed for the School setup routes. */
+  dataDir?: string;
   logger?: boolean;
 }
 
@@ -24,6 +28,7 @@ export async function buildApp({
   config,
   runtime,
   assetsDir,
+  dataDir,
   logger = false,
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger });
@@ -39,6 +44,16 @@ export async function buildApp({
   }));
   if (runtime) registerClassroomRoutes(app, runtime.handle);
   if (runtime && assetsDir) registerAssetRoutes(app, runtime.handle, assetsDir);
+  if (runtime) {
+    runtime.bus ??= new EventBus();
+    if (dataDir)
+      await registerSchoolRoutes(app, {
+        ...runtime,
+        bus: runtime.bus,
+        art: config.artPrompts,
+        dataDir,
+      });
+  }
 
   // Open periods must finish closing (DB writes) before the server shuts down.
   const connections = new Set<ClassroomConnection>();

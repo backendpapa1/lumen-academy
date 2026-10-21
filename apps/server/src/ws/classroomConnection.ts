@@ -14,6 +14,7 @@ import { ClassSession } from "../game/ClassSession.js";
 import { rewriteNotes } from "../game/notes.js";
 import { awardXp, periodXp, settleTeachingMinutes, standing, type XpScope } from "../game/xp.js";
 import type { AssetService } from "../assets/service.js";
+import type { EventBus } from "../events.js";
 import type { Embedder } from "../ingest/embed.js";
 import type { ModelFactory } from "../models/factory.js";
 import { BudgetPausedError, type UsageMeter } from "../usage/meter.js";
@@ -30,6 +31,8 @@ export interface Runtime {
   embedder?: Embedder;
   /** Image generation; absent in tests and when no OpenAI key is set. */
   assets?: AssetService;
+  /** Background job progress (School setup); buildApp creates one if absent. */
+  bus?: EventBus;
   /** Recaps and notes are on by default; tests switch them off. */
   extras?: { recaps?: boolean; notes?: boolean };
 }
@@ -45,6 +48,7 @@ export class ClassroomConnection {
   private readonly unsubscribe: () => void;
 
   private readonly offAssets: () => void;
+  private readonly offBus: () => void;
 
   constructor(
     private readonly rt: Runtime,
@@ -64,6 +68,7 @@ export class ClassroomConnection {
           },
         }),
       ) ?? (() => {});
+    this.offBus = rt.bus?.on((m) => this.send(m)) ?? (() => {});
     this.unsubscribe = rt.meter.onStateChange((state) => {
       const text = {
         warn: "You've used 80% of this month's AI budget.",
@@ -130,6 +135,7 @@ export class ClassroomConnection {
     this.closing ??= (async () => {
       this.unsubscribe();
       this.offAssets();
+      this.offBus();
       const session = this.session;
       this.session = null;
       if (session) await session.suspend();

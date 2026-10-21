@@ -33,7 +33,7 @@ export interface ImageGenerator {
 export interface OpenAIImagesDeps {
   config: ModelsConfig;
   env: Record<string, string | undefined>;
-  meter?: UsageSink & { assertCanCall(): void };
+  meter?: UsageSink & { assertCanCallImage(): void };
   /** For tests. */
   client?: Pick<OpenAI, "images">;
 }
@@ -58,7 +58,7 @@ export class OpenAIImages implements ImageGenerator {
   }
 
   async generate(req: ImageRequest): Promise<GeneratedImage> {
-    this.deps.meter?.assertCanCall();
+    this.deps.meter?.assertCanCallImage();
     const started = performance.now();
     const res = await this.client.images.generate({
       model: this.model,
