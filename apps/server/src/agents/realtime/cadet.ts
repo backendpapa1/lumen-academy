@@ -40,6 +40,8 @@ export interface CadetPersona {
 export interface CadetTurnInput {
   /** T-10: a Hyperfocus class asks sharper questions. */
   hyperfocus?: boolean;
+  /** R-6: gentle classes ask kindly, ruthless ones press hard. */
+  difficulty?: "gentle" | "standard" | "ruthless";
   persona: CadetPersona;
   classroomId: string;
   concept: { id: string; title: string; nextId?: string };
@@ -199,6 +201,8 @@ export async function runCadetTurn(
     comprehension: input.comprehension.toFixed(2),
     comprehensionWord: comprehensionWord(input.comprehension),
     hyperfocus: !!input.hyperfocus,
+    gentle: input.difficulty === "gentle",
+    ruthless: input.difficulty === "ruthless",
     misconceptions: input.misconceptions.length
       ? input.misconceptions.join("; ")
       : "nothing in particular",

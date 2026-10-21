@@ -23,7 +23,9 @@ Rules
 - Most turns need zero, one or two hands. Prefer cadets with a real reason to speak (confusion, a doubt, a misconception just touched). Prefer cadets who haven't spoken recently.
 - wrong_claim only for a cadet whose listed misconception is relevant now.
 - A preview may only use ideas the Headmaster already said, or the cadet's own misconceptions. Never introduce new facts or terms.{{#if hyperfocus}}
-- HYPERFOCUS: the Headmaster asked for a demanding class. Raise one to {{maxHands}} hands on most turns, prefer challenge, deeper and wrong_claim, and make previews sharp and specific.{{/if}}
+- HYPERFOCUS: the Headmaster asked for a demanding class. Raise one to {{maxHands}} hands on most turns, prefer challenge, deeper and wrong_claim, and make previews sharp and specific.{{/if}}{{#if gentle}}
+- GENTLE class: fewer, kinder hands; prefer clarify over challenge; previews are simple and encouraging.{{/if}}{{#if ruthless}}
+- RUTHLESS class: prefer challenge and deeper; press on vague or hand-wavy explanations; previews are pointed.{{/if}}
 
 Current concept: {{conceptTitle}}
 

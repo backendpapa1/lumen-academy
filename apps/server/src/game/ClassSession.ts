@@ -258,6 +258,7 @@ export class ClassSession {
       !!open,
       open?.elapsedMs ?? 0,
     );
+    session.difficulty = room.difficulty ?? "standard";
     if (open) session.restore(roster.map((c) => ({ id: c.id, name: c.name })));
     const earlier = deps.handle.sqlite
       .prepare(
@@ -335,6 +336,8 @@ export class ClassSession {
 
   /** T-10 Hyperfocus: sharper, more frequent questions (lighting is the client's). */
   hyperfocus = false;
+  /** R-6: the class's difficulty also sets how sharp its questions are. */
+  difficulty: "gentle" | "standard" | "ruthless" = "standard";
 
   /** T-9: the chalkboard block for this period ("" = clear). Cadets see it in the transcript. */
   get board(): string {
@@ -451,6 +454,7 @@ export class ClassSession {
             teacherMessage: text,
             maxHands: this.deps.game.hands.maxPerTurn,
             hyperfocus: this.hyperfocus,
+            difficulty: this.difficulty,
           },
           { onReaction: (id, state) => this.events.onReaction?.(id, state) },
         )
@@ -553,6 +557,7 @@ export class ClassSession {
             preview: hand?.preview ?? "(the Headmaster called on you)",
             canPeek,
             hyperfocus: this.hyperfocus,
+            difficulty: this.difficulty,
             maxWords: game.cadet.maxWords,
           },
           { signal, onDelta: opts.onDelta },

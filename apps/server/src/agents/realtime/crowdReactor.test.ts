@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseReactorLine } from "./crowdReactor.js";
+import { parseReactorLine, reactorMessages } from "./crowdReactor.js";
 
 describe("parseReactorLine", () => {
   it("parses reactions and hands", () => {
@@ -32,5 +32,24 @@ describe("parseReactorLine", () => {
     expect(parseReactorLine("H 2 shout 0.5 hi")).toBeNull();
     expect(parseReactorLine("Here are the reactions:")).toBeNull();
     expect(parseReactorLine('{"reactions": []}')).toBeNull();
+  });
+});
+
+describe("reactorMessages", () => {
+  const base = {
+    cards: [],
+    conceptTitle: "Merkle Trees",
+    transcript: [],
+    teacherMessage: "Pairs of hashes are hashed again.",
+    maxHands: 3,
+  } as unknown as Parameters<typeof reactorMessages>[0];
+  const system = (extra: object) => String(reactorMessages({ ...base, ...extra })[0]!.content);
+
+  it("R-6: a class's difficulty sets how sharp the crowd is", () => {
+    expect(system({ difficulty: "ruthless" })).toContain("RUTHLESS class");
+    expect(system({ difficulty: "gentle" })).toContain("GENTLE class");
+    const standard = system({ difficulty: "standard" });
+    expect(standard).not.toContain("RUTHLESS");
+    expect(standard).not.toContain("GENTLE");
   });
 });

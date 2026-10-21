@@ -60,6 +60,8 @@ export interface ReactorInput {
   maxHands: number;
   /** T-10: sharper, more frequent questions. */
   hyperfocus?: boolean;
+  /** R-6: gentle classes ask kindly, ruthless ones press hard. */
+  difficulty?: "gentle" | "standard" | "ruthless";
 }
 
 export interface ReactorEvents {
@@ -81,6 +83,8 @@ export function reactorMessages(input: ReactorInput): BaseMessage[] {
   const system = loadPrompt("crowdReactor", {
     maxHands: input.maxHands,
     hyperfocus: !!input.hyperfocus,
+    gentle: input.difficulty === "gentle",
+    ruthless: input.difficulty === "ruthless",
     conceptTitle: input.conceptTitle,
     cadetTable: cadetTable(input.cards.map((c, i) => ({ ...c, id: String(i + 1) }))),
   });
