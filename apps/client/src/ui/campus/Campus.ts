@@ -19,11 +19,12 @@ export interface WingInfo {
 const W = 1600;
 const H = 1000;
 const NS = "http://www.w3.org/2000/svg";
+// The first Schools take the plots right of the path, which the lobby never covers.
 const SLOTS = [
-  { x: 952, y: 872, s: 0.9 },
   { x: 1430, y: 884, s: 0.9 },
-  { x: 838, y: 664, s: 0.64 },
   { x: 1508, y: 668, s: 0.64 },
+  { x: 952, y: 872, s: 0.9 },
+  { x: 838, y: 664, s: 0.64 },
   { x: 700, y: 912, s: 0.86 },
   { x: 1660, y: 772, s: 0.7 },
 ] as const;
