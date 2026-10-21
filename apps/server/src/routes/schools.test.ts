@@ -229,6 +229,34 @@ describe("School setup routes", () => {
     expect(room).toEqual({ status: "active" });
   });
 
+  it("flags sources added after the curriculum, to offer an update (S-5)", async () => {
+    const { app, w, until } = await boot();
+    const sid = (
+      h!.sqlite
+        .prepare("SELECT school_id AS s FROM classrooms WHERE id = ?")
+        .get(w.classroomId) as { s: string }
+    ).s;
+    const before = (
+      await app.inject({ method: "GET", url: `/api/schools/${sid}/curriculum` })
+    ).json<{ newSources: unknown[] }>();
+    expect(before.newSources).toEqual([]); // the world's one source is cited by its concepts
+    await app.inject({
+      method: "POST",
+      url: `/api/schools/${sid}/sources`,
+      payload: {
+        title: "Chapter 12",
+        text: "# Mining\nMiners race to find a hash below the target, which secures the chain. ".repeat(
+          3,
+        ),
+      },
+    });
+    await until("source.status", (m) => m.payload.status === "ready");
+    const after = (
+      await app.inject({ method: "GET", url: `/api/schools/${sid}/curriculum` })
+    ).json<{ newSources: Array<{ title: string }> }>();
+    expect(after.newSources.map((x) => x.title)).toEqual(["Chapter 12"]);
+  });
+
   it("won't open a Classroom before there is a curriculum", async () => {
     const { app } = await boot();
     const id = (

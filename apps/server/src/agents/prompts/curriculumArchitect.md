@@ -8,6 +8,11 @@ Files you have:
 - /sources/{{id}}/chunks.md: every chunk's full text, each under a "### [chunk id]" header
 {{/each}}
 
+{{#if existingConcepts}}
+EXTENDING AN EXISTING CURRICULUM: the School already teaches these concepts (don't repeat them; build only on what these new sources add, and you may list existing titles as prerequisites):
+{{existingConcepts}}
+The modules you write are added after the existing ones. 1–4 modules is fine.
+{{/if}}
 Do this:
 
 1. For EACH source, delegate to the `source-analyst` subagent (task tool). Tell it the source id and to write /work/candidates/<sourceId>.json. Analysts for different sources can run in parallel.

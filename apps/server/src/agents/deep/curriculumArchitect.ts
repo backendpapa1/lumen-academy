@@ -77,6 +77,8 @@ function seedFiles(
 export function checkCurriculum(
   raw: string | undefined,
   validChunkIds: Set<string>,
+  /** Concept titles that exist outside this file (extending): fine as prerequisites. */
+  knownTitles: string[] = [],
 ): { ok: true; curriculum: Curriculum; warnings: string[] } | { ok: false; problems: string[] } {
   if (raw === undefined) return { ok: false, problems: ["/out/curriculum.json was not written"] };
   let json: unknown;
@@ -98,9 +100,10 @@ export function checkCurriculum(
   const curriculum = normalizeCurriculum(parsed.data);
   const problems: string[] = [];
   const warnings: string[] = [];
-  const titles = new Set(
-    curriculum.modules.flatMap((m) => m.concepts.map((c) => c.title.toLowerCase())),
-  );
+  const titles = new Set([
+    ...curriculum.modules.flatMap((m) => m.concepts.map((c) => c.title.toLowerCase())),
+    ...knownTitles.map((t) => t.toLowerCase()),
+  ]);
   for (const m of curriculum.modules) {
     if (!m.goal) problems.push(`module "${m.title}" has an empty goal`);
     for (const c of m.concepts) {
@@ -123,6 +126,8 @@ export function checkCurriculum(
 export async function buildCurriculum(
   deps: ArchitectDeps,
   schoolId: string,
+  /** S-5: only these sources, extending a curriculum that already has these concept titles. */
+  extend?: { sourceIds: string[]; existingConcepts: string[] },
 ): Promise<ArchitectResult> {
   const { handle } = deps;
   const school = handle.sqlite
@@ -133,7 +138,8 @@ export async function buildCurriculum(
     .prepare(
       "SELECT id, title, outline_json FROM sources WHERE school_id = ? AND status = 'ready' ORDER BY created_at",
     )
-    .all(schoolId) as SourceRow[];
+    .all(schoolId)
+    .filter((s) => !extend || extend.sourceIds.includes((s as SourceRow).id)) as SourceRow[];
   if (!sources.length) throw new Error("this School has no indexed sources yet");
   const validChunkIds = new Set(
     (
@@ -154,6 +160,7 @@ export async function buildCurriculum(
       schoolName: school.name,
       schoolDescription: school.description ?? "",
       sources: sources.map((s) => ({ id: s.id, title: s.title })),
+      existingConcepts: extend ? extend.existingConcepts.map((t) => `- ${t}`).join("\n") : "",
     }),
     subagents: [
       {
@@ -189,7 +196,7 @@ export async function buildCurriculum(
         ? file.content.join("\n")
         : String(file.content)
       : undefined;
-    const check = checkCurriculum(raw, validChunkIds);
+    const check = checkCurriculum(raw, validChunkIds, extend?.existingConcepts);
     if (check.ok) {
       return {
         curriculum: check.curriculum,

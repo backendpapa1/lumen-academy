@@ -1340,3 +1340,8 @@ table.heat td {
   margin-top: 16px;
   font-size: 12px;
 }
+.extend-banner {
+  margin-bottom: 16px;
+  gap: 16px;
+  border-color: rgba(91, 231, 255, 0.5);
+}

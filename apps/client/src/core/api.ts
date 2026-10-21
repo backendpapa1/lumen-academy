@@ -97,6 +97,8 @@ export interface SchoolDetail {
 export type ConceptStatus = "untaught" | "taught" | "weak" | "mastered";
 
 export interface CurriculumView extends EditableCurriculum {
+  /** S-5: sources added after the curriculum was built. */
+  newSources: Array<{ id: string; title: string }>;
   status: Record<string, { status: ConceptStatus; comprehension: number | null; turns: number }>;
 }
 

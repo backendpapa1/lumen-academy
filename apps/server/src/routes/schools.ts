@@ -16,8 +16,10 @@ import { exportSchool, importSchool } from "../school/exportImport.js";
 import { yearbookMarkdown } from "../school/yearbook.js";
 import {
   addSource,
+  extendCurriculum,
   generateCurriculum,
   generateEmblem,
+  sourcesOutsideCurriculum,
   startRegistration,
   type JobDeps,
 } from "../jobs.js";
@@ -190,7 +192,22 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
     return {
       ...loadEditableCurriculum(deps.handle, s.id),
       status: schoolConceptStatuses(deps.handle, s.id, deps.game.status),
+      // S-5: sources added after the curriculum was built.
+      newSources: sourcesOutsideCurriculum(deps.handle, s.id),
     };
+  });
+
+  app.post<{ Params: { id: string } }>("/api/schools/:id/curriculum/extend", async (req, reply) => {
+    const s = school(req.params.id);
+    if (!s) return reply.code(404).send({ error: "no such School" });
+    if (!deps.embedder)
+      return reply
+        .code(503)
+        .send({ error: "The Curriculum Architect needs an OpenAI key in .env." });
+    if (!sourcesOutsideCurriculum(deps.handle, s.id).length)
+      return reply.code(409).send({ error: "Every source is already in the curriculum." });
+    void extendCurriculum(deps, s.id).catch(() => undefined);
+    return reply.code(202).send({ accepted: true });
   });
 
   app.post<{ Params: { id: string } }>(

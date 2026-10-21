@@ -28,10 +28,15 @@ export function mountCurriculum(root: HTMLElement, schoolId: string): () => void
   let problems: string[] = [];
 
   const toolbar = h("div", { class: "row wrap-row", style: "margin-bottom:16px" });
+  const banner = h("div", { class: "card pad row extend-banner", hidden: true });
   const map = h("div", { class: "map card", "aria-label": "Curriculum map" });
   const editor = h("aside", { class: "editor card pad", "aria-label": "Concept editor" });
   const savebar = h("div", { class: "savebar card", hidden: true });
-  root.append(toolbar, h("div", { class: "map-shell" }, h("div", {}, map, savebar), editor));
+  root.append(
+    toolbar,
+    banner,
+    h("div", { class: "map-shell" }, h("div", {}, map, savebar), editor),
+  );
 
   const load = () =>
     api
@@ -210,6 +215,41 @@ export function mountCurriculum(root: HTMLElement, schoolId: string): () => void
         },
         icon(ICONS.sparkle),
         saved?.modules.length ? "Rebuild" : "Build curriculum",
+      ),
+    );
+    // S-5: new sources since the curriculum was built → offer to extend (edits kept).
+    const fresh = saved?.newSources ?? [];
+    banner.hidden = !fresh.length || building;
+    fill(
+      banner,
+      h(
+        "div",
+        { style: "flex:1" },
+        h(
+          "b",
+          {},
+          fresh.length === 1
+            ? `“${fresh[0]!.title}” isn't in the curriculum yet.`
+            : `${fresh.length} new sources aren't in the curriculum yet.`,
+        ),
+        h(
+          "div",
+          { class: "dim", style: "font-size:13px" },
+          "Add what they cover as new modules. Your edits stay as they are.",
+        ),
+      ),
+      h(
+        "button",
+        {
+          class: "btn primary",
+          onclick: () =>
+            api
+              .post(`/api/schools/${schoolId}/curriculum/extend`)
+              .then(() => app.notify("The Curriculum Architect is reading the new sources…"))
+              .catch((e: Error) => app.notify(e.message, "error")),
+        },
+        icon(ICONS.plus),
+        "Add to the curriculum",
       ),
     );
 

@@ -4,6 +4,7 @@ import { buildCurriculum } from "./agents/deep/curriculumArchitect.js";
 import { emblemPrompt, portraitPrompt, type PortraitSubject } from "./assets/prompts.js";
 import type { AssetService } from "./assets/service.js";
 import { saveCurriculum } from "./db/curriculum.js";
+import { applyCurriculumEdit, loadEditableCurriculum } from "./db/curriculumEdit.js";
 import type { DbHandle } from "./db/client.js";
 import type { EventBus } from "./events.js";
 import type { Embedder } from "./ingest/embed.js";
@@ -148,6 +149,72 @@ export async function generateCurriculum(deps: JobDeps, schoolId: string): Promi
         schoolId,
         status: "ready",
         detail: `${saved.modules} modules, ${saved.concepts} concepts`,
+      },
+    });
+    return true;
+  } catch (err) {
+    deps.bus.emit({
+      type: "curriculum.status",
+      payload: { schoolId, status: "error", detail: (err as Error).message },
+    });
+    return false;
+  } finally {
+    building.delete(schoolId);
+  }
+}
+
+/** S-5: indexed sources none of whose passages any concept cites yet. */
+export function sourcesOutsideCurriculum(
+  handle: DbHandle,
+  schoolId: string,
+): Array<{ id: string; title: string }> {
+  return handle.sqlite
+    .prepare(
+      `SELECT s.id, s.title FROM sources s WHERE s.school_id = ? AND s.status = 'ready'
+         AND EXISTS (SELECT 1 FROM concepts c JOIN modules m ON m.id = c.module_id WHERE m.school_id = s.school_id)
+         AND NOT EXISTS (SELECT 1 FROM concept_citations cc JOIN chunks ch ON ch.id = cc.chunk_id WHERE ch.source_id = s.id)
+       ORDER BY s.created_at`,
+    )
+    .all(schoolId) as Array<{ id: string; title: string }>;
+}
+
+/**
+ * S-5: extend the curriculum with sources added later. The Architect reads only
+ * the new sources, knowing what's already taught; its modules are appended to
+ * the current curriculum, so your edits stay as they are.
+ */
+export async function extendCurriculum(deps: JobDeps, schoolId: string): Promise<boolean> {
+  if (!deps.embedder)
+    throw new Error("the Curriculum Architect needs an OpenAI key for embeddings");
+  const fresh = sourcesOutsideCurriculum(deps.handle, schoolId);
+  if (!fresh.length) throw new Error("Every source is already in the curriculum.");
+  if (building.has(schoolId)) return false;
+  building.add(schoolId);
+  deps.bus.emit({
+    type: "curriculum.status",
+    payload: { schoolId, status: "building", detail: "extending" },
+  });
+  try {
+    const current = loadEditableCurriculum(deps.handle, schoolId);
+    const existing = current.modules.flatMap((m) => m.concepts.map((c) => c.title));
+    const result = await buildCurriculum(
+      { factory: deps.factory, handle: deps.handle, embedder: deps.embedder },
+      schoolId,
+      { sourceIds: fresh.map((s) => s.id), existingConcepts: existing },
+    );
+    const taken = new Set(existing.map((t) => t.toLowerCase()));
+    const added = result.curriculum.modules
+      .map((m) => ({ ...m, concepts: m.concepts.filter((c) => !taken.has(c.title.toLowerCase())) }))
+      .filter((m) => m.concepts.length);
+    const summary = applyCurriculumEdit(deps.handle, schoolId, {
+      modules: [...current.modules, ...added],
+    });
+    deps.bus.emit({
+      type: "curriculum.status",
+      payload: {
+        schoolId,
+        status: "ready",
+        detail: `added ${summary.added} concepts in ${added.length} modules`,
       },
     });
     return true;
