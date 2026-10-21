@@ -259,6 +259,12 @@ function voiceSection(): HTMLElement {
   );
   void voice.refreshStatus().then(() => {
     const { stt, tts } = voice.state;
+    // The Android app (ADR-012): the phone's own recogniser and voices.
+    if (stt === "native" || tts === "native") {
+      status.textContent =
+        "Hearing you and student voices: your phone's own speech services. Android may use Google's online recogniser when no offline one is installed.";
+      return;
+    }
     status.textContent =
       `Hearing you: ${stt === "missing" || stt === "off" ? "not set up" : "on this machine"} · ` +
       `Student voices: ${tts === "missing" ? "not set up" : "on this machine"}. Nothing you say leaves the computer.`;

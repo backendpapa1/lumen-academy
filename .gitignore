@@ -13,8 +13,15 @@ playwright-report/
 # The desktop app's generated bundle, sidecar Node and Rust build output (ADR-011).
 apps/desktop/build/
 apps/desktop/src-tauri/target/
-apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/gen/schemas/
 apps/desktop/src-tauri/binaries/
+# The Android app (ADR-012): its Gradle project is committed (gen/android keeps its
+# own .gitignore for build output); the runtime archive, native libs and the
+# signing settings are not.
+apps/desktop/src-tauri/gen/android/app/src/main/assets/lumen-runtime*
+apps/desktop/src-tauri/gen/android/app/src/main/jniLibs/
+apps/desktop/keystore.properties
+apps/desktop/src-tauri/gen/android/keystore.properties
 
 # Kept locally, never published: plans, PRD and design docs, decision notes,
 # assistant instructions, the board, scratch notes, eval reports, spikes, and

@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "main-local-android",
+  "description": "Android: the local pages in the one window, the loading page and the configurator (keys), which then goes back to the game.",
+  "platforms": ["android"],
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "allow-get-setup",
+    "allow-save-setup",
+    "allow-test-key",
+    "allow-open-path",
+    "allow-open-configurator",
+    "lumen:allow-open-game"
+  ]
+}

@@ -63,6 +63,14 @@
         gap: 10px;
         margin-top: 14px;
       }
+      #log {
+        max-height: 40vh;
+        overflow: auto;
+        margin-top: 12px;
+        font-size: 11px;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
       body.has-error .bar {
         display: none;
       }
@@ -134,6 +142,7 @@
           <button class="btn primary" id="settings">API keys and settings…</button>
           <button class="btn" id="logs">Open the log</button>
         </div>
+        <pre id="log" hidden></pre>
       </section>
     </main>
     <script>
@@ -144,10 +153,29 @@
         document.getElementById("lede").textContent = "";
         document.getElementById("reason").textContent = msg;
       };
+      // The Android app (ADR-012) unpacks its runtime on first run: show how far.
+      window.lumenProgress = ({ stage, percent }) => {
+        if (document.body.classList.contains("has-error")) return;
+        if (stage === "unpacking") {
+          document.getElementById("title").textContent = `Setting up the school… ${percent}%`;
+          document.getElementById("lede").textContent =
+            "The first start unpacks Lumen onto your phone. It only takes this long once.";
+        } else {
+          document.getElementById("title").textContent = "Opening the school…";
+          document.getElementById("lede").textContent =
+            "Unlocking the doors and waking your students.";
+        }
+      };
       document.getElementById("settings").onclick = () => T.core.invoke("open_configurator");
       document.getElementById("logs").onclick = async () => {
         const s = await T.core.invoke("get_setup").catch(() => null);
-        if (s) T.core.invoke("open_path", { path: s.logPath });
+        if (!s) return;
+        // No file manager to open on a phone: show the log's last lines here.
+        if (s.platform === "android") {
+          const pre = document.getElementById("log");
+          pre.textContent = s.logTail || "The log is empty.";
+          pre.hidden = false;
+        } else T.core.invoke("open_path", { path: s.logPath });
       };
     </script>
   </body>

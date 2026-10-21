@@ -69,11 +69,22 @@ export async function buildApp({
   });
   await app.register(websocket, { options: { maxPayload: 1 << 20 } });
 
+  // Open periods must finish closing (DB writes) before the server shuts down.
+  const connections = new Set<ClassroomConnection>();
+  // Schools whose curriculum is being built right now. With `busy`, the Android
+  // app keeps itself running while there's work in progress (ADR-012).
+  const building = new Set<string>();
+
   app.get("/api/health", async () => ({
     ok: true,
     app: APP_NAME,
     profile: config.models.profile,
     time: new Date().toISOString(),
+    busy: building.size
+      ? ("building" as const)
+      : [...connections].some((c) => c.live)
+        ? ("class" as const)
+        : null,
   }));
   // The desktop app: the server serves the built client itself (ADR-011).
   if (process.env.LUMEN_CLIENT_DIR) registerClientFiles(app, process.env.LUMEN_CLIENT_DIR);
@@ -82,6 +93,11 @@ export async function buildApp({
   if (runtime) {
     registerSettingsRoutes(app, runtime.handle, config);
     runtime.bus ??= new EventBus();
+    runtime.bus.on((m) => {
+      if (m.type !== "curriculum.status") return;
+      if (m.payload.status === "building") building.add(m.payload.schoolId);
+      else building.delete(m.payload.schoolId);
+    });
     registerAssessmentRoutes(app, runtime);
     registerCampusRoutes(app, runtime);
     backfillInterests(runtime.handle, runtime.game);
@@ -101,8 +117,6 @@ export async function buildApp({
     }
   }
 
-  // Open periods must finish closing (DB writes) before the server shuts down.
-  const connections = new Set<ClassroomConnection>();
   app.addHook("onClose", async () => {
     await Promise.allSettled([...connections].map((c) => c.close()));
   });

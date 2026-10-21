@@ -1,3 +1,4 @@
+import { android } from "./android";
 import { desktop } from "./desktop";
 
 // Sound in the desktop app goes through the Rust shell, not the page: on some
@@ -5,6 +6,9 @@ import { desktop } from "./desktop";
 // and <audio> only plays straight after a click. So the page makes the sound
 // (a WAV from the server, or a cue rendered with an OfflineAudioContext, which
 // does work there) and the shell plays it (src-tauri/src/audio.rs).
+//
+// The Android app (ADR-012) has none of this: its WebView is Chromium, where Web
+// Audio works, and voices are the phone's own (android.ts).
 //
 // Channels: "narrator", "voice" (students), "sfx" (cues, mixed so they can
 // overlap), "bed" (the pad) and "ambience" (room tone, rain).
@@ -20,7 +24,7 @@ export interface PlayOptions {
 
 export const nativeAudio = {
   get available(): boolean {
-    return desktop.present;
+    return desktop.present && !android.present;
   },
   play(channel: string, wav: ArrayBuffer, o: PlayOptions = {}): Promise<void> {
     return desktop

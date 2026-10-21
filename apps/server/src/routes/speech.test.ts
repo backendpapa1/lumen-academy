@@ -226,6 +226,27 @@ describe("speech routes", () => {
     expect(cfg.models.speech!.tts.voices.female).toContain(tts.said[0]![1]);
   });
 
+  it("gives the Android app each student's voice as a choice, the same one /say uses", async () => {
+    const { w, app, tts } = await boot();
+    const [a, b] = w.cadets;
+    const voiceOf = async (id: string) =>
+      (await app.inject({ method: "GET", url: `/api/speech/voice/${id}` })).json();
+    const va = await voiceOf(a!.id);
+    const vb = await voiceOf(b!.id);
+    const pool = cfg.models.speech!.tts.voices;
+    expect(pool[va.register as "female" | "male"][va.index]).toBe(va.voice);
+    expect(va.voice === vb.voice && va.register === vb.register).toBe(false);
+    await app.inject({
+      method: "POST",
+      url: "/api/speech/say",
+      payload: { cadetId: a!.id, text: "Hi." },
+    });
+    expect(tts.said[0]![1]).toBe(va.voice);
+    expect(await voiceOf("narrator")).toMatchObject({ narrator: true });
+    const missing = await app.inject({ method: "GET", url: "/api/speech/voice/cdt_nobody" });
+    expect(missing.statusCode).toBe(404);
+  });
+
   it("narrates the guided tour in the narrator's voice", async () => {
     const { app, tts } = await boot();
     const res = await app.inject({

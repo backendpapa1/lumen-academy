@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Lumen Academy: API keys and settings</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="configurator.css" />
@@ -12,7 +12,11 @@
       <header>
         <div class="micro">Lumen Academy</div>
         <h1>API keys and settings</h1>
-        <p class="dim">
+        <p class="dim" data-only="android">
+          Lumen runs on this phone. Your keys are locked with a key kept in Android's Keystore and
+          are given only to Lumen's own server when it starts: never to the game, never in a file.
+        </p>
+        <p class="dim" data-only="desktop">
           Lumen runs on this computer. Your keys are kept in your system's keyring and are given
           only to Lumen's own server when it starts: never to the game window, never in a file you
           share.
@@ -85,18 +89,22 @@
         </p>
         <div class="path" id="dataDir"></div>
         <p class="small" id="dataNote"></p>
-        <div class="row">
+        <p class="dim small" data-only="android">
+          On this phone Lumen keeps its data inside the app. To move a School to or from another
+          device, export or import it from the School's page in the game.
+        </p>
+        <div class="row" data-only="desktop">
           <button class="btn" id="chooseData" type="button">Choose a folder…</button>
           <button class="btn" id="copyData" type="button">Copy data from another folder…</button>
           <button class="btn quiet" id="openData" type="button">Open the folder</button>
         </div>
-        <p class="dim small">
+        <p class="dim small" data-only="desktop">
           Copying from another Lumen? Close it first (or stop <code>pnpm dev</code>), so its
           database isn't half-written while it's copied.
         </p>
       </section>
 
-      <section class="card">
+      <section class="card" data-only="desktop">
         <label class="check">
           <input type="checkbox" id="autostart" />
           <span>Start Lumen Academy when I log in</span>
