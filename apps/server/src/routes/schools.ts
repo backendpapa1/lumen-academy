@@ -11,6 +11,9 @@ import {
 import { schoolConceptStatuses } from "../game/schoolStatus.js";
 import type { SourceKind } from "../ingest/parse.js";
 import { ensureSchool } from "../ingest/pipeline.js";
+import { join } from "node:path";
+import { exportSchool, importSchool } from "../school/exportImport.js";
+import { yearbookMarkdown } from "../school/yearbook.js";
 import {
   addSource,
   generateCurriculum,
@@ -61,6 +64,50 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
       return reply.code(409).send({ error: "A School with that name already exists.", id: s.id });
     void generateEmblem(deps, s.id).catch(() => undefined); // S-4: never blocks creation
     return reply.code(201).send({ id: s.id });
+  });
+
+  // P-6: the Yearbook, your study notes from everything you taught.
+  app.get<{ Params: { id: string } }>("/api/schools/:id/yearbook.md", async (req, reply) => {
+    const s = school(req.params.id);
+    if (!s) return reply.code(404).send({ error: "no such School" });
+    return reply
+      .header("content-type", "text/markdown; charset=utf-8")
+      .header(
+        "content-disposition",
+        `attachment; filename="${s.name.replace(/[^\w -]/g, "")} yearbook.md"`,
+      )
+      .send(yearbookMarkdown(deps.handle, deps.game, s.id));
+  });
+
+  // O-5: the whole School as a zip, and back.
+  app.get<{ Params: { id: string } }>("/api/schools/:id/export.zip", async (req, reply) => {
+    const s = school(req.params.id);
+    if (!s) return reply.code(404).send({ error: "no such School" });
+    const { filename, zip } = exportSchool(deps.handle, deps.game, {
+      schoolId: s.id,
+      generatedDir: join(deps.dataDir, "generated"),
+    });
+    return reply
+      .header("content-type", "application/zip")
+      .header("content-disposition", `attachment; filename="${filename}"`)
+      .send(Buffer.from(zip));
+  });
+
+  app.post("/api/schools/import", async (req, reply) => {
+    if (!req.isMultipart())
+      return reply.code(400).send({ error: "Upload the School's .zip export." });
+    const file = await req.file();
+    if (!file) return reply.code(400).send({ error: "No file in the upload." });
+    try {
+      const r = importSchool(deps.handle, {
+        zip: new Uint8Array(await file.toBuffer()),
+        dataDir: deps.dataDir,
+        generatedDir: join(deps.dataDir, "generated"),
+      });
+      return reply.code(201).send(r);
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message });
+    }
   });
 
   app.get<{ Params: { id: string } }>("/api/schools/:id", async (req, reply) => {

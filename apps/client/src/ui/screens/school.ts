@@ -1,4 +1,5 @@
 import { api, ApiError, type SchoolDetail, type SourceRow } from "../../core/api";
+import { SERVER_HTTP } from "../../core/net";
 import { app } from "../../core/app";
 import type { SourceJob } from "../../core/setup";
 import { store, type AppState } from "../../core/store";
@@ -46,6 +47,33 @@ export function mountSchool(root: HTMLElement, schoolId: string): () => void {
         h("h1", { class: "display" }, s?.name ?? "…"),
         s?.description ? h("p", { class: "lede" }, s.description) : null,
       ),
+      h("span", { class: "spacer" }),
+      // P-6 / O-5: your study notes, and the whole School as a zip.
+      s &&
+        h(
+          "div",
+          { class: "row", style: "gap:8px" },
+          h(
+            "a",
+            {
+              class: "btn quiet",
+              href: `${SERVER_HTTP}/api/schools/${s.id}/yearbook.md`,
+              download: "",
+            },
+            icon(ICONS.file),
+            "Yearbook",
+          ),
+          h(
+            "a",
+            {
+              class: "btn quiet",
+              href: `${SERVER_HTTP}/api/schools/${s.id}/export.zip`,
+              download: "",
+            },
+            icon(ICONS.upload),
+            "Export",
+          ),
+        ),
     );
   };
 

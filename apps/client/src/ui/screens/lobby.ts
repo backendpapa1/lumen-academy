@@ -1,4 +1,4 @@
-import { ApiError, type CampusView, type SchoolSummary } from "../../core/api";
+import { api, ApiError, type CampusView, type SchoolSummary } from "../../core/api";
 import { app } from "../../core/app";
 import { store } from "../../core/store";
 import { hoverSchool } from "./campusSync";
@@ -30,6 +30,12 @@ export function mountLobby(root: HTMLElement): () => void {
           status,
         ),
         h("div", { class: "spacer" }),
+        h(
+          "button",
+          { class: "btn quiet", onclick: () => importSchoolDialog() },
+          icon(ICONS.upload),
+          "Import",
+        ),
         h(
           "button",
           { class: "btn quiet", onclick: () => openSettings() },
@@ -329,4 +335,47 @@ export function newSchoolDialog() {
       });
   });
   const close = openModal("Found a School", form);
+}
+
+/** O-5: bring a School exported from Lumen (its .zip) onto this campus. */
+function importSchoolDialog() {
+  const input = h("input", { type: "file", accept: ".zip", class: "field", id: "import-zip" });
+  const err = h("p", { class: "error-text", role: "alert" });
+  const go = h("button", { class: "btn primary", type: "submit" }, "Import School");
+  const form = h(
+    "form",
+    {},
+    h(
+      "p",
+      { class: "dim" },
+      "Choose a School exported from Lumen Academy (its .zip). Sources, curriculum, classes, cadets and history all come with it.",
+    ),
+    h("label", { class: "lbl", for: "import-zip" }, "Export file"),
+    input,
+    err,
+    h(
+      "div",
+      { class: "actions" },
+      h("button", { class: "btn quiet", type: "button", onclick: () => close() }, "Cancel"),
+      go,
+    ),
+  );
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const file = input.files?.[0];
+    if (!file) return void (err.textContent = "Choose the .zip first.");
+    go.disabled = true;
+    api
+      .upload<{ schoolId: string; name: string }>("/api/schools/import", file)
+      .then((r) => {
+        close();
+        app.notify(`${r.name} is on your campus.`);
+        void app.loadSchools();
+      })
+      .catch((e: unknown) => {
+        err.textContent = e instanceof ApiError ? e.message : String(e);
+        go.disabled = false;
+      });
+  });
+  const close = openModal("Import a School", form);
 }
