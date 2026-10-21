@@ -8,6 +8,7 @@ import { registerAssetRoutes } from "./routes/assets.js";
 import { registerCampusRoutes } from "./routes/campus.js";
 import { registerParkingRoutes } from "./routes/parking.js";
 import { registerInsightRoutes } from "./routes/insight.js";
+import { registerMeetingRoutes } from "./routes/meeting.js";
 import { backfillInterests } from "./game/interests.js";
 import { registerClassroomRoutes } from "./routes/classrooms.js";
 import { registerSchoolRoutes } from "./routes/schools.js";
@@ -73,6 +74,7 @@ export async function buildApp({
     backfillInterests(runtime.handle, runtime.game);
     registerParkingRoutes(app, runtime);
     registerInsightRoutes(app, runtime);
+    registerMeetingRoutes(app, runtime);
     if (dataDir) {
       const jobs = { ...runtime, bus: runtime.bus, art: config.artPrompts, dataDir };
       await registerSchoolRoutes(app, jobs);

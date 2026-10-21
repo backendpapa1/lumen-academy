@@ -1,3 +1,5 @@
+import { resolveMisconceptions } from "./ledger.js";
+import { enrollTransfer } from "./registrar.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ARCHETYPE_INFO, type Archetype, type GameConfig } from "@lumen/shared";
 import { z } from "zod";
@@ -19,7 +21,8 @@ import { awardXp, type XpScope } from "./xp.js";
 /** How many of my explanations the Dean watches. */
 export const INSPECTION_TURNS = 3;
 
-export type EventKind = "pop_quiz" | "glitch" | "power_flicker" | "inspector" | "recheck";
+export type EventKind =
+  "pop_quiz" | "glitch" | "power_flicker" | "inspector" | "recheck" | "debate" | "transfer";
 
 export interface PendingEvent {
   id: string;
@@ -34,6 +37,8 @@ export interface PendingEvent {
   flaw?: string;
   /** recheck: the journal entry (teacher_errors id). */
   errorId?: string;
+  /** debate: the concept the claim is about. */
+  conceptId?: string;
 }
 
 export interface EventContext {
@@ -146,6 +151,68 @@ async function prepare(
       seconds: 30,
       facts: [],
       flaw: g.flaw,
+    };
+  }
+  // V5-11 debate: a mix-up someone holds (false), or a fact the class has (true).
+  // The believer argues for it, the class's strongest student against.
+  if (kind === "debate") {
+    const levels = ctx.cadets.map((c) => {
+      const row = sqlite
+        .prepare(
+          "SELECT comprehension c, misconceptions_json m FROM ledger_entries WHERE cadet_id = ? AND concept_id = ?",
+        )
+        .get(c.id, ctx.concept.id) as { c: number; m: string } | undefined;
+      return {
+        c,
+        level: row?.c ?? 0,
+        held: row ? (JSON.parse(row.m) as Misconception[]).map((x) => x.text) : [],
+      };
+    });
+    if (levels.length < 2) return null;
+    const strongest = [...levels].sort((a, b) => b.level - a.level);
+    const holder = levels.find((l) => l.held.length);
+    if (holder) {
+      const against = strongest.find((l) => l.c.id !== holder.c.id)!;
+      return {
+        id: newId("message"),
+        kind,
+        cadetId: holder.c.id,
+        toCadetId: against.c.id,
+        text: pick(holder.held),
+        conceptId: ctx.concept.id,
+        seconds: 60,
+        facts: ["false", ...ctx.concept.keyFacts],
+      };
+    }
+    if (strongest[0]!.level < 0.3) return null;
+    const doubter =
+      levels.find((l) => l.c.archetype === "skeptic" && l.c.id !== strongest[0]!.c.id) ??
+      strongest.at(-1)!;
+    return {
+      id: newId("message"),
+      kind,
+      cadetId: strongest[0]!.c.id,
+      toCadetId: doubter.c.id,
+      text: pick(ctx.concept.keyFacts),
+      conceptId: ctx.concept.id,
+      seconds: 60,
+      facts: ["true", ...ctx.concept.keyFacts],
+    };
+  }
+  // V5-11 transfer student: someone new joins with a gap I have to close.
+  if (kind === "transfer") {
+    const t = await enrollTransfer(
+      { handle: ctx.handle, factory: ctx.factory, game: ctx.game },
+      ctx.classroomId,
+    );
+    if (!t) return null;
+    return {
+      id: newId("message"),
+      kind,
+      cadetId: t.id,
+      text: `${t.name} from ${t.homeworld} just transferred in. They missed everything so far on "${ctx.concept.title}".`,
+      seconds: 10,
+      facts: [],
     };
   }
   // Power flicker: someone's misconception on this concept reaches a neighbour.
@@ -304,6 +371,25 @@ export async function resolveEvent(
           ? "Settled: you've got this one right twice. It's out of your mistake journal."
           : `Right. Once more in ${days === 1 ? "a day" : `${days} days`} and it's settled.`
         : `Not yet. The source says: ${ev.facts[0]} It'll come back in a day.`,
+      xp,
+    };
+  }
+  // V5-11: my ruling on the debate's claim (wrong = I ruled it false).
+  if (ev.kind === "debate") {
+    const claimTrue = ev.facts[0] === "true";
+    const right = answer.wrong === !claimTrue;
+    if (right && !claimTrue && ev.cadetId)
+      resolveMisconceptions(deps.handle, ev.cadetId, ev.conceptId ?? "", [ev.text]);
+    const xp = right ? awardXp(deps.handle, deps.game, deps.scope, "glitchCaught") : 0;
+    return {
+      caught: right,
+      explanation: claimTrue
+        ? right
+          ? "Right call: that's what your source says."
+          : "Not quite: that claim is true, by your source."
+        : right
+          ? "Right call: that was a mix-up. Its believer has changed their mind."
+          : "Not quite: that claim was a mix-up. Worth correcting next.",
       xp,
     };
   }

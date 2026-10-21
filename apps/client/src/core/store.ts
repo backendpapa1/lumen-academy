@@ -24,6 +24,8 @@ export interface AppState {
     | { name: "exam"; examId: string; classroomId: string; schoolId: string }
     | { name: "debrief"; examId: string; classroomId: string; schoolId: string }
     | { name: "classroom"; classroomId: string }
+    /** V5-10: after a module, a parent asks why their child struggled. */
+    | { name: "meeting"; classroomId: string; schoolId: string }
     /** V3-06: body doubling, a calm timer and the parking lot. */
     | { name: "studyhall"; schoolId?: string }
     | { name: "gallery" };

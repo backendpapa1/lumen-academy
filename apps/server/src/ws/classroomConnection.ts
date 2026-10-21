@@ -1,3 +1,4 @@
+import { askGuest, guestsLeft } from "../game/guest.js";
 import { AnalogyLab, EliLadder, SubstituteLessonRunner, type ModeHost } from "./modeRunners.js";
 import { withUsageContext } from "../usage/meter.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
@@ -96,6 +97,7 @@ export class ClassroomConnection {
   /** The random event waiting for my answer (M6-01). */
   private event: PendingEvent | null = null;
   /** The Dean's visit: the explanations watched so far. */
+  private schoolName: string | null = null;
   /** V5-04/05/08: the card-and-round modes. */
   private runner: {
     session: ClassSession;
@@ -231,6 +233,8 @@ export class ClassroomConnection {
             this.send({ type: "exit.result", payload: { ticketId: msg.payload.ticketId, ...r } });
           return;
         }
+        case "guest.invite":
+          return await this.inviteGuest(msg.payload.question);
         case "analogy.judge":
           if (this.runner?.session === this.session)
             await this.runner.lab?.judge(msg.payload.i, msg.payload.verdict, msg.payload.reason);
@@ -360,6 +364,7 @@ export class ClassroomConnection {
     );
     this.session = session;
     this.scope = { schoolId: school.id, classroomId: room.id, periodId: session.periodId };
+    this.schoolName = school.name;
     this.send({
       type: "period.started",
       payload: {
@@ -574,7 +579,12 @@ export class ClassroomConnection {
     if (!ev && !this.event && !this.inspection) ev = maybeRecheck(ctx);
     if (!ev || this.session !== session) return;
     this.event =
-      ev.kind === "pop_quiz" || ev.kind === "glitch" || ev.kind === "recheck" ? ev : null;
+      ev.kind === "pop_quiz" ||
+      ev.kind === "glitch" ||
+      ev.kind === "recheck" ||
+      ev.kind === "debate"
+        ? ev
+        : null;
     if (ev.kind === "inspector") this.inspection = { ev, session, watched: [] };
     this.send({
       type: "event.start",
@@ -587,6 +597,14 @@ export class ClassroomConnection {
         ...(ev.toCadetId ? { toCadetId: ev.toCadetId } : {}),
       },
     });
+    // V5-11: a transfer student takes a seat; a debate's two sides speak.
+    if (ev.kind === "transfer" && ev.cadetId) {
+      session.admit(ev.cadetId);
+      const view = this.cadetViews(session).find((c) => c.id === ev.cadetId);
+      if (view) this.send({ type: "cadet.joined", payload: { cadet: view } });
+    }
+    if (ev.kind === "debate" && ev.cadetId && ev.toCadetId)
+      void this.runDebate(session, ev.cadetId, ev.toCadetId, ev.text).catch(() => undefined);
     this.sendCost();
   }
 
@@ -606,7 +624,12 @@ export class ClassroomConnection {
         type: "xp.update",
         payload: {
           delta: r.xp,
-          reason: ev.kind === "pop_quiz" ? "Pop quiz" : "Caught the glitch",
+          reason:
+            ev.kind === "pop_quiz"
+              ? "Pop quiz"
+              : ev.kind === "debate"
+                ? "Ruled the debate"
+                : "Caught the glitch",
           standing: standing(this.rt.handle, this.rt.game),
         },
       });
@@ -790,6 +813,78 @@ export class ClassroomConnection {
         ...s,
       },
     });
+  }
+
+  /**
+   * V5-09: the guest lecturer answers the class's question from my sources.
+   * Their words go to me only: never into the session transcript, a pack,
+   * notes or recall, so knowledge gating holds.
+   */
+  private async inviteGuest(question?: string) {
+    const session = this.requireSession();
+    const { handle, game, factory, embedder } = this.rt;
+    const toast = (text: string, level: "info" | "warn" = "info") =>
+      this.send({ type: "toast", payload: { level, text } });
+    if (!game.modes.guest) return toast("The guest lecturer is switched off in game.yaml.");
+    if (!embedder)
+      return toast("The guest lecturer needs an OpenAI key in .env to search your sources.");
+    const left = guestsLeft(handle, game);
+    if (left <= 0) return toast("No guest visits left this week. They're back in a few days.");
+    // The class's latest question if I didn't give one.
+    const q =
+      question?.trim() ||
+      session.handQueue[0]?.preview ||
+      [...session.lines].reverse().find((l) => l.speaker !== "Teacher")?.text;
+    if (!q) return toast("Ask the guest something: /guest <question>.");
+    toast("The guest lecturer is on their way…");
+    try {
+      const g = await withUsageContext({ periodId: session.periodId }, () =>
+        askGuest(
+          { handle, factory, embedder },
+          {
+            schoolId: this.scope?.schoolId ?? "",
+            schoolName: this.schoolName ?? "",
+            periodId: session.periodId,
+            question: q,
+          },
+        ),
+      );
+      this.send({ type: "guest.answer", payload: { ...g, left: left - 1 } });
+    } catch (err) {
+      toast((err as Error).message, "warn");
+    }
+    this.sendCost();
+  }
+
+  /** V5-11: the believer argues for the claim, the other answers them; then I rule. */
+  private async runDebate(session: ClassSession, forId: string, againstId: string, claim: string) {
+    const line = async (
+      cadetId: string,
+      debate: { stance: "for" | "against"; claim: string; heard?: string },
+    ) => {
+      const streamId = `str_${++this.streamSeq}`;
+      const spoken = await session.speak(cadetId, {
+        debate,
+        onDelta: (delta) =>
+          this.send({ type: "cadet.stream", payload: { cadetId, streamId, delta } }),
+      });
+      if (!spoken) return null;
+      this.send({
+        type: "cadet.done",
+        payload: {
+          cadetId,
+          streamId,
+          messageId: spoken.messageId,
+          text: spoken.utterance.text,
+          kind: spoken.utterance.kind,
+          mood: spoken.utterance.mood,
+        },
+      });
+      return (await spoken.guard).text;
+    };
+    const said = await line(forId, { stance: "for", claim });
+    if (said && this.session === session)
+      await line(againstId, { stance: "against", claim, heard: said });
   }
 
   /** V5: the mode's own result for the bell card. */

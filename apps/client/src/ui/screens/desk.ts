@@ -64,6 +64,15 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
       h("span", { class: "spacer" }),
       h(
         "button",
+        {
+          class: "btn",
+          title: "After a module: a parent asks why their child struggled",
+          onclick: () => store.setState({ route: { name: "meeting", classroomId, schoolId } }),
+        },
+        "Parent meeting",
+      ),
+      h(
+        "button",
         { class: "btn primary", onclick: () => app.startClass(classroomId) },
         icon(ICONS.play),
         "Teach",

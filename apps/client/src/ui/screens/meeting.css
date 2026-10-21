@@ -1,0 +1,84 @@
+/* V5-10 parent–teacher meeting: a parent across a desk, the evidence beside. */
+.mt-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 1.1fr);
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .mt-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.mt-scene {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: linear-gradient(var(--paper) 0 64%, var(--cobalt-wash) 64% 100%);
+}
+.mt-person {
+  position: absolute;
+  left: 24%;
+  bottom: 18%;
+  width: 52%;
+}
+.mt-person svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  animation: breathe 4.6s ease-in-out infinite;
+}
+.mt-desk {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 6%;
+  height: 20%;
+  background: var(--paper);
+  border: 2.5px solid var(--cobalt);
+  box-shadow: 6px 6px 0 var(--cobalt);
+}
+.mt-side {
+  display: grid;
+  gap: 16px;
+}
+.mt-ev {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+.mt-talk {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: grid;
+  gap: 8px;
+  max-height: 340px;
+  overflow: auto;
+}
+.mt-line {
+  padding: 8px 12px;
+  border: var(--line);
+}
+.mt-line b {
+  font: 700 11px var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.mt-line p {
+  margin: 2px 0 0;
+}
+.mt-line.parent {
+  background: var(--marigold-wash);
+  margin-right: 24px;
+}
+.mt-line.teacher {
+  background: var(--cobalt-wash);
+  margin-left: 24px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mt-person svg {
+    animation: none;
+  }
+}

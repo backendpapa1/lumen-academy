@@ -356,6 +356,26 @@ export class ClassSession {
     return this.transcript;
   }
 
+  /** V5-11: a transfer student takes a seat mid-period. */
+  admit(cadetId: string): void {
+    if (this.cadetStates.some((c) => c.id === cadetId)) return;
+    const c = this.deps.handle.db.select().from(cadets).where(eq(cadets.id, cadetId)).get();
+    if (!c) return;
+    const traits = JSON.parse(c.traitsJson) as { attention: number; skepticism: number };
+    this.cadetStates.push({
+      id: c.id,
+      name: c.name,
+      archetype: c.archetype as CadetCard["archetype"],
+      attention: traits.attention,
+      skepticism: traits.skepticism,
+      learningStyle: c.learningStyle as CadetCard["learningStyle"],
+      lastState: "confused",
+      lastSpokeTurn: null,
+      interests: interestsOf(c.interestsJson),
+      arc: parseArc(c.arcJson),
+    });
+  }
+
   /** V5-03: true if a phrasing uses terms that neither I nor the raw statement used. */
   addsTerms(phrased: string, raw: string): boolean {
     const allowed = new Set([...this.taughtVocab, ...vocabulary([raw])]);
@@ -646,6 +666,8 @@ export class ClassSession {
       peer?: { role: "explain" | "reply"; toId: string; preview?: string; said?: string };
       /** V5-02: answer the teacher's Socratic question. */
       answer?: string;
+      /** V5-11: one side of a class debate. */
+      debate?: { stance: "for" | "against"; claim: string; heard?: string };
     } = {},
   ): Promise<SpokenTurn | null> {
     const to = opts.peer && this.cadetStates.find((c) => c.id === opts.peer!.toId);
@@ -704,6 +726,7 @@ export class ClassSession {
               ? { peer: { role: opts.peer!.role, name: to.name, said: opts.peer!.said } }
               : {}),
             ...(opts.answer ? { answering: opts.answer } : {}),
+            ...(opts.debate ? { debate: opts.debate } : {}),
             canPeek: canPeek && !opts.peer,
             pastClaims: this.pastClaims,
             hyperfocus: this.hyperfocus,

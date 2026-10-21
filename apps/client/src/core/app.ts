@@ -63,6 +63,7 @@ function receive(m: ServerMessage) {
   // V4-07: learn each student's hair before anything draws them.
   if (m.type === "period.started") rememberHair(m.payload.cadets.map((c) => [c.id, c.hair]));
   if (m.type === "registration.arrival") rememberHair([[m.payload.cadet.id, m.payload.cadet.hair]]);
+  if (m.type === "cadet.joined") rememberHair([[m.payload.cadet.id, m.payload.cadet.hair]]);
   // V4-03/06: growth moments and stickers get their own little cheer.
   if (m.type === "cadet.arc" && m.payload.moment)
     queueMicrotask(() => app.notify(m.payload.moment));
@@ -300,12 +301,15 @@ export const app = {
       }
       case "assign":
         return this.notify("At the bell, “Set homework” takes you straight to the Class Desk.");
+      case "guest":
+        ensureNet().send("guest.invite", arg ? { question: arg } : {});
+        return;
       case "park":
         if (!arg) return this.notify("Type the thought after /park, then Enter.");
         return void this.park(arg);
       default:
         return this.notify(
-          "Lectern commands: /board <text> (| for a new line, /board clear) · /park <thought> · /focus · /recap · /assign",
+          "Lectern commands: /board <text> (| for a new line, /board clear) · /park <thought> · /guest <question> · /focus · /recap · /assign",
         );
     }
   },
@@ -391,6 +395,9 @@ export const app = {
       delete classroom.event;
       return { classroom };
     });
+  },
+  dismissGuest() {
+    store.setState((s) => ({ classroom: { ...s.classroom, guest: null } }));
   },
   /** V5-04: my verdict on an analogy, and where it breaks. */
   judgeAnalogy(i: number, verdict: "good" | "misleading", reason: string) {

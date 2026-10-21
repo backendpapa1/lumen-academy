@@ -39,7 +39,9 @@ const models = (body: FakeRequest) => {
   });
 };
 
-async function setup(kinds: Array<"pop_quiz" | "glitch" | "power_flicker" | "inspector">) {
+async function setup(
+  kinds: Array<"pop_quiz" | "glitch" | "power_flicker" | "inspector" | "debate" | "transfer">,
+) {
   const w = await smallWorld([
     { attention: 0.9, skepticism: 0.5 },
     { attention: 0.4, skepticism: 0.2 },
@@ -284,5 +286,78 @@ describe("mistake journal (V2-05)", () => {
         }
       ).resolved,
     ).toBe(0);
+  });
+});
+
+describe("V5-11 debate and transfer", () => {
+  it("a debate pits a mix-up's believer against the strongest student; ruling it wrong clears it", async () => {
+    const { w, ctx, game, scope } = await setup(["debate"]);
+    const [a, b] = [w.cadets[0]!.id, w.cadets[1]!.id];
+    const put = h!.sqlite.prepare(
+      "INSERT INTO ledger_entries (cadet_id, concept_id, comprehension, exposures, misconceptions_json) VALUES (?, ?, ?, 2, ?)",
+    );
+    put.run(a, ctx.concept.id, 0.8, "[]");
+    put.run(
+      b,
+      ctx.concept.id,
+      0.2,
+      JSON.stringify([
+        { text: "The root is in every transaction.", source: "teacher_error", since: "" },
+      ]),
+    );
+    const ev = (await maybeStartEvent(ctx))!;
+    expect(ev).toMatchObject({
+      kind: "debate",
+      cadetId: b,
+      toCadetId: a,
+      text: "The root is in every transaction.",
+    });
+    const r = await resolveEvent(
+      ev,
+      { wrong: true },
+      { handle: h!, factory: ctx.factory, game, scope },
+    );
+    expect(r.caught).toBe(true);
+    const held = JSON.parse(
+      (
+        h!.sqlite
+          .prepare("SELECT misconceptions_json m FROM ledger_entries WHERE cadet_id = ?")
+          .get(b) as { m: string }
+      ).m,
+    );
+    expect(held).toEqual([]);
+  });
+
+  it("a transfer student enrols with a free seat and no ledger", async () => {
+    const { w, ctx } = await setup(["transfer"]);
+    const flavour = JSON.stringify({
+      cadets: [
+        {
+          index: 3,
+          name: "Noor Haddad",
+          quirk: "Asks for the page number.",
+          voiceNotes: "Quick.",
+          backstory: "",
+          visualQuirk: "",
+          hair: "bun",
+          interests: ["chess"],
+        },
+      ],
+    });
+    const { factory } = fakeDeepSeekFactory(cfg.models, () => flavour);
+    const ev = (await maybeStartEvent({ ...ctx, factory }))!;
+    expect(ev.kind).toBe("transfer");
+    const row = h!.sqlite
+      .prepare("SELECT name, status, seat FROM cadets WHERE id = ?")
+      .get(ev.cadetId) as {
+      name: string;
+      status: string;
+      seat: number;
+    };
+    expect(row).toMatchObject({ name: "Noor Haddad", status: "transferred_in" });
+    expect(w.cadets.length).toBe(2);
+    expect(
+      h!.sqlite.prepare("SELECT count(*) n FROM ledger_entries WHERE cadet_id = ?").get(ev.cadetId),
+    ).toEqual({ n: 0 });
   });
 });

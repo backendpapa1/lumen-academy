@@ -56,6 +56,8 @@ export interface CadetTurnInput {
   preview: string;
   canPeek: boolean;
   maxWords: number;
+  /** V5-11: one side of a class debate. */
+  debate?: { stance: "for" | "against"; claim: string; heard?: string };
   /** V5-02: the teacher's question to the student in the Socratic hot seat. */
   answering?: string;
   /** V4-05: my related claims from earlier classes (my words, so gating holds). */
@@ -227,19 +229,24 @@ export async function runCadetTurn(
     maxWords: input.maxWords,
     pastClaims: input.pastClaims?.length ? input.pastClaims.map((c) => `  - ${c}`).join("\n") : "",
     answering: input.answering ?? "",
+    debateStance: input.debate ? (input.debate.stance === "for" ? "FOR" : "AGAINST") : "",
+    debateClaim: input.debate?.claim ?? "",
+    debateHeard: input.debate?.heard ?? "",
     peerExplain: input.peer?.role === "explain",
     peerReply: input.peer?.role === "reply",
     peerName: input.peer?.name.split(" ")[0] ?? "",
     peerSaid: input.peer?.said ?? "",
   });
   const first = p.name.split(" ")[0];
-  const cue = input.answering
-    ? `Teacher (to you): "${input.answering}"`
-    : !input.peer
-      ? `Teacher: Yes, ${first}?`
-      : input.peer.role === "explain"
-        ? `(${first} turns to ${input.peer.name.split(" ")[0]}.)`
-        : `${input.peer.name.split(" ")[0]} (to you): "${input.peer.said ?? ""}"`;
+  const cue = input.debate
+    ? `Teacher: ${first}, you argue ${input.debate.stance === "for" ? "for" : "against"} it.`
+    : input.answering
+      ? `Teacher (to you): "${input.answering}"`
+      : !input.peer
+        ? `Teacher: Yes, ${first}?`
+        : input.peer.role === "explain"
+          ? `(${first} turns to ${input.peer.name.split(" ")[0]}.)`
+          : `${input.peer.name.split(" ")[0]} (to you): "${input.peer.said ?? ""}"`;
   const messages: BaseMessage[] = [
     new SystemMessage(system),
     new HumanMessage(`Class so far:\n${recentTranscript(input.transcript, 8)}\n\n${cue}`),

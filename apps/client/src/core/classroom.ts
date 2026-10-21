@@ -61,7 +61,7 @@ export interface ExitTicketsState {
 /** A random event (M6-01): pop quiz, hologram glitch or power flicker. */
 export interface EventState {
   id: string;
-  kind: "pop_quiz" | "glitch" | "power_flicker" | "inspector" | "recheck";
+  kind: "pop_quiz" | "glitch" | "power_flicker" | "inspector" | "recheck" | "debate" | "transfer";
   /** Absent for the visiting Dean. */
   cadetId?: string;
   toCadetId?: string;
@@ -153,6 +153,8 @@ export interface ClassroomState {
     objections: Record<number, { planted: boolean; correction: string }>;
     result?: ServerMessageOf<"sub.result">["payload"];
   } | null;
+  /** V5-09: the guest lecturer's latest answer (to me only). */
+  guest: ServerMessageOf<"guest.answer">["payload"] | null;
   /** V5-03: the teach-back to mark, then its result. */
   teachBack: {
     cadetId: string;
@@ -194,6 +196,7 @@ export const initialClassroom = (): ClassroomState => ({
   analogy: null,
   eli: null,
   sub: null,
+  guest: null,
   hyperfocus: false,
 });
 
@@ -314,6 +317,13 @@ export function applyServerMessage(
         thinking: false,
         breakUntil: m.payload.paused ? s.breakUntil : null,
       };
+    case "cadet.joined":
+      return {
+        ...s,
+        cadets: { ...s.cadets, [m.payload.cadet.id]: { ...m.payload.cadet } },
+      };
+    case "guest.answer":
+      return { ...s, guest: m.payload };
     case "analogy.cards":
       return { ...s, analogy: { ...m.payload, results: {} } };
     case "analogy.result":

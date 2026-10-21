@@ -266,7 +266,7 @@ events:
   earliestTurn: 4
   latestTurn: 9
   # Which events can happen (docs/02 §6). Transfer, inspector and debate come later.
-  kinds: [pop_quiz, glitch, power_flicker, inspector]
+  kinds: [pop_quiz, glitch, power_flicker, inspector, debate, transfer] # V5-11 adds debate and transfer
 
 leakGuard:
   enabled: true

@@ -138,6 +138,8 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
       reason: z.string().max(600),
     }),
   ),
+  /** V5-09: invite the guest lecturer (on a question, or the class's latest one). */
+  msg("guest.invite", z.strictObject({ question: z.string().max(500).optional() })),
   /** V5-08: I object to the substitute's line i; finish ends the lesson. */
   msg("sub.object", z.strictObject({ i: z.number().int().min(0).max(20) })),
   msg("sub.finish", empty),
@@ -314,7 +316,15 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
     "event.start",
     z.strictObject({
       eventId: z.string(),
-      kind: z.enum(["pop_quiz", "glitch", "power_flicker", "inspector", "recheck"]),
+      kind: z.enum([
+        "pop_quiz",
+        "glitch",
+        "power_flicker",
+        "inspector",
+        "recheck",
+        "debate",
+        "transfer",
+      ]),
       /** The cadet it's about; absent for the visiting Dean. */
       cadetId: z.string().optional(),
       /** Pop quiz question; the glitch line; the misconception whispered in a flicker. */
@@ -328,7 +338,15 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
     "event.result",
     z.strictObject({
       eventId: z.string(),
-      kind: z.enum(["pop_quiz", "glitch", "power_flicker", "inspector", "recheck"]),
+      kind: z.enum([
+        "pop_quiz",
+        "glitch",
+        "power_flicker",
+        "inspector",
+        "recheck",
+        "debate",
+        "transfer",
+      ]),
       /** Pop quiz: Grader score 0–5. */
       score: z.number().optional(),
       /** Glitch: did I catch it? and what it got wrong. */
@@ -396,6 +414,19 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       breaks: z.string(),
     }),
   ),
+  /** V5-09: the guest lecturer's answer, from my sources only, with references. */
+  msg(
+    "guest.answer",
+    z.strictObject({
+      name: z.string(),
+      question: z.string(),
+      answer: z.string(),
+      citations: z.array(
+        z.strictObject({ source: z.string(), heading: z.string(), page: z.number().nullable() }),
+      ),
+      left: z.number().int(),
+    }),
+  ),
   /** V5-05: an ELI round starts, and how my explanation fit its audience. */
   msg(
     "eli.round",
@@ -445,6 +476,8 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       score: z.number(),
     }),
   ),
+  /** V5-11: a transfer student joined mid-module. */
+  msg("cadet.joined", z.strictObject({ cadet: CadetViewZ })),
   /** V4-03: a student moved on in their growth arc. */
   msg(
     "cadet.arc",

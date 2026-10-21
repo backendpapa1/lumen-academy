@@ -11,7 +11,12 @@ import "./modes.css";
 
 const banner = h("div", { class: "mode-banner card", hidden: true, role: "status" });
 const panel = h("aside", { class: "mode-panel card", hidden: true });
-document.querySelector("#stage")!.append(banner, panel);
+const guest = h("aside", {
+  class: "guest-card card",
+  hidden: true,
+  "aria-label": "Guest lecturer",
+});
+document.querySelector("#stage")!.append(banner, panel, guest);
 
 let marked = new Set<number>();
 let markedFor: string | null = null;
@@ -33,6 +38,7 @@ function render(c: ClassroomState, route: string) {
       ),
     );
   }
+  renderGuest(c, live);
   const tb = c.teachBack;
   panel.hidden = !live || !(tb || c.analogy || c.eli || c.sub);
   if (panel.hidden) return;
@@ -343,3 +349,45 @@ function renderTeachBack(c: ClassroomState, tb: NonNullable<ClassroomState["teac
 store.subscribe((s, p) => {
   if (s.classroom !== p.classroom || s.route !== p.route) render(s.classroom, s.route.name);
 });
+
+// --- V5-09 guest lecturer ------------------------------------------------------------------
+
+function renderGuest(c: ClassroomState, live: boolean) {
+  const g = c.guest;
+  guest.hidden = !live || !g;
+  if (!g || guest.dataset.for === g.answer) return;
+  guest.dataset.for = g.answer;
+  fill(
+    guest,
+    h(
+      "div",
+      { class: "row", style: "gap:8px" },
+      h("div", { class: "micro", style: "flex:1" }, `Guest lecturer · ${g.name}`),
+      h(
+        "button",
+        { class: "btn small quiet", onclick: () => app.dismissGuest(), "aria-label": "Close" },
+        "×",
+      ),
+    ),
+    h("p", { class: "dim small", style: "margin:4px 0" }, `On: “${g.question}”`),
+    h("p", { class: "guest-answer" }, g.answer),
+    g.citations.length
+      ? h(
+          "p",
+          { class: "dim small" },
+          h("b", {}, "From your sources: "),
+          g.citations
+            .map(
+              (x) =>
+                `${x.source}${x.heading ? ` › ${x.heading}` : ""}${x.page ? ` (p.${x.page})` : ""}`,
+            )
+            .join(" · "),
+        )
+      : null,
+    h(
+      "p",
+      { class: "dim small", style: "margin-bottom:0" },
+      `Only you hear the guest; your class learns from you. ${g.left} visit${g.left === 1 ? "" : "s"} left this week.`,
+    ),
+  );
+}

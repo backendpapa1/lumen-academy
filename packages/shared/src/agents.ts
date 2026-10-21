@@ -149,6 +149,20 @@ export const SubstituteLessonZ = z.object({
 });
 export type SubstituteLesson = z.infer<typeof SubstituteLessonZ>;
 
+/** V5-09: the guest's answer, grounded in my sources (citations are chunk ids). */
+export const GuestAnswerZ = z.object({
+  answer: z.string().min(1).max(1500),
+  citations: z.array(z.string()).min(1).max(6),
+});
+
+/** V5-10: one turn from the parent in a parent–teacher meeting. */
+export const ParentTurnZ = z.object({
+  reply: z.string().min(1).max(600),
+  satisfied: z.boolean(),
+  pushback: z.boolean(),
+});
+export type ParentTurn = z.infer<typeof ParentTurnZ>;
+
 export const TeachBackPhrasingZ = z.object({ sentences: z.array(z.string().min(1).max(300)) });
 
 /**

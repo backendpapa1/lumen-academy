@@ -204,3 +204,74 @@ async function flavourBatch(
   });
   return res.data;
 }
+
+/**
+ * V5-11 transfer student: one new student joins an active class mid-module,
+ * with a gap (no ledger yet). Same Registrar flavour as at registration.
+ * Returns null when the class is full.
+ */
+export async function enrollTransfer(
+  deps: RegisterDeps,
+  classroomId: string,
+): Promise<RegisteredCadet | null> {
+  const { handle, game } = deps;
+  const room = handle.db.select().from(classrooms).where(eq(classrooms.id, classroomId)).get();
+  if (!room) return null;
+  const school = handle.db.select().from(schools).where(eq(schools.id, room.schoolId)).get()!;
+  const roster = handle.db.select().from(cadets).where(eq(cadets.classroomId, classroomId)).all();
+  const active = roster.filter((c) => c.status === "enrolled" || c.status === "transferred_in");
+  if (active.length >= game.cohort.max) return null;
+  const used = new Set(roster.map((c) => c.seat));
+  const seat = [...Array(15).keys()].find((s) => !used.has(s));
+  if (seat === undefined) return null;
+  const [p] = planCohort(
+    seedFrom(classroomId, "transfer", roster.length),
+    room.difficulty ?? "standard",
+    game,
+  );
+  const plan = { ...p!, seat };
+  const taken = new Set(roster.map((c) => c.name.toLowerCase()));
+  const flavour = await flavourBatch(
+    deps,
+    school,
+    [plan],
+    roster.length,
+    taken,
+    roster.map((c) => c.quirk),
+  );
+  const f = flavour.cadets[0];
+  if (!f || taken.has(f.name.toLowerCase())) return null;
+  const cadet: RegisteredCadet = {
+    ...plan,
+    id: newId("cadet"),
+    name: f.name,
+    quirk: f.quirk,
+    voiceNotes: f.voiceNotes,
+    backstory: f.backstory,
+  };
+  handle.db
+    .insert(cadets)
+    .values({
+      id: cadet.id,
+      classroomId,
+      seat,
+      name: f.name,
+      homeworld: plan.homeworld,
+      archetype: plan.archetype,
+      traitsJson: JSON.stringify({
+        ...plan.traits,
+        appearance: { ...plan.appearance, visualQuirk: f.visualQuirk, hair: f.hair },
+      }),
+      learningStyle: plan.learningStyle,
+      quirk: f.quirk,
+      voiceNotes: f.voiceNotes,
+      backstory: f.backstory || null,
+      interestsJson: JSON.stringify(
+        f.interests.length ? f.interests.slice(0, 2) : defaultInterests(cadet.id, game.interests),
+      ),
+      status: "transferred_in",
+      enrolledAt: new Date().toISOString(),
+    })
+    .run();
+  return cadet;
+}

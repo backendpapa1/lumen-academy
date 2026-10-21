@@ -156,3 +156,20 @@
   border-color: var(--coral);
   border-style: dashed;
 }
+/* V5-09 guest lecturer: a model explanation, for me only. */
+.guest-card {
+  position: absolute;
+  left: 16px;
+  top: 150px;
+  z-index: 6;
+  width: min(400px, calc(100vw - 32px));
+  max-height: calc(100vh - 320px);
+  overflow: auto;
+  padding: 16px;
+  border-color: var(--leaf);
+  box-shadow: 6px 6px 0 var(--leaf);
+}
+.guest-card .guest-answer {
+  font: 400 16px/1.5 var(--font-body);
+  margin: 8px 0;
+}

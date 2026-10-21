@@ -16,6 +16,7 @@ const LABEL: Partial<Record<EventState["kind"], string>> = {
   pop_quiz: "Pop quiz",
   glitch: "Mix-up",
   recheck: "From your mistake journal",
+  debate: "Class debate",
 };
 
 const root = h("div", { class: "event-back", hidden: true });
@@ -68,6 +69,25 @@ function render(e: EventState | undefined) {
     return;
   }
   if (e.kind === "inspector") return renderInspector(e);
+  // V5-11: someone new takes a seat.
+  if (e.kind === "transfer") {
+    fill(
+      root,
+      h(
+        "section",
+        { class: "card event-card", role: "status", "aria-live": "polite" },
+        h("div", { class: "micro" }, "A transfer student"),
+        h("p", { style: "margin:6px 0 0" }, e.text),
+        h(
+          "p",
+          { class: "dim", style: "margin:6px 0 0;font-size:13px" },
+          "Catch them up: a short recap now saves a lot later.",
+        ),
+      ),
+    );
+    autoClose = setTimeout(() => app.dismissEvent(), 10000);
+    return;
+  }
 
   const done = !!e.result;
   const head = h(
@@ -176,6 +196,54 @@ function render(e: EventState | undefined) {
           "div",
           { class: "event-outcome" },
           h("div", { class: "h2" }, `${r.score ?? 0} / 5`),
+          h("p", { class: "dim", style: "margin:4px 0 0" }, r.explanation),
+        ),
+      );
+    }
+  } else if (e.kind === "debate") {
+    // V5-11: two students argue a claim; I listen, then rule.
+    parts.push(
+      h("p", { class: "event-line" }, `“${e.text}”`),
+      h(
+        "p",
+        { class: "dim", style: "margin:0 0 12px;font-size:13px" },
+        `${who(e.cadetId)} argues for it, ${who(e.toCadetId)} against. Listen, then rule.`,
+      ),
+    );
+    if (!done)
+      parts.push(
+        h(
+          "div",
+          { class: "actions" },
+          h("span", { class: "dim", style: "font-size:12px" }, "Y right · N wrong"),
+          h("span", { class: "spacer" }),
+          h(
+            "button",
+            {
+              class: "btn",
+              disabled: !!e.sent,
+              onclick: () => app.answerEvent(e.id, { wrong: false }),
+            },
+            "The claim is right",
+          ),
+          h(
+            "button",
+            {
+              class: "btn",
+              disabled: !!e.sent,
+              onclick: () => app.answerEvent(e.id, { wrong: true }),
+            },
+            "The claim is wrong",
+          ),
+        ),
+      );
+    else {
+      const r = e.result!;
+      parts.push(
+        h(
+          "div",
+          { class: `event-outcome ${r.caught ? "good" : "bad"}` },
+          h("div", { class: "h2" }, r.caught ? "Good ruling." : "Not this time."),
           h("p", { class: "dim", style: "margin:4px 0 0" }, r.explanation),
         ),
       );
@@ -384,7 +452,7 @@ root.addEventListener("keydown", (ev) => {
   const e = store.getState().classroom.event;
   if (!e) return;
   const inField = ev.target instanceof HTMLTextAreaElement;
-  if (e.kind === "glitch" && !e.result && !e.sent && !inField) {
+  if ((e.kind === "glitch" || e.kind === "debate") && !e.result && !e.sent && !inField) {
     const k = ev.key.toLowerCase();
     if (k === "y") app.answerEvent(e.id, { wrong: false });
     else if (k === "n") app.answerEvent(e.id, { wrong: true });
