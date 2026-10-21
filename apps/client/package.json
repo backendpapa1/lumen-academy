@@ -16,6 +16,7 @@
     "@lumen/shared": "workspace:*",
     "mitt": "3.0.1",
     "phaser": "4.2.1",
+    "postprocessing": "6.39.5",
     "three": "0.186.1",
     "zustand": "5.0.15"
   },

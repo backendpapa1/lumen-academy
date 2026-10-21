@@ -1,63 +1,107 @@
+import {
+  BloomEffect,
+  EffectComposer,
+  EffectPass,
+  RenderPass,
+  SMAAEffect,
+  VignetteEffect,
+} from "postprocessing";
 import * as THREE from "three";
-import { store } from "../core/store";
+import type { WorldScene } from "./WorldScene";
 
-const ACCENTS = [0x5be7ff, 0xf5c66b, 0xa78bfa, 0x4ade80]; // lumen, aurum, violet, success
+const MAX_DPR = 1.5;
+const SLOW_FRAME_MS = 20;
+const SLOW_FOR_MS = 2000;
 
-/** Owns the Three.js renderer and the active 3D scene. M0: one spinning mesh. */
+/**
+ * Owns the Three.js renderer, the post-processing chain and the active 3D
+ * scene (docs/05 §4). Adaptive DPR: drop to 1.0 after 2s of slow frames.
+ */
 export class WorldDirector {
-  private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-  private readonly mesh: THREE.Mesh<THREE.IcosahedronGeometry, THREE.MeshStandardMaterial>;
-  private readonly unsubscribe: () => void;
+  private composer: EffectComposer;
+  private active: WorldScene | null = null;
+  private bloom: BloomEffect;
+  private slowFor = 0;
+  private dpr = Math.min(window.devicePixelRatio, MAX_DPR);
+  readonly stats = { fps: 60, frameMs: 16.7, drawCalls: 0, triangles: 0, dpr: this.dpr };
 
   constructor(private readonly renderer: THREE.WebGLRenderer) {
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(this.dpr);
     renderer.setClearColor(0x05070d, 1);
-    this.camera.position.set(0, 0, 4);
-
-    this.mesh = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(1, 1),
-      new THREE.MeshStandardMaterial({
-        color: ACCENTS[0],
-        flatShading: true,
-        metalness: 0.2,
-        roughness: 0.4,
-      }),
-    );
-    this.scene.add(this.mesh);
-    this.scene.add(new THREE.AmbientLight(0x7fa8ff, 0.6));
-    const key = new THREE.DirectionalLight(0xeaf2ff, 2);
-    key.position.set(2, 3, 4);
-    this.scene.add(key);
-
-    this.unsubscribe = store.subscribe((s, prev) => {
-      if (s.pings !== prev.pings)
-        this.mesh.material.color.setHex(ACCENTS[s.pings % ACCENTS.length] ?? 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    this.composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType });
+    this.bloom = new BloomEffect({
+      luminanceThreshold: 0.75,
+      luminanceSmoothing: 0.2,
+      intensity: 0.9,
+      mipmapBlur: true,
     });
+  }
+
+  show(scene: WorldScene): void {
+    this.active?.dispose();
+    this.active = scene;
+    this.composer.removeAllPasses();
+    this.composer.addPass(new RenderPass(scene.scene, scene.camera));
+    this.composer.addPass(
+      new EffectPass(
+        scene.camera,
+        this.bloom,
+        new VignetteEffect({ offset: 0.35, darkness: 0.55 }),
+        new SMAAEffect(),
+      ),
+    );
     this.resize();
   }
 
-  resize(): void {
-    const { clientWidth: w, clientHeight: h } = this.renderer.domElement;
-    this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / Math.max(h, 1);
-    this.camera.updateProjectionMatrix();
+  /** Hyperfocus (docs/08 §1): bloom −40%. */
+  setBloomIntensity(i: number): void {
+    this.bloom.intensity = i;
   }
 
-  update(_time: number, deltaMs: number): void {
-    const dt = deltaMs / 1000;
-    this.mesh.rotation.x += dt * 0.4;
-    this.mesh.rotation.y += dt * 0.6;
+  resize(): void {
+    const canvas = this.renderer.domElement;
+    const w = canvas.clientWidth || window.innerWidth;
+    const h = canvas.clientHeight || window.innerHeight;
+    this.renderer.setPixelRatio(this.dpr);
+    this.renderer.setSize(w, h, false);
+    this.composer.setSize(w, h, false);
+    this.active?.resize(w, h);
+  }
+
+  update(time: number, deltaMs: number): void {
+    const dt = Math.min(deltaMs, 100) / 1000;
+    this.stats.frameMs = this.stats.frameMs * 0.9 + deltaMs * 0.1;
+    this.stats.fps = 1000 / this.stats.frameMs;
+    this.adaptDpr(deltaMs);
+    this.active?.update(dt, time / 1000);
   }
 
   render(): void {
-    this.renderer.render(this.scene, this.camera);
+    if (!this.active) return;
+    this.renderer.info.autoReset = false;
+    this.renderer.info.reset();
+    this.composer.render();
+    this.stats.drawCalls = this.renderer.info.render.calls;
+    this.stats.triangles = this.renderer.info.render.triangles;
+  }
+
+  private adaptDpr(deltaMs: number): void {
+    if (this.dpr <= 1) return;
+    this.slowFor = deltaMs > SLOW_FRAME_MS ? this.slowFor + deltaMs : 0;
+    if (this.slowFor > SLOW_FOR_MS) {
+      this.dpr = 1;
+      this.stats.dpr = 1;
+      this.slowFor = 0;
+      this.resize();
+    }
   }
 
   dispose(): void {
-    this.unsubscribe();
-    this.mesh.geometry.dispose();
-    this.mesh.material.dispose();
+    this.active?.dispose();
+    this.composer.dispose();
     this.renderer.dispose();
   }
 }

@@ -5,6 +5,8 @@ import { store } from "./core/store";
 import { loadFonts } from "./ui/fonts";
 import { BootScene } from "./ui/scenes/BootScene";
 import { GalleryScene } from "./ui/scenes/GalleryScene";
+import { loadDemoClassroom } from "./core/demo";
+import { ClassroomScene } from "./world/scenes/ClassroomScene";
 import { WorldDirector } from "./world/WorldDirector";
 
 const worldCanvas = document.querySelector<HTMLCanvasElement>("#world");
@@ -29,7 +31,7 @@ const ui = new Phaser.Game({
   parent: stage,
   transparent: true,
   scale: { mode: Phaser.Scale.RESIZE },
-  scene: view === "gallery" ? [GalleryScene] : [BootScene],
+  scene: view === "gallery" ? [GalleryScene] : view === "classroom-demo" ? [] : [BootScene],
 });
 
 // One RAF, one clock: Phaser's step drives the Three.js world (docs/05 §4.1).
@@ -39,12 +41,27 @@ ui.events.on(Phaser.Core.Events.PRE_STEP, (time: number, delta: number) => {
 });
 window.addEventListener("resize", () => director.resize());
 
+if (view === "classroom-demo") {
+  loadDemoClassroom();
+  director.show(new ClassroomScene());
+}
+
 bus.on("ui:ping", () => store.setState((s) => ({ pings: s.pings + 1 })));
 
 // Test hook for the Playwright smoke test.
 declare global {
   interface Window {
-    __lumen?: { store: typeof store; phaserVersion: string; threeRevision: string };
+    __lumen?: {
+      store: typeof store;
+      phaserVersion: string;
+      threeRevision: string;
+      stats: WorldDirector["stats"];
+    };
   }
 }
-window.__lumen = { store, phaserVersion: Phaser.VERSION, threeRevision: THREE.REVISION };
+window.__lumen = {
+  store,
+  phaserVersion: Phaser.VERSION,
+  threeRevision: THREE.REVISION,
+  stats: director.stats,
+};
