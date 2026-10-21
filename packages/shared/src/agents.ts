@@ -179,6 +179,18 @@ export const TeachingAnalysisZ = z.object({
     coverage: z.array(z.string()), // key facts covered this turn (verbatim from the list)
     errors: z.array(z.object({ claim: z.string(), correction: z.string(), citation: z.string() })),
   }),
+  /** V6-08: terms I defined in this message, in my words, checked against the key facts. */
+  definitions: z
+    .array(
+      z.object({
+        term: z.string().min(1).max(60),
+        definition: z.string().min(1).max(300),
+        agrees: z.boolean(),
+        note: z.string().max(200).optional(),
+      }),
+    )
+    .max(3)
+    .optional(),
   /** V5-02: in a Socratic class, what kind of question I asked. */
   question: z.object({ kind: z.enum(["diagnostic", "leading", "closed", "statement"]) }).optional(),
   ledgerDeltas: z.array(
@@ -205,6 +217,7 @@ export function normalizeTeachingAnalysis(a: TeachingAnalysis): TeachingAnalysis
       errors: a.teaching.errors.slice(0, 3),
     },
     ...(a.question ? { question: a.question } : {}),
+    ...(a.definitions?.length ? { definitions: a.definitions.slice(0, 3) } : {}),
     ledgerDeltas: a.ledgerDeltas.map((d) => ({
       ...d,
       comprehensionDelta: clamp(d.comprehensionDelta, -0.3, 0.4),

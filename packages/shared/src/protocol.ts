@@ -73,6 +73,12 @@ export type XpStanding = z.infer<typeof XpStandingZ>;
 
 export const BudgetStateZ = z.enum(["ok", "warn", "degrade", "pause"]);
 export const PeriodKindZ = z.enum(PERIOD_KINDS);
+export const GlossaryTermZ = z.strictObject({
+  term: z.string(),
+  definition: z.string(),
+  agrees: z.boolean(),
+  note: z.string().nullable(),
+});
 export const StickerViewZ = z.strictObject({
   id: z.string(),
   cadetId: z.string(),
@@ -183,6 +189,8 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       stickers: z.array(StickerViewZ).optional(),
       /** V5: the student at the centre of a Socratic or teach-back period. */
       hotSeat: z.string().nullable().optional(),
+      /** V6-08: the glossary wall, latest first. */
+      glossary: z.array(GlossaryTermZ).optional(),
     }),
   ),
   /** XP just earned (e.g. answering a cadet's question). */
@@ -416,6 +424,8 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       breaks: z.string(),
     }),
   ),
+  /** V6-08: a term I defined was pinned (or re-pinned) on the glossary wall. */
+  msg("glossary.update", z.strictObject({ terms: z.array(GlossaryTermZ) })),
   /** V6-06: the matching passage from my sources (mine only). */
   msg(
     "source.passage",

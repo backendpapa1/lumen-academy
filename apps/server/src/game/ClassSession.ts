@@ -302,6 +302,13 @@ export class ClassSession {
     );
     session.kind = kind;
     session.hotSeat = focusId;
+    session.glossary = (
+      deps.handle.sqlite
+        .prepare(
+          "SELECT term FROM glossary_terms WHERE school_id = ? ORDER BY updated_at DESC LIMIT 40",
+        )
+        .all(room.schoolId) as Array<{ term: string }>
+    ).map((r) => r.term);
     session.hotSeatStart = focusId
       ? ((
           deps.handle.sqlite
@@ -443,6 +450,8 @@ export class ClassSession {
   /** V5: the student at the centre of a Socratic or teach-back period. */
   hotSeat: string | null = null;
   hotSeatStart = 0;
+  /** V6-08: terms on the glossary wall, for the crowd. */
+  glossary: string[] = [];
   private peerCount = 0;
   private lastPeerTurn = -Infinity;
   /**
@@ -590,6 +599,7 @@ export class ClassSession {
             difficulty: this.difficulty,
             peerOk: this.peerOk(ord),
             pastClaims,
+            glossary: this.glossary,
           },
           { onReaction: (id, state) => this.events.onReaction?.(id, state) },
         )

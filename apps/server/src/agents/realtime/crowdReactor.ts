@@ -80,6 +80,8 @@ export interface ReactorInput {
   peerOk?: boolean;
   /** V4-05: my related claims from earlier classes ("3 days ago: …"). */
   pastClaims?: string[];
+  /** V6-08: terms already on the glossary wall. */
+  glossary?: string[];
 }
 
 export interface ReactorEvents {
@@ -104,6 +106,7 @@ export function reactorMessages(input: ReactorInput): BaseMessage[] {
     gentle: input.difficulty === "gentle",
     ruthless: input.difficulty === "ruthless",
     peerOk: !!input.peerOk,
+    glossary: input.glossary?.length ? input.glossary.join(", ") : "",
     pastClaims: input.pastClaims?.length ? input.pastClaims.map((c) => `- ${c}`).join("\n") : "",
     conceptTitle: input.conceptTitle,
     cadetTable: cadetTable(input.cards.map((c, i) => ({ ...c, id: String(i + 1) }))),

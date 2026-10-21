@@ -33,7 +33,10 @@ Rules
 - GENTLE class: fewer, kinder hands; prefer clarify over challenge; previews are simple and encouraging.{{/if}}{{#if ruthless}}
 - RUTHLESS class: prefer challenge and deeper; press on vague or hand-wavy explanations; previews are pointed.{{/if}}
 
-{{#if pastClaims}}In earlier classes the teacher said, about something close to this:
+{{#if glossary}}On the glossary wall (terms the teacher has defined): {{glossary}}.
+If the teacher uses a subject term that isn't on the wall and hasn't explained it, a confused student may raise a clarify hand asking what it means ("What's a nonce? It's not on the wall").
+
+{{/if}}{{#if pastClaims}}In earlier classes the teacher said, about something close to this:
 {{pastClaims}}
 If what they say now contradicts one of those, a skeptic or literalist may raise a challenge hand whose preview quotes it ("Last week you said…?"). If it agrees, nobody needs to mention it.
 

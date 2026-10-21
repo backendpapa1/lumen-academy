@@ -1,3 +1,4 @@
+import { wallTerms } from "../game/glossaryWall.js";
 import { ARCHETYPE_INFO, ARCS, type Archetype } from "@lumen/shared";
 import { parseArc } from "../game/arcs.js";
 import { STICKER_KINDS, type StickerKind } from "../game/stickers.js";
@@ -133,6 +134,16 @@ export function yearbookMarkdown(handle: DbHandle, game: GameConfig, schoolId: s
         out.push("");
       }
     }
+  }
+  // V6-08: the glossary wall, in my words.
+  const terms = wallTerms(handle, schoolId, 200).sort((a, b) => a.term.localeCompare(b.term));
+  if (terms.length) {
+    out.push("## Glossary (in your words)", "");
+    for (const t of terms)
+      out.push(
+        `- **${t.term}**: ${t.definition}${t.agrees ? "" : ` _(doesn't match your sources${t.note ? `: ${t.note}` : ""})_`}`,
+      );
+    out.push("");
   }
   // V4-03/06: the students, how they've grown, and the stickers they gave me.
   const students = sqlite

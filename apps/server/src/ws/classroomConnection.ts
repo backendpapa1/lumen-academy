@@ -1,3 +1,4 @@
+import { pinDefinitions, wallTerms } from "../game/glossaryWall.js";
 import { checkSource } from "../game/sourceCheck.js";
 import { askGuest, guestsLeft } from "../game/guest.js";
 import { AnalogyLab, EliLadder, SubstituteLessonRunner, type ModeHost } from "./modeRunners.js";
@@ -389,6 +390,7 @@ export class ClassroomConnection {
         energy: session.energy,
         stickers: recentStickers(handle, room.id),
         hotSeat: session.hotSeat,
+        glossary: wallTerms(handle, school.id),
       },
     });
     this.sendCost();
@@ -506,6 +508,18 @@ export class ClassroomConnection {
           session.flavour.find((f) => f.archetype === "overachiever");
         if (expert) void this.call(expert.id).catch(() => undefined);
       });
+    // V6-08: terms I defined go on the glossary wall, in my words.
+    if (done.analysis.definitions?.length && this.scope) {
+      pinDefinitions(this.rt.handle, {
+        schoolId: this.scope.schoolId,
+        periodId: session.periodId,
+        conceptId: done.analysis.conceptIds[0] ?? null,
+        definitions: done.analysis.definitions,
+      });
+      const terms = wallTerms(this.rt.handle, this.scope.schoolId);
+      session.glossary = terms.map((t) => t.term);
+      this.send({ type: "glossary.update", payload: { terms } });
+    }
     // V4-06: stickers for great moments, by server rules on the Director's report.
     if (this.scope)
       for (const s of awardStickers(this.rt.handle, this.rt.game, {

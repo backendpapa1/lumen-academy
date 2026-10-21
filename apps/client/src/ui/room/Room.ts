@@ -502,7 +502,8 @@ export class Room {
     const last = [...c.transcript].reverse().find((t) => t.speaker === "headmaster")?.text ?? "";
     const avg = c.classAverage;
     const parked = c.parking.open;
-    const key = `${c.concept?.title}|${c.board}|${last}|${avg}|${c.lastTaughtDays}|${parked}`;
+    const wall = c.glossary.slice(0, 5);
+    const key = `${c.concept?.title}|${c.board}|${last}|${avg}|${c.lastTaughtDays}|${parked}|${wall.map((t) => t.term + t.definition).join("·")}`;
     if (this.boardText.dataset.key === key) return;
     this.boardText.dataset.key = key;
     const lines = c.board
@@ -522,6 +523,16 @@ export class Room {
         avg === null
           ? ""
           : `<div class="b-meter"><span>Class understanding</span><i><b style="width:${Math.round(avg * 100)}%"></b></i><em>${Math.round(avg * 100)}%</em></div>`
+      }
+      ${
+        wall.length
+          ? `<div class="b-wall" aria-label="Glossary wall"><div class="b-wall-h">On the wall</div>${wall
+              .map(
+                (t) =>
+                  `<div class="b-term${t.agrees ? "" : " disputed"}" title="${escapeXml(t.agrees ? t.definition : `${t.definition} (${t.note ?? "doesn't match your sources"})`)}"><b>${escapeXml(t.term)}</b> ${escapeXml(t.definition.length > 70 ? `${t.definition.slice(0, 67)}…` : t.definition)}</div>`,
+              )
+              .join("")}</div>`
+          : ""
       }
       ${parked ? `<div class="b-sticky" title="Parked thoughts: they wait for you at the bell"><b>${parked}</b>parked</div>` : ""}`;
   }

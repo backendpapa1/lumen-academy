@@ -10,6 +10,7 @@ Output
 - teaching.clarity (0–1): how clear and well-explained it is for a learner (examples, structure, plain words).
 - teaching.coverage: the key facts this message covered, copied verbatim from the list.
 - teaching.errors: claims that contradict the key facts, each with the correction and a citation (the key fact's id, e.g. "kf3").
+- definitions (optional): only when the teacher explicitly defines a term in this message ("X is…", "we call that X", "X means…"). term = the term as the teacher said it; definition = the teacher's OWN wording, trimmed to one sentence (never your words or the key facts'); agrees = false if it contradicts the key facts, with a short note saying how. Leave it out otherwise.
 - ledgerDeltas: for each student whose understanding plausibly changed, a comprehensionDelta (-0.3..0.4). Base it on accuracy, clarity, the student's attention and learning style. A confused student whose question was answered well gains more. Errors can lower comprehension. Add newMisconception if this student would likely absorb a stated error; add resolvedMisconception if the teacher corrected one of theirs.
 
 {{#if socratic}}SOCRATIC CLASS: the teacher teaches only by asking questions; the student in the hot seat answers.
