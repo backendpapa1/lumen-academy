@@ -1,3 +1,4 @@
+import { nativeAudio, wavInfo } from "./nativeAudio";
 import { SERVER_HTTP } from "./net";
 
 // The guided tour's narrator (Paul's note: the guide should have a speaker).
@@ -5,7 +6,8 @@ import { SERVER_HTTP } from "./net";
 // where the browser has its own speech synthesis it's the fallback (the
 // desktop app's WebKitGTK has none). Nothing leaves the machine either way.
 //
-// Two things the desktop app taught us (WebKitGTK):
+// In the desktop app the shell plays the audio (nativeAudio.ts): no click
+// needed, and it works where WebKitGTK's own audio is silent. In a browser:
 // - Audio starts locked and `AudioContext.resume()` never settles without a
 //   click, so we never wait on it: the line waits for the first click or key
 //   press anywhere, and the speaker button says "Tap to hear me".
@@ -37,6 +39,8 @@ class Narrator {
   private cache = new Map<string, Promise<ArrayBuffer>>();
   /** The line waiting for the first click (audio is locked until then). */
   private waiting: string | null = null;
+  /** Desktop app: when the shell finishes the current line. */
+  private idleTimer: ReturnType<typeof setTimeout> | undefined;
   state: NarratorState = "idle";
 
   constructor() {
@@ -107,6 +111,7 @@ class Narrator {
     this.stop();
     if (!this.on) return;
     const token = ++this.token;
+    if (nativeAudio.available) return this.sayNative(text, token);
     try {
       this.ctx ??= new AudioContext();
     } catch {
@@ -151,6 +156,37 @@ class Narrator {
     }
   }
 
+  /** The desktop app: each sentence goes to the shell as soon as it's made. */
+  private async sayNative(text: string, token: number): Promise<void> {
+    this.set("loading");
+    const parts = sentences(text);
+    const audio = parts.map((p) => this.fetch(p));
+    let endsAt = 0;
+    let played = 0;
+    for (const a of audio) {
+      let wav: ArrayBuffer;
+      try {
+        wav = await a;
+      } catch {
+        if (token !== this.token) return;
+        if (played === 0) return this.set("unavailable");
+        continue;
+      }
+      if (token !== this.token) return;
+      const { duration } = wavInfo(wav);
+      await nativeAudio.play("narrator", wav, { queue: played > 0 }).catch(() => undefined);
+      endsAt = Math.max(performance.now(), endsAt) + duration * 1000;
+      played++;
+      if (played === 1) this.set("speaking");
+    }
+    if (token !== this.token) return;
+    clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(
+      () => token === this.token && this.set("idle"),
+      Math.max(0, endsAt - performance.now()),
+    );
+  }
+
   /** Starts fetching a line's audio (the tour asks for the next step's). */
   prefetch(text: string) {
     if (!this.on) return;
@@ -192,6 +228,8 @@ class Narrator {
   stop() {
     this.token++;
     this.waiting = null;
+    clearTimeout(this.idleTimer);
+    if (nativeAudio.available) nativeAudio.stop("narrator");
     for (const s of this.sources)
       try {
         s.stop();

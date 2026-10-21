@@ -1,16 +1,42 @@
 import type { ServerMessage } from "@lumen/shared";
 import { serverEvents } from "./bus";
+import { encodeWav, nativeAudio } from "./nativeAudio";
 import { store, type AppState } from "./store";
 
 // Procedural sound (docs/02 §6, M6-03), with no samples and no library: Web
 // Audio pads per place (campus, classroom, exam) and short synthesized cues.
 // Quiet by default; M mutes (remembered). Starts on the first key or click,
 // as browsers require. Hyperfocus drops the pads to a slow ~60 BPM pulse.
+//
+// In the desktop app the same graphs are rendered with an OfflineAudioContext
+// and played by the shell (nativeAudio.ts): WebKitGTK's live output can be
+// silent. Cues are rendered once and cached; pads and ambience become loops.
 
 type Bed = "campus" | "classroom" | "exam" | null;
 type Ambience = "room" | "rain" | null;
+type CueName = "hand" | "bell" | "xp" | "speak" | "arrive" | "right" | "wrong" | "tick" | "pulse";
+/** Where a graph plays: the live context's master, or an offline render. */
+interface Target {
+  ctx: BaseAudioContext;
+  dest: AudioNode;
+}
 const MUTE_KEY = "lumen.muted";
 const LEVEL = 0.22;
+/** Offline renders: rate, a pad loop (one breath of its LFO), an ambience loop. */
+const RATE = 44100;
+const PAD_LOOP = 20;
+const AMBIENCE_LOOP = 8;
+const CUE_SECONDS: Record<CueName, number> = {
+  hand: 0.6,
+  bell: 2.6,
+  xp: 0.6,
+  speak: 0.45,
+  arrive: 1.6,
+  right: 0.25,
+  wrong: 0.3,
+  tick: 0.1,
+  pulse: 0.7,
+};
 
 // Chords as frequencies (Hz): calm, open voicings.
 const CHORDS: Record<Exclude<Bed, null>, number[]> = {
@@ -26,11 +52,24 @@ class Sound {
   private pulse: ReturnType<typeof setInterval> | null = null;
   private wanted: Bed = null;
   private lastTick = 0;
+  /** Desktop app: sound is on (no gesture needed), and what's looping now. */
+  private native = false;
+  private nativeBed: Bed = null;
+  private nativeAmbience: Ambience = null;
+  private rendered = new Map<string, Promise<ArrayBuffer>>();
   muted = readMuted();
 
   /** Browsers only allow audio after a gesture. */
   unlock() {
-    if (this.ctx || this.muted) return;
+    if (this.muted) return;
+    if (nativeAudio.available) {
+      if (this.native) return;
+      this.native = true;
+      this.setBed(this.wanted);
+      this.setAmbience(this.wantedAmbience);
+      return;
+    }
+    if (this.ctx) return;
     const Ctx =
       window.AudioContext ??
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -51,6 +90,12 @@ class Sound {
       /* fine */
     }
     if (this.muted) {
+      if (this.native) {
+        for (const ch of ["bed", "ambience"]) nativeAudio.stop(ch);
+        this.native = false;
+        this.nativeBed = null;
+        this.nativeAmbience = null;
+      }
       this.bed?.stop();
       this.bed = null;
       this.ambience = null; // the context closes under it
@@ -61,8 +106,40 @@ class Sound {
     return this.muted;
   }
 
+  private live(): Target | null {
+    return this.ctx && this.master ? { ctx: this.ctx, dest: this.master } : null;
+  }
+
+  /** Renders a graph offline once (cached by key) as a WAV for the shell. */
+  private render(
+    key: string,
+    seconds: number,
+    build: (t: Target) => void,
+    fade = 0,
+  ): Promise<ArrayBuffer> {
+    let p = this.rendered.get(key);
+    if (!p) {
+      const off = new OfflineAudioContext(1, Math.ceil(RATE * seconds), RATE);
+      const out = off.createGain();
+      out.connect(off.destination);
+      if (fade) {
+        // Soft edges, so a loop breathes rather than clicks.
+        out.gain.setValueAtTime(0, 0);
+        out.gain.linearRampToValueAtTime(1, fade);
+        out.gain.setValueAtTime(1, seconds - fade);
+        out.gain.linearRampToValueAtTime(0, seconds);
+      }
+      build({ ctx: off, dest: out });
+      p = off.startRendering().then(encodeWav);
+      p.catch(() => this.rendered.delete(key));
+      this.rendered.set(key, p);
+    }
+    return p;
+  }
+
   setBed(name: Bed) {
     this.wanted = name;
+    if (this.native) return this.setBedNative(name);
     const ctx = this.ctx;
     if (!ctx || !this.master || this.bed?.name === name) return;
     const old = this.bed;
@@ -75,47 +152,46 @@ class Sound {
     const gain = ctx.createGain();
     gain.gain.value = 0;
     gain.gain.setTargetAtTime(1, ctx.currentTime, 1.5);
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 900;
-    filter.Q.value = 0.4;
-    // A slow breath on the filter: the pad never sits still.
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.value = 0.05;
-    lfoGain.gain.value = 380;
-    lfo.connect(lfoGain).connect(filter.frequency);
-    filter.connect(gain).connect(this.master);
-    const oscs = CHORDS[name].flatMap((f, i) =>
-      [-4, 4].map((detune) => {
-        const o = ctx.createOscillator();
-        o.type = i === 0 ? "sine" : "triangle";
-        o.frequency.value = f;
-        o.detune.value = detune + i * 1.5;
-        const g = ctx.createGain();
-        g.gain.value = (i === 0 ? 0.16 : 0.07) / 2;
-        o.connect(g).connect(filter);
-        o.start();
-        return o;
-      }),
-    );
-    lfo.start();
+    gain.connect(this.master);
+    const stop = padGraph(ctx, name, gain);
     this.bed = {
       name,
       gain,
       stop: () => {
-        for (const o of [...oscs, lfo]) o.stop();
+        stop();
         gain.disconnect();
       },
     };
     this.applyHyperfocus(store.getState().classroom.hyperfocus);
   }
 
+  private setBedNative(name: Bed) {
+    if (this.nativeBed === name) return;
+    this.nativeBed = name;
+    if (!name) return nativeAudio.stop("bed");
+    void this.render(`bed:${name}`, PAD_LOOP, (t) => padGraph(t.ctx, name, t.dest), 0.4).then(
+      (wav) => {
+        if (this.nativeBed !== name || !this.native) return;
+        void nativeAudio.play("bed", wav, { loop: true, volume: this.bedLevel() });
+      },
+    );
+  }
+
+  private bedLevel(): number {
+    return LEVEL * (store.getState().classroom.hyperfocus ? 0.35 : 1);
+  }
+
   applyHyperfocus(on: boolean) {
+    if (this.pulse) clearInterval(this.pulse);
+    this.pulse = null;
+    if (this.native) {
+      nativeAudio.volume("bed", this.bedLevel());
+      if (on) this.pulse = setInterval(() => this.cue("pulse"), 1000); // ~60 BPM
+      return;
+    }
     const ctx = this.ctx;
     if (!ctx || !this.bed) return;
     this.bed.gain.gain.setTargetAtTime(on ? 0.35 : 1, ctx.currentTime, 1.2);
-    if (this.pulse) clearInterval(this.pulse);
     this.pulse = on ? setInterval(() => this.blip(82.41, 0.18, 0.05, "sine", 0.6), 1000) : null; // ~60 BPM
   }
 
@@ -127,9 +203,10 @@ class Sound {
     type: OscillatorType,
     decay: number,
     at = 0,
+    target: Target | null = this.live(),
   ) {
-    const ctx = this.ctx;
-    if (!ctx || !this.master) return;
+    if (!target) return;
+    const { ctx, dest } = target;
     const t = ctx.currentTime + at;
     const o = ctx.createOscillator();
     const g = ctx.createGain();
@@ -138,7 +215,7 @@ class Sound {
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(peak, t + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
-    o.connect(g).connect(this.master);
+    o.connect(g).connect(dest);
     o.start(t);
     o.stop(t + attack + decay + 0.05);
   }
@@ -152,39 +229,17 @@ class Sound {
    */
   setAmbience(name: Ambience) {
     this.wantedAmbience = name;
+    if (this.native) return this.setAmbienceNative(name);
     const ctx = this.ctx;
     if (!ctx || !this.master || this.ambience?.name === name) return;
     this.ambience?.stop();
     this.ambience = null;
     if (!name) return;
-    const len = ctx.sampleRate * 4;
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    // Brownish noise: each sample drifts from the last (soft, low).
-    let last = 0;
-    for (let i = 0; i < len; i++) {
-      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
-      d[i] = last * 3.5;
-    }
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.loop = true;
-    const f = ctx.createBiquadFilter();
     const g = ctx.createGain();
     g.gain.value = 0;
-    if (name === "room") {
-      f.type = "lowpass";
-      f.frequency.value = 420;
-      g.gain.setTargetAtTime(0.18, ctx.currentTime, 2);
-    } else {
-      // Rain: brighter, with a slow swell, plus droplets.
-      f.type = "bandpass";
-      f.frequency.value = 1400;
-      f.Q.value = 0.5;
-      g.gain.setTargetAtTime(0.55, ctx.currentTime, 2);
-    }
-    src.connect(f).connect(g).connect(this.master);
-    src.start();
+    g.gain.setTargetAtTime(name === "room" ? 0.18 : 0.55, ctx.currentTime, 2);
+    g.connect(this.master);
+    const src = noiseGraph(ctx, name, g);
     const drops =
       name === "rain"
         ? setInterval(() => this.blip(2200 + Math.random() * 1800, 0.012, 0.002, "sine", 0.05), 140)
@@ -199,10 +254,28 @@ class Sound {
     };
   }
 
+  private setAmbienceNative(name: Ambience) {
+    if (this.nativeAmbience === name) return;
+    this.nativeAmbience = name;
+    if (!name) return nativeAudio.stop("ambience");
+    const build = (t: Target) => {
+      const g = t.ctx.createGain();
+      g.gain.value = name === "room" ? 0.18 : 0.55;
+      g.connect(t.dest);
+      noiseGraph(t.ctx, name, g);
+      if (name === "rain")
+        for (let at = 0.1; at < AMBIENCE_LOOP - 0.1; at += 0.14)
+          this.blip(2200 + Math.random() * 1800, 0.012, 0.002, "sine", 0.05, at, t);
+    };
+    void this.render(`ambience:${name}`, AMBIENCE_LOOP, build, 0.3).then((wav) => {
+      if (this.nativeAmbience !== name || !this.native) return;
+      void nativeAudio.play("ambience", wav, { loop: true, volume: LEVEL });
+    });
+  }
+
   /** A chair scraping back: someone's hand goes up. */
-  private scrape() {
-    const ctx = this.ctx;
-    if (!ctx || !this.master) return;
+  private scrape(target: Target) {
+    const { ctx, dest } = target;
     const len = ctx.sampleRate * 0.28;
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
@@ -216,14 +289,13 @@ class Sound {
     f.frequency.exponentialRampToValueAtTime(260, ctx.currentTime + 0.26);
     const g = ctx.createGain();
     g.gain.value = 0.16;
-    src.connect(f).connect(g).connect(this.master);
+    src.connect(f).connect(g).connect(dest);
     src.start();
   }
 
   /** Filtered noise sweep (arrivals). */
-  private whoosh() {
-    const ctx = this.ctx;
-    if (!ctx || !this.master) return;
+  private whoosh(target: Target) {
+    const { ctx, dest } = target;
     const len = ctx.sampleRate * 1.2;
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
@@ -237,17 +309,35 @@ class Sound {
     f.frequency.exponentialRampToValueAtTime(2400, ctx.currentTime + 0.9);
     const g = ctx.createGain();
     g.gain.value = 0.25;
-    src.connect(f).connect(g).connect(this.master);
+    src.connect(f).connect(g).connect(dest);
     src.start();
   }
 
-  cue(name: "hand" | "bell" | "xp" | "speak" | "arrive" | "right" | "wrong" | "tick") {
-    if (!this.ctx) return;
+  cue(name: CueName) {
+    if (name === "tick") {
+      // Reactions arrive in bursts: one soft tick per burst.
+      const now = performance.now();
+      if (now - this.lastTick < 400) return;
+      this.lastTick = now;
+    }
+    if (this.native) {
+      void this.render(`cue:${name}`, CUE_SECONDS[name], (t) => this.playCue(name, t)).then(
+        (wav) => {
+          if (this.native) void nativeAudio.play("sfx", wav, { mix: true, volume: LEVEL });
+        },
+      );
+      return;
+    }
+    const t = this.live();
+    if (t) this.playCue(name, t);
+  }
+
+  private playCue(name: CueName, t: Target) {
     switch (name) {
       case "hand":
-        this.scrape();
-        this.blip(659.25, 0.07, 0.01, "sine", 0.18, 0.12);
-        this.blip(987.77, 0.06, 0.01, "sine", 0.25, 0.2);
+        this.scrape(t);
+        this.blip(659.25, 0.07, 0.01, "sine", 0.18, 0.12, t);
+        this.blip(987.77, 0.06, 0.01, "sine", 0.25, 0.2, t);
         break;
       case "bell":
         for (const [f, p] of [
@@ -256,36 +346,99 @@ class Sound {
           [1046.5, 0.08],
           [1318.5, 0.05],
         ] as const)
-          this.blip(f, p, 0.005, "sine", 2.4);
+          this.blip(f, p, 0.005, "sine", 2.4, 0, t);
         break;
       case "xp":
         [784, 988, 1175, 1568].forEach((f, i) =>
-          this.blip(f, 0.08, 0.005, "triangle", 0.25, i * 0.06),
+          this.blip(f, 0.08, 0.005, "triangle", 0.25, i * 0.06, t),
         );
         break;
       case "speak":
-        this.blip(440, 0.06, 0.02, "sine", 0.35);
+        this.blip(440, 0.06, 0.02, "sine", 0.35, 0, t);
         break;
       case "arrive":
-        this.whoosh();
-        this.blip(587.33, 0.08, 0.3, "sine", 0.8, 0.6);
+        this.whoosh(t);
+        this.blip(587.33, 0.08, 0.3, "sine", 0.8, 0.6, t);
         break;
       case "right":
-        this.blip(880, 0.07, 0.005, "sine", 0.15);
+        this.blip(880, 0.07, 0.005, "sine", 0.15, 0, t);
         break;
       case "wrong":
-        this.blip(196, 0.06, 0.005, "triangle", 0.2);
+        this.blip(196, 0.06, 0.005, "triangle", 0.2, 0, t);
         break;
-      case "tick": {
-        // Reactions arrive in bursts: one soft tick per burst.
-        const now = performance.now();
-        if (now - this.lastTick < 400) return;
-        this.lastTick = now;
-        this.blip(1200, 0.025, 0.002, "sine", 0.05);
+      case "tick":
+        this.blip(1200, 0.025, 0.002, "sine", 0.05, 0, t);
         break;
-      }
+      case "pulse": // hyperfocus, ~60 BPM
+        this.blip(82.41, 0.18, 0.05, "sine", 0.6, 0, t);
+        break;
     }
   }
+}
+
+/** A place's pad: detuned chord tones through a slowly breathing low-pass. */
+function padGraph(ctx: BaseAudioContext, name: Exclude<Bed, null>, out: AudioNode): () => void {
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 900;
+  filter.Q.value = 0.4;
+  // A slow breath on the filter: the pad never sits still.
+  const lfo = ctx.createOscillator();
+  const lfoGain = ctx.createGain();
+  lfo.frequency.value = 0.05;
+  lfoGain.gain.value = 380;
+  lfo.connect(lfoGain).connect(filter.frequency);
+  filter.connect(out);
+  const oscs = CHORDS[name].flatMap((f, i) =>
+    [-4, 4].map((detune) => {
+      const o = ctx.createOscillator();
+      o.type = i === 0 ? "sine" : "triangle";
+      o.frequency.value = f;
+      o.detune.value = detune + i * 1.5;
+      const g = ctx.createGain();
+      g.gain.value = (i === 0 ? 0.16 : 0.07) / 2;
+      o.connect(g).connect(filter);
+      o.start();
+      return o;
+    }),
+  );
+  lfo.start();
+  return () => {
+    for (const o of [...oscs, lfo]) o.stop();
+  };
+}
+
+/** Room tone or rain: brownish noise, filtered. Returns the looping source. */
+function noiseGraph(
+  ctx: BaseAudioContext,
+  name: Exclude<Ambience, null>,
+  out: AudioNode,
+): AudioBufferSourceNode {
+  const len = ctx.sampleRate * 4;
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  // Brownish noise: each sample drifts from the last (soft, low).
+  let last = 0;
+  for (let i = 0; i < len; i++) {
+    last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+    d[i] = last * 3.5;
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  const f = ctx.createBiquadFilter();
+  if (name === "room") {
+    f.type = "lowpass";
+    f.frequency.value = 420;
+  } else {
+    // Rain: brighter, with droplets on top (added by the caller).
+    f.type = "bandpass";
+    f.frequency.value = 1400;
+    f.Q.value = 0.5;
+  }
+  src.connect(f).connect(out);
+  src.start();
+  return src;
 }
 
 function readMuted(): boolean {
@@ -310,6 +463,8 @@ export function installSound() {
   const unlock = () => sound.unlock();
   window.addEventListener("pointerdown", unlock, { once: false, passive: true });
   window.addEventListener("keydown", unlock, { passive: true });
+  // The desktop app's shell plays sound without waiting for a gesture.
+  if (nativeAudio.available) unlock();
   // M mutes on every screen; the classroom's own key map handles it there.
   window.addEventListener("keydown", (e) => {
     const t = e.target as HTMLElement | null;

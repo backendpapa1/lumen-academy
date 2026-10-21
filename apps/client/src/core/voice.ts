@@ -1,5 +1,6 @@
 import { nextChunkEnd } from "@lumen/shared";
 import type { Speech } from "./classroom";
+import { nativeAudio, wavInfo } from "./nativeAudio";
 import { SERVER_HTTP } from "./net";
 import { store } from "./store";
 
@@ -87,6 +88,10 @@ class Voice {
     queue: Promise<void>;
     endsAt: number; // ctx time when the last scheduled chunk finishes
     sources: AudioBufferSourceNode[];
+    /** Desktop app (the shell plays it): when each chunk starts, its loudness every 50 ms. */
+    endsAtMs: number;
+    spans: Array<{ startMs: number; envelope: number[] }>;
+    doneTimer?: ReturnType<typeof setTimeout>;
     aborted: boolean;
     rephrased?: number;
   } | null = null;
@@ -108,6 +113,7 @@ class Voice {
       /* per-viewer convenience only */
     }
     if (this.out) this.out.gain.value = this.prefs.volume;
+    if (nativeAudio.available) nativeAudio.volume("voice", this.prefs.volume);
     if (!this.prefs.speak) this.stopSpeaking();
     this.emit();
   }
@@ -278,6 +284,8 @@ class Voice {
         endsAt: 0,
         sources: [],
         aborted: false,
+        endsAtMs: 0,
+        spans: [],
       };
     }
     // The Leak Guard rewrote a line: say it again, the way a student would.
@@ -308,10 +316,16 @@ class Voice {
       body: JSON.stringify({ cadetId: line.cadetId, text: text.replace(/[*_`#~]+/g, "") }),
     })
       .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
-      .then((b) => this.audio().decodeAudioData(b))
       .catch(() => null);
     line.queue = line.queue.then(async () => {
-      const buf = await audio;
+      const wav = await audio;
+      if (line.aborted || this.line !== line) return;
+      if (nativeAudio.available) return this.playNative(line, wav, revealTo);
+      const buf = wav
+        ? await this.audio()
+            .decodeAudioData(wav)
+            .catch(() => null)
+        : null;
       if (line.aborted || this.line !== line) return;
       if (!buf) {
         // No voice for this chunk: let the bubble carry on without it.
@@ -348,19 +362,75 @@ class Voice {
     });
   }
 
+  /** The desktop app: the shell plays the chunk; timing and the mouth follow the WAV itself. */
+  private async playNative(
+    line: NonNullable<Voice["line"]>,
+    wav: ArrayBuffer | null,
+    revealTo: number | null,
+  ) {
+    if (!wav) {
+      if (revealTo !== null) line.revealTo = Math.max(line.revealTo, revealTo);
+      return;
+    }
+    const { duration, envelope } = wavInfo(wav);
+    await nativeAudio
+      .play("voice", wav, { queue: true, volume: this.prefs.volume })
+      .catch(() => undefined);
+    if (line.aborted || this.line !== line) return;
+    const startMs = Math.max(performance.now() + 20, line.endsAtMs);
+    line.endsAtMs = startMs + duration * 1000;
+    line.spans.push({ startMs, envelope });
+    setTimeout(
+      () => {
+        if (this.line !== line || line.aborted) return;
+        if (revealTo !== null) line.revealTo = Math.max(line.revealTo, revealTo);
+        if (!this.state.speaking && line.revealTo === revealTo && this.lineStartedAt)
+          this.metrics.firstAudioMs = Math.round(performance.now() - this.lineStartedAt);
+        this.state.speaking = line.cadetId;
+        this.watchMouth(line);
+        this.emit();
+      },
+      Math.max(0, startMs - performance.now()),
+    );
+    clearTimeout(line.doneTimer);
+    line.doneTimer = setTimeout(
+      () => {
+        if (this.line === line && performance.now() >= line.endsAtMs - 50) {
+          this.state.speaking = null;
+          this.state.mouthOpen = false;
+          cancelAnimationFrame(this.mouthRaf);
+          this.emit();
+        }
+      },
+      Math.max(0, line.endsAtMs - performance.now()),
+    );
+  }
+
+  /** The desktop app's mouth: the loudness of whatever chunk is playing now. */
+  private nativeLevel(line: NonNullable<Voice["line"]>): number {
+    const now = performance.now();
+    const span = [...line.spans].reverse().find((s) => s.startMs <= now);
+    if (!span) return 0;
+    return span.envelope[Math.floor((now - span.startMs) / 50)] ?? 0;
+  }
+
   /** Mouth open/closed from the output level, about 10 times a second. */
   private watchMouth(line: NonNullable<Voice["line"]>) {
     cancelAnimationFrame(this.mouthRaf);
-    const buf = new Uint8Array(this.analyser!.fftSize);
+    const buf = this.analyser ? new Uint8Array(this.analyser.fftSize) : null;
     let last = 0;
     const tick = (t: number) => {
       if (this.line !== line || line.aborted || !this.state.speaking) return;
       if (t - last > 95) {
         last = t;
-        this.analyser!.getByteTimeDomainData(buf);
-        let peak = 0;
-        for (const v of buf) peak = Math.max(peak, Math.abs(v - 128));
-        const open = peak > 10;
+        let open: boolean;
+        if (nativeAudio.available || !buf) open = this.nativeLevel(line) > 0.08;
+        else {
+          this.analyser!.getByteTimeDomainData(buf);
+          let peak = 0;
+          for (const v of buf) peak = Math.max(peak, Math.abs(v - 128));
+          open = peak > 10;
+        }
         if (open !== this.state.mouthOpen) {
           this.state.mouthOpen = open;
           this.emit();
@@ -392,6 +462,8 @@ class Voice {
     const line = this.line;
     if (line) {
       line.aborted = true;
+      clearTimeout(line.doneTimer);
+      if (nativeAudio.available) nativeAudio.stop("voice");
       for (const s of line.sources) {
         try {
           s.stop();

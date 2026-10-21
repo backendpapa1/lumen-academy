@@ -4,6 +4,7 @@
 // terminal or a .env file.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod audio;
 mod keys;
 mod server;
 mod setup;
@@ -308,6 +309,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .manage(ServerState(Mutex::new(Server::default())))
+        .manage(audio::Audio::new())
         .manage(AutostartItem(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             get_setup,
@@ -317,7 +319,10 @@ fn main() {
             copy_data_from,
             open_path,
             set_autostart,
-            open_configurator
+            open_configurator,
+            audio::audio_play,
+            audio::audio_stop,
+            audio::audio_volume
         ])
         .setup(|app| {
             let handle = app.handle().clone();

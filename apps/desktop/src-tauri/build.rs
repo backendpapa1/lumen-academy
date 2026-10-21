@@ -11,6 +11,9 @@ fn main() {
             "open_path",
             "set_autostart",
             "open_configurator",
+            "audio_play",
+            "audio_stop",
+            "audio_volume",
         ]),
     ))
     .expect("tauri build");

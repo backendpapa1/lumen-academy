@@ -24,6 +24,8 @@ ureq = "=3.4.2"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.151"
 dirs = "=7.0.0"
+# Native playback: WebKitGTK's own audio output is unreliable (src/audio.rs).
+rodio = { version = "=0.22.2", default-features = false, features = ["playback", "wav"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # The microphone for voice teaching: WebKitGTK needs media streams switched on
