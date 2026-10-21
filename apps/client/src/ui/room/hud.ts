@@ -16,6 +16,7 @@ import { transcript } from "../dom/transcript";
 import { lookFor, peepSvg, restingFace } from "../peeps/peep";
 import { fill, h, icon, ICONS } from "../screens/dom";
 import "./hud.css";
+import { BoardDrawing } from "./drawing";
 
 // The classroom HUD (docs/02 §3.3, ADR-009), in the DOM over the drawn room.
 // At most three regions show at once: top bar, hands up, lectern. Roster and
@@ -72,6 +73,8 @@ export class ClassroomHud {
   private readonly roster = h("aside", { class: "hud-roster card", "aria-label": "Roster" });
   private readonly overlay = h("div", { class: "hud-overlay" });
   private readonly toasts = h("div", { class: "hud-toasts", "aria-live": "polite" });
+  /** V6-09: drawing boxes and arrows on the board. */
+  readonly drawing: BoardDrawing;
   private readonly recap = h("aside", { class: "hud-recap card" });
   private readonly timer = h("div", { class: "timer mono" });
   private readonly xpFloat = h("div", { class: "xp-float", "aria-hidden": "true" });
@@ -101,6 +104,7 @@ export class ClassroomHud {
       this.overlay,
     );
     stage.append(this.el);
+    this.drawing = new BoardDrawing(this.el);
     this.buildBottom();
     const c = store.getState().classroom;
     this.buildTop(c);
@@ -428,7 +432,23 @@ export class ClassroomHud {
     this.offVoice = voice.on(syncMic);
     fill(
       this.bottom,
-      h("div", { class: "lectern card" }, mic, lectern.el, send),
+      h(
+        "div",
+        { class: "lectern card" },
+        mic,
+        lectern.el,
+        h(
+          "button",
+          {
+            class: "btn draw-btn",
+            title: "Draw on the board (D)",
+            "aria-label": "Draw on the board",
+            onclick: () => this.drawing.toggle(),
+          },
+          icon(ICONS.pencil),
+        ),
+        send,
+      ),
       h(
         "div",
         { class: "hints" },
@@ -439,6 +459,7 @@ export class ClassroomHud {
           ["1–5", "call by number"],
           ["R", "roster"],
           ["P", "park a thought"],
+          ["D", "draw"],
           ["`", "transcript"],
           ["Esc", "pause"],
         ].map(([k, t]) => h("span", {}, h("kbd", {}, k!), t!)),
@@ -719,6 +740,7 @@ export class ClassroomHud {
   }
 
   dispose() {
+    if (this.drawing.active) this.drawing.finish(false);
     this.unsubscribe();
     this.offVoice?.();
     clearInterval(this.interval);

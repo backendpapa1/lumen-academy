@@ -15,6 +15,8 @@ export function installKeyboard(): void {
     const st = store.getState();
     const c = st.classroom;
     if (st.route.name !== "classroom" || c.status !== "live" || e.isComposing) return;
+    // V6-09: while drawing on the board, the drawing tool owns the keys.
+    if (classroomUi.hud?.drawing.active) return;
     const active = document.activeElement;
     const hud = classroomUi.hud;
     const action = routeKey({
@@ -82,6 +84,9 @@ export function installKeyboard(): void {
         break;
       case "hyperfocus":
         void import("./hyperfocus").then((m) => m.toggleHyperfocus());
+        break;
+      case "draw":
+        classroomUi.hud?.drawing.toggle();
         break;
       case "park":
         lectern.el.value = "/park ";

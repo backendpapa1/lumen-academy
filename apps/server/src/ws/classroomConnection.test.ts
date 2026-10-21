@@ -352,6 +352,42 @@ describe("classroom over WebSocket", () => {
     ws.close();
   });
 
+  it("a diagram on the board is read as structure and survives a reload (V6-09)", async () => {
+    const { w, send, until, ws, connect } = await boot();
+    send("period.start", { classroomId: w.classroomId });
+    await until("period.started");
+    const diagram = {
+      nodes: [
+        { id: "a", x: 40, y: 140, w: 120, h: 48, label: "Hash A" },
+        { id: "r", x: 240, y: 40, w: 140, h: 48, label: "Merkle root" },
+      ],
+      edges: [{ id: "e", from: "a", to: "r", label: "hashed up" }],
+      labels: [],
+      strokes: [
+        {
+          id: "s",
+          points: [
+            [1, 1],
+            [9, 9],
+          ],
+        },
+      ],
+    };
+    send("board.diagram", { diagram });
+    const turn = await until("turn.started");
+    expect(turn.payload.text).toBe(
+      '(draws a diagram on the board) Boxes: [Merkle root], [Hash A]. Arrows: [Hash A] → [Merkle root] ("hashed up").',
+    );
+    await until("ledger.update");
+    ws.close();
+    // A new tab picks the period back up, with the diagram on the board.
+    const again = await connect();
+    again.send("period.start", { classroomId: w.classroomId });
+    const resumed = await again.until("period.started");
+    expect(resumed.payload.diagram).toEqual(diagram);
+    again.ws.close();
+  });
+
   it("extends the period after the bell, and the extension is saved (T-7)", async () => {
     const { w, send, until, ws } = await boot();
     send("period.start", { classroomId: w.classroomId, minutes: 5 });

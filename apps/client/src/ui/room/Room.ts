@@ -1,4 +1,5 @@
-import { REACTION_GLYPHS, type ReactionState } from "@lumen/shared";
+import { REACTION_GLYPHS, type Diagram, type ReactionState } from "@lumen/shared";
+import { arrowEnds, type Point } from "./sketch";
 import type { CadetState, ClassroomState } from "../../core/classroom";
 import { app } from "../../core/app";
 import { store } from "../../core/store";
@@ -17,6 +18,9 @@ const W = 1600;
 const H = 1000;
 const NS = "http://www.w3.org/2000/svg";
 const CX = 760; // the class sits a little left of centre: the hand rail is on the right
+/** V6-09: the board's drawing area (its inner rect), in room units. */
+export const BOARD_X = 458;
+export const BOARD_Y = 86;
 
 /** Rows from the front: desk-top height, scale, spacing (virtual px). */
 const ROWS = [
@@ -66,6 +70,9 @@ function rng(seed: string) {
     return ((h ^= h >>> 13) >>> 0) / 4294967296;
   };
 }
+
+const hasObjects = (d: Diagram | null) =>
+  !!d && d.nodes.length + d.edges.length + d.labels.length + d.strokes.length > 0;
 
 /** V4-06: what each sticker looks like on the corkboard. */
 const STICKER_GLYPH: Record<string, string> = {
@@ -199,6 +206,8 @@ function roomMarkup(): string {
       <foreignObject x="472" y="96" width="644" height="252">
         <div xmlns="http://www.w3.org/1999/xhtml" class="board-text"></div>
       </foreignObject>
+      <defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrowhead"/></marker></defs>
+      <g class="diagram" transform="translate(${BOARD_X} ${BOARD_Y})"></g>
       <rect class="tray" x="560" y="372" width="468" height="12"/>
       <rect class="marker m1" x="600" y="364" width="54" height="9" rx="3"/>
       <rect class="marker m2" x="664" y="364" width="54" height="9" rx="3"/>
@@ -377,6 +386,9 @@ export class Room {
     }
     this.board(c);
     this.corkboard(c);
+    // V6-09: the saved diagram, unless I'm drawing (then the editor draws).
+    if (!this.drawing) this.renderDiagram(c.diagram);
+    this.boardText.classList.toggle("with-diagram", hasObjects(this.drawing ?? c.diagram));
     this.el.classList.toggle("focus", c.hyperfocus);
     this.el.classList.toggle("micro", micro);
     // V5-05: in the ELI-5 round the class is younger, drawn smaller.
@@ -630,6 +642,72 @@ export class Room {
     this.clock.s.setAttribute("transform", `rotate(${sec * 6})`);
     this.raf = requestAnimationFrame(this.tick);
   };
+
+  // --- V6-09 the diagram layer ----------------------------------------------------
+
+  /** Set while the drawing tool edits a working copy (Room then leaves the layer alone). */
+  drawing: Diagram | null = null;
+
+  /** A pointer event in board units. */
+  toBoard(e: { clientX: number; clientY: number }): Point {
+    const m = this.root.getScreenCTM();
+    if (!m) return [0, 0];
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+    return [p.x - BOARD_X, p.y - BOARD_Y];
+  }
+
+  /** A board point in screen pixels (to place an input over it). */
+  toScreen(p: Point): { x: number; y: number; scale: number } {
+    const m = this.root.getScreenCTM();
+    if (!m) return { x: 0, y: 0, scale: 1 };
+    const s = new DOMPoint(p[0] + BOARD_X, p[1] + BOARD_Y).matrixTransform(m);
+    return { x: s.x, y: s.y, scale: m.a };
+  }
+
+  /** Draws a diagram on the board; `opts.selected` highlights, `opts.preview` adds a ghost shape. */
+  renderDiagram(
+    d: Diagram | null,
+    opts: { selected?: string | null; preview?: string; editing?: boolean } = {},
+  ) {
+    const g = this.root.querySelector<SVGGElement>(".diagram")!;
+    g.classList.toggle("editing", !!opts.editing);
+    if (!d) {
+      g.innerHTML = opts.preview ?? "";
+      return;
+    }
+    const sel = (id: string) => (opts.selected === id ? " selected" : "");
+    const byId = new Map(d.nodes.map((n) => [n.id, n]));
+    const strokes = d.strokes
+      .map(
+        (s) =>
+          `<polyline class="d-stroke${sel(s.id)}" data-id="${escapeXml(s.id)}" points="${s.points.map((p) => p.join(",")).join(" ")}"/>`,
+      )
+      .join("");
+    const edges = d.edges
+      .map((e) => {
+        const a = byId.get(e.from);
+        const b = byId.get(e.to);
+        if (!a || !b) return "";
+        const [s, t] = arrowEnds(a, b);
+        const mx = (s[0] + t[0]) / 2;
+        const my = (s[1] + t[1]) / 2;
+        return `<g class="d-edge${sel(e.id)}" data-id="${escapeXml(e.id)}"><line class="hit" x1="${s[0]}" y1="${s[1]}" x2="${t[0]}" y2="${t[1]}"/><line x1="${s[0]}" y1="${s[1]}" x2="${t[0]}" y2="${t[1]}" marker-end="url(#arrowhead)"/>${e.label ? `<text x="${mx}" y="${my - 6}" text-anchor="middle">${escapeXml(e.label)}</text>` : ""}</g>`;
+      })
+      .join("");
+    const nodes = d.nodes
+      .map(
+        (n) =>
+          `<g class="d-node${sel(n.id)}" data-id="${escapeXml(n.id)}"><rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="4"/><text x="${n.x + n.w / 2}" y="${n.y + n.h / 2 + 5}" text-anchor="middle">${escapeXml(n.label || (opts.editing ? "…" : ""))}</text></g>`,
+      )
+      .join("");
+    const labels = d.labels
+      .map(
+        (l) =>
+          `<text class="d-label${sel(l.id)}" data-id="${escapeXml(l.id)}" x="${l.x}" y="${l.y}">${escapeXml(l.text)}</text>`,
+      )
+      .join("");
+    g.innerHTML = strokes + edges + nodes + labels + (opts.preview ?? "");
+  }
 
   dispose() {
     cancelAnimationFrame(this.raf);

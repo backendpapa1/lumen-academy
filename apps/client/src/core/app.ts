@@ -1,4 +1,4 @@
-import type { PeriodKind, ServerMessage } from "@lumen/shared";
+import type { Diagram, PeriodKind, ServerMessage } from "@lumen/shared";
 import {
   api,
   type ArchivedSchool,
@@ -398,6 +398,11 @@ export const app = {
       delete classroom.event;
       return { classroom };
     });
+  },
+  /** V6-09: keep the diagram I drew (the class reacts to it as a teaching turn). */
+  saveDiagram(diagram: Diagram) {
+    store.setState((s) => ({ classroom: { ...s.classroom, diagram } }));
+    ensureNet().send("board.diagram", { diagram });
   },
   dismissSource() {
     store.setState((s) => ({ classroom: { ...s.classroom, sourcePassage: null } }));

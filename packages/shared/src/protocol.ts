@@ -1,3 +1,4 @@
+import { DiagramZ } from "./diagram.js";
 import { PERIOD_KINDS } from "./modes.js";
 import { z } from "zod";
 import { ArchetypeZ, HandIntentZ, MOODS, ReactionStateZ, UTTERANCE_KINDS } from "./agents.js";
@@ -144,6 +145,8 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
       reason: z.string().max(600),
     }),
   ),
+  /** V6-09: the diagram I drew on the board (objects, not pixels). */
+  msg("board.diagram", z.strictObject({ diagram: DiagramZ })),
   /** V6-06: show me the passage of my sources that matches what I just said. */
   msg("source.check", z.strictObject({ text: z.string().max(1000).optional() })),
   /** V5-09: invite the guest lecturer (on a question, or the class's latest one). */
@@ -191,6 +194,8 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       hotSeat: z.string().nullable().optional(),
       /** V6-08: the glossary wall, latest first. */
       glossary: z.array(GlossaryTermZ).optional(),
+      /** V6-09: the diagram on the board this period, if I drew one. */
+      diagram: DiagramZ.optional(),
     }),
   ),
   /** XP just earned (e.g. answering a cadet's question). */

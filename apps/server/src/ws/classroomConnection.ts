@@ -1,3 +1,5 @@
+import { diagramText, type Diagram } from "@lumen/shared";
+import { loadDiagram, saveDiagram } from "../game/diagrams.js";
 import { pinDefinitions, wallTerms } from "../game/glossaryWall.js";
 import { checkSource } from "../game/sourceCheck.js";
 import { askGuest, guestsLeft } from "../game/guest.js";
@@ -235,6 +237,8 @@ export class ClassroomConnection {
             this.send({ type: "exit.result", payload: { ticketId: msg.payload.ticketId, ...r } });
           return;
         }
+        case "board.diagram":
+          return await this.drawDiagram(msg.payload.diagram);
         case "source.check":
           return await this.checkSource(msg.payload.text);
         case "guest.invite":
@@ -391,6 +395,10 @@ export class ClassroomConnection {
         stickers: recentStickers(handle, room.id),
         hotSeat: session.hotSeat,
         glossary: wallTerms(handle, school.id),
+        ...(() => {
+          const d = loadDiagram(handle, session.periodId);
+          return d ? { diagram: d } : {};
+        })(),
       },
     });
     this.sendCost();
@@ -830,6 +838,18 @@ export class ClassroomConnection {
         ...s,
       },
     });
+  }
+
+  /**
+   * V6-09 (VD13): I drew on the board. The diagram is saved for this period
+   * and read as text, a teaching turn like a sentence, so the class reacts to
+   * its structure ("Wait, why does the arrow go from the leaf up?").
+   */
+  private async drawDiagram(diagram: Diagram) {
+    const session = this.requireSession();
+    saveDiagram(this.rt.handle, session.periodId, diagram);
+    const text = diagramText(diagram);
+    if (text) await this.teach(text);
   }
 
   /** V6-06: the passage of my sources matching what I just said. Students never see it. */

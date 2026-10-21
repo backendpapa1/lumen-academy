@@ -799,3 +799,69 @@
   content: " ?";
   color: var(--coral);
 }
+/* V6-09: the board diagram, in marker on the whiteboard. */
+.room .diagram rect,
+.room .diagram .d-node rect {
+  fill: #fff;
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+}
+.room .diagram text {
+  font: 700 14px var(--font-ui);
+  fill: var(--navy);
+}
+.room .diagram .d-edge line {
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+}
+.room .diagram .d-edge line.hit {
+  stroke: transparent;
+  stroke-width: 14;
+}
+.room .diagram .d-edge text {
+  font-size: 12px;
+  fill: var(--coral);
+}
+.room .arrowhead {
+  fill: var(--cobalt);
+}
+.room .diagram .d-stroke {
+  fill: none;
+  stroke: var(--coral);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.room .diagram .d-label {
+  font: 700 13px var(--font-ui);
+  fill: var(--coral);
+}
+.room .diagram .ghost {
+  fill: none;
+  stroke: var(--cobalt-hi);
+  stroke-dasharray: 6 5;
+  stroke-width: 2;
+}
+.room .diagram polyline.ghost {
+  stroke: var(--coral);
+  stroke-dasharray: none;
+}
+.room.drawing .board-inner {
+  fill: #fff;
+  stroke: var(--marigold);
+  stroke-width: 3;
+}
+.room.drawing svg {
+  cursor: crosshair;
+}
+.room .diagram.editing .d-node:hover rect,
+.room .diagram.editing .d-edge:hover line:not(.hit) {
+  stroke: var(--coral);
+}
+/* With a diagram up, the board's own text steps aside (the title stays). */
+.board-text.with-diagram .b-last,
+.board-text.with-diagram .b-notes,
+.board-text.with-diagram .b-meter,
+.board-text.with-diagram .b-wall {
+  display: none;
+}

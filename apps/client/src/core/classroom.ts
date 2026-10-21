@@ -5,6 +5,7 @@ import type {
   ReactionState,
   ServerMessage,
   ServerMessageOf,
+  Diagram,
   PeriodKind,
   StickerView,
   XpStanding,
@@ -153,6 +154,8 @@ export interface ClassroomState {
     objections: Record<number, { planted: boolean; correction: string }>;
     result?: ServerMessageOf<"sub.result">["payload"];
   } | null;
+  /** V6-09: the diagram on the board this period. */
+  diagram: Diagram | null;
   /** V6-08: the glossary wall, latest first. */
   glossary: Array<{ term: string; definition: string; agrees: boolean; note: string | null }>;
   /** V6-06: the passage of my sources I asked to see (to me only). */
@@ -203,6 +206,7 @@ export const initialClassroom = (): ClassroomState => ({
   guest: null,
   sourcePassage: null,
   glossary: [],
+  diagram: null,
   hyperfocus: false,
 });
 
@@ -236,6 +240,7 @@ export function applyServerMessage(
         stickers: m.payload.stickers ?? [],
         hotSeat: m.payload.hotSeat ?? null,
         glossary: m.payload.glossary ?? [],
+        diagram: m.payload.diagram ?? null,
         energy: m.payload.energy ?? null,
         transcript: m.payload.transcript.map((t) => ({
           speaker: t.cadetId ? "cadet" : "headmaster",
