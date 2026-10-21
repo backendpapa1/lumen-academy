@@ -49,7 +49,7 @@ describe("loadConfig", () => {
       file === "models.yaml" ? text.replace(/^profile: flash/m, "profile: turbo") : text,
     );
     expect(() => loadConfig({ configDir: dir, env: {} })).toThrow(
-      /profile: profile "turbo" is not defined under profiles \(have: flash\)/,
+      /profile: profile "turbo" is not defined under profiles \(have: flash, local\)/,
     );
   });
 
@@ -140,7 +140,7 @@ describe("committed pricing", () => {
     const cfg = loadConfig({ configDir: realConfigDir, env: {} });
     for (const profile of Object.values(cfg.models.profiles)) {
       for (const spec of Object.values(profile)) {
-        const price = cfg.pricing[spec.provider].models[spec.model];
+        const price = cfg.pricing[spec.provider]?.models[spec.model];
         expect(price, `${spec.provider}:${spec.model}`).toBeDefined();
         expect(JSON.stringify(price), `${spec.provider}:${spec.model}`).not.toContain("null");
       }

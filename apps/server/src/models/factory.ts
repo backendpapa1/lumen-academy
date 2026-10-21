@@ -128,8 +128,25 @@ export function buildModel(
 ): BaseChatModel {
   const callbacks = deps.meter ? [new UsageCallback(spec, deps.meter)] : undefined;
   const provider = deps.config.providers[spec.provider];
-  const apiKey = deps.env[provider.apiKeyEnv];
+  if (!provider) throw new Error(`provider "${spec.provider}" is not configured in models.yaml`);
+  // A local server takes any key; the others need theirs.
+  const apiKey = deps.env[provider.apiKeyEnv] ?? (spec.provider === "local" ? "local" : undefined);
   if (!apiKey) throw new Error(`${provider.apiKeyEnv} is not set (needed for ${specId(spec)})`);
+
+  if (spec.provider === "local") {
+    // llama.cpp's llama-server speaks the OpenAI chat API; no thinking knobs.
+    return new ChatOpenAI({
+      model: spec.model,
+      apiKey,
+      configuration: { baseURL: provider.baseURL },
+      temperature: spec.temperature,
+      maxTokens: spec.maxOutputTokens,
+      timeout: spec.timeoutMs ?? provider.timeoutMs,
+      maxRetries: MAX_RETRIES,
+      streamUsage: true,
+      callbacks,
+    });
+  }
 
   if (spec.provider === "openai") {
     return new ChatOpenAI({

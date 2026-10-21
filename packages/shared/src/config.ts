@@ -2,7 +2,8 @@ import { z } from "zod";
 
 // Config schemas for config/*.yaml. Loading lives in apps/server/src/config.
 
-export const ProviderZ = z.enum(["openai", "deepseek"]);
+// "local": an OpenAI-compatible server on this machine (llama.cpp), for practice mode (VD12).
+export const ProviderZ = z.enum(["openai", "deepseek", "local"]);
 export type Provider = z.infer<typeof ProviderZ>;
 
 // Profiles are named in models.yaml; `profile` must name one of them (ADR-007).
@@ -121,7 +122,11 @@ export const BudgetZ = z
 export const ModelsConfigZ = z
   .strictObject({
     profile: ProfileNameZ,
-    providers: z.strictObject({ openai: ProviderConfigZ, deepseek: ProviderConfigZ }),
+    providers: z.strictObject({
+      openai: ProviderConfigZ,
+      deepseek: ProviderConfigZ,
+      local: ProviderConfigZ.optional(),
+    }),
     profiles: z.record(ProfileNameZ, ProfileZ),
     fallbacks: z.strictObject({
       fastest: z.array(FallbackIdZ).min(1),
@@ -193,6 +198,7 @@ export const ProviderPricingZ = z.strictObject({
 export const PricingConfigZ = z.strictObject({
   openai: ProviderPricingZ,
   deepseek: ProviderPricingZ,
+  local: ProviderPricingZ.optional(),
 });
 export type PricingConfig = z.infer<typeof PricingConfigZ>;
 

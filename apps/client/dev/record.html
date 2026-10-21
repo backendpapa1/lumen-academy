@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Voice check</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #c6ecff;
+        color: #0f1a66;
+        font:
+          18px/1.5 system-ui,
+          sans-serif;
+      }
+      main {
+        width: min(720px, calc(100vw - 32px));
+        background: #fafbff;
+        border: 1.5px solid #2a40ff;
+        box-shadow: 8px 8px 0 #2a40ff;
+        padding: 28px;
+      }
+      .n {
+        font: 700 12px monospace;
+        letter-spacing: 0.12em;
+        color: #2a40ff;
+      }
+      .line {
+        font-size: 26px;
+        margin: 12px 0 20px;
+        min-height: 3em;
+      }
+      .rec {
+        display: inline-block;
+        padding: 10px 18px;
+        border: 1.5px solid #2a40ff;
+        background: #fff;
+        font: 700 14px monospace;
+        color: #2a40ff;
+      }
+      .rec.on {
+        background: #f0442e;
+        color: #fff;
+        border-color: #f0442e;
+      }
+      .hint {
+        font-size: 14px;
+        color: #4a5699;
+        margin-top: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="n" id="n"></div>
+      <div class="line" id="line"></div>
+      <span class="rec" id="rec">Hold SPACE and read the sentence</span>
+      <p class="hint" id="hint">
+        Read naturally, the way you'd teach. Release Space when you're done; it moves to the next
+        one. Backspace redoes the last one. Each clip downloads as s00.webm … s19.webm.
+      </p>
+    </main>
+    <script type="module">
+      // V1-S1: twenty of my own teaching sentences, for word accuracy on my voice.
+      import lines from "../../../spikes/v1/sentences.json";
+      let i = 0;
+      let rec = null;
+      let chunks = [];
+      const n = document.getElementById("n");
+      const line = document.getElementById("line");
+      const badge = document.getElementById("rec");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const show = () => {
+        n.textContent = i < lines.length ? `SENTENCE ${i + 1} OF ${lines.length}` : "DONE";
+        line.textContent =
+          i < lines.length
+            ? lines[i]
+            : "Thanks! Move the 20 files into ~/.cache/lumen/spike-out/my-voice/";
+      };
+      show();
+      addEventListener("keydown", (e) => {
+        if (e.code === "Space" && !e.repeat && !rec && i < lines.length) {
+          e.preventDefault();
+          chunks = [];
+          rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
+          rec.ondataavailable = (ev) => chunks.push(ev.data);
+          rec.onstop = () => {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob(chunks, { type: "audio/webm" }));
+            a.download = `s${String(i).padStart(2, "0")}.webm`;
+            a.click();
+            i++;
+            show();
+          };
+          rec.start();
+          badge.classList.add("on");
+          badge.textContent = "Recording… release SPACE when done";
+        }
+        if (e.code === "Backspace" && !rec && i > 0) {
+          i--;
+          show();
+        }
+      });
+      addEventListener("keyup", (e) => {
+        if (e.code === "Space" && rec) {
+          rec.stop();
+          rec = null;
+          badge.classList.remove("on");
+          badge.textContent = "Hold SPACE and read the sentence";
+        }
+      });
+    </script>
+  </body>
+</html>

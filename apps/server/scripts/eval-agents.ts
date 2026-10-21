@@ -29,6 +29,10 @@ const FIX = join(root, "fixtures/blockchain-ch1");
 const SPEAK_EVERY = 1; // call on the top hand every N teaching messages
 const MIRROR_MARGIN = 0.15; // correct-lesson exam mean must beat wrong-lesson by this (0..1 scale)
 const LEAK_TARGET = 0.03;
+// Quick runs (e.g. a slow local model): EVAL_TURNS caps turns per lesson; EVAL_NO_EXAM=1 skips
+// the exam, so the mirror check reports as not run.
+const MAX_TURNS = Number(process.env.EVAL_TURNS ?? Number.POSITIVE_INFINITY);
+const NO_EXAM = process.env.EVAL_NO_EXAM === "1";
 const started = new Date();
 const stamp = started.toISOString().replace(/[:.]/g, "-").slice(0, 19);
 
@@ -177,7 +181,7 @@ for (const lessonId of ["correct", "wrong"] as const) {
     { handle, factory, game: cfg.game, embedder },
     { classroomId, conceptId: conceptByTitle.get(lesson.messages[0]!.concept)!.id },
   );
-  for (const [i, m] of lesson.messages.entries()) {
+  for (const [i, m] of lesson.messages.slice(0, MAX_TURNS).entries()) {
     const t0 = performance.now();
     const turn = session.teach(m.text, { conceptId: conceptByTitle.get(m.concept)!.id });
     const [reaction, committed] = await Promise.all([turn.reaction, turn.committed]);
@@ -243,7 +247,7 @@ interface ExamRow {
 }
 const exam: ExamRow[] = [];
 const jobs: Array<() => Promise<void>> = [];
-for (const run of runs) {
+for (const run of NO_EXAM ? [] : runs) {
   const roster = handle.db
     .select()
     .from(cadets)

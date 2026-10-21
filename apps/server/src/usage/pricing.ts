@@ -21,7 +21,7 @@ const PER_MILLION = 1_000_000;
  */
 export function estimateUsd(pricing: PricingConfig, c: CostInput): number | null {
   const providerPricing = pricing[c.provider];
-  const price = providerPricing.models[c.model];
+  const price = providerPricing?.models[c.model];
   if (!price) return null;
 
   let usd: number;

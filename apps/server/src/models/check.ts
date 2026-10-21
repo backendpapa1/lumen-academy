@@ -19,7 +19,11 @@ type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
 /** Every model id named anywhere in models.yaml (all profiles + fallbacks), by provider. */
 export function configuredModelIds(cfg: ModelsConfig): Record<Provider, Set<string>> {
-  const out: Record<Provider, Set<string>> = { openai: new Set(), deepseek: new Set() };
+  const out: Record<Provider, Set<string>> = {
+    openai: new Set(),
+    deepseek: new Set(),
+    local: new Set(),
+  };
   for (const profile of Object.values(cfg.profiles)) {
     for (const spec of Object.values(profile)) out[spec.provider].add(spec.model);
   }
@@ -38,7 +42,9 @@ export async function listProviderModels(
   apiKey: string,
   fetchImpl: Fetch = fetch,
 ): Promise<Set<string>> {
-  const { baseURL, timeoutMs } = cfg.providers[provider];
+  const p = cfg.providers[provider];
+  if (!p) throw new Error(`provider "${provider}" is not configured`);
+  const { baseURL, timeoutMs } = p;
   const res = await fetchImpl(`${baseURL.replace(/\/$/, "")}/models`, {
     headers: { Authorization: `Bearer ${apiKey}` },
     signal: AbortSignal.timeout(timeoutMs),

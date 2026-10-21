@@ -21,3 +21,7 @@ deepseek:
     weekdaysOnly: true # Mon–Fri. Chinese public holidays are off-peak too; we don't
     # model them, so holiday spend is slightly overestimated (safe for the cap).
     peakMultiplier: 2.0
+# Runs on this machine: free (v2 practice mode, VD12).
+local:
+  models:
+    qwen3-4b-instruct-2507: { input: 0, output: 0 }

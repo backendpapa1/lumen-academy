@@ -23,7 +23,8 @@
     "cli:teach": "pnpm --filter @lumen/server cli:teach",
     "assets:gen": "pnpm --filter @lumen/server assets:gen",
     "assets:preview": "pnpm --filter @lumen/server assets:gen --preview",
-    "eval:assessment": "pnpm --filter @lumen/server eval:assessment"
+    "eval:assessment": "pnpm --filter @lumen/server eval:assessment",
+    "local:llm": "bash scripts/local-llm.sh"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

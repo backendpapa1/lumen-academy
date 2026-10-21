@@ -15,6 +15,12 @@ providers:
     apiKeyEnv: DEEPSEEK_API_KEY
     baseURL: https://api.deepseek.com
     timeoutMs: 20000
+  # v2 practice mode (VD12): llama.cpp's llama-server on this machine. Not used
+  # unless LUMEN_PROFILE=local. Start it with: pnpm local:llm
+  local:
+    apiKeyEnv: LUMEN_LOCAL_KEY
+    baseURL: http://127.0.0.1:8091/v1
+    timeoutMs: 60000
 
 profiles:
   flash:
@@ -35,6 +41,15 @@ profiles:
       thinking: on
       reasoningEffort: high
       timeoutMs: 240000
+    embeddings: { provider: openai, model: text-embedding-3-small }
+    image: { provider: openai, model: gpt-image-1-mini }
+  # Practice on this machine (VD12, spike V8-S1): every text role on Qwen3-4B.
+  local:
+    fastest: { provider: local, model: qwen3-4b-instruct-2507, temperature: 0.7, timeoutMs: 120000 }
+    fast: { provider: local, model: qwen3-4b-instruct-2507, temperature: 0.8, timeoutMs: 180000 }
+    standard:
+      { provider: local, model: qwen3-4b-instruct-2507, temperature: 0.6, timeoutMs: 120000 }
+    heavy: { provider: local, model: qwen3-4b-instruct-2507, temperature: 0.4, timeoutMs: 240000 }
     embeddings: { provider: openai, model: text-embedding-3-small }
     image: { provider: openai, model: gpt-image-1-mini }
 
