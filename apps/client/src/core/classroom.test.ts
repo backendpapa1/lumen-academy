@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ServerMessage } from "@lumen/shared";
-import { applyServerMessage, initialClassroom, type ClassroomState } from "./classroom";
+import { applyServerMessage, elapsedMs, initialClassroom, type ClassroomState } from "./classroom";
 
 const started: ServerMessage = {
   type: "period.started",
@@ -33,6 +33,9 @@ const started: ServerMessage = {
       },
     ],
     plannedMinutes: 15,
+    elapsedMs: 0,
+    resumed: false,
+    paused: false,
     transcript: [],
   },
 };
@@ -44,6 +47,48 @@ describe("applyServerMessage", () => {
     const s = run([started]);
     expect(s.status).toBe("live");
     expect(Object.keys(s.cadets)).toEqual(["c1", "c2"]);
+  });
+
+  it("runs the teaching clock from the server's elapsed time, frozen while paused", () => {
+    let s = run([started], initialClassroom(), 1000);
+    expect(elapsedMs(s, 61_000)).toBe(60_000);
+    s = applyServerMessage(
+      s,
+      { type: "period.paused", payload: { paused: true, elapsedMs: 60_000 } },
+      61_000,
+    );
+    expect(elapsedMs(s, 500_000)).toBe(60_000);
+    s = applyServerMessage(
+      s,
+      { type: "period.paused", payload: { paused: false, elapsedMs: 60_000 } },
+      500_000,
+    );
+    expect(elapsedMs(s, 530_000)).toBe(90_000);
+  });
+
+  it("restores a resumed period's transcript and clock", () => {
+    if (started.type !== "period.started") throw new Error();
+    const s = run([
+      {
+        ...started,
+        payload: {
+          ...started.payload,
+          elapsedMs: 240_000,
+          resumed: true,
+          paused: true,
+          transcript: [
+            { speaker: "Headmaster", messageId: "m1", text: "Hashes pair up." },
+            { speaker: "Ines", cadetId: "c1", messageId: "m2", text: "Why pairs?" },
+          ],
+        },
+      },
+    ]);
+    expect(s.resumed).toBe(true);
+    expect(elapsedMs(s, 999_999)).toBe(240_000);
+    expect(s.transcript).toEqual([
+      { speaker: "headmaster", cadetId: undefined, messageId: "m1", text: "Hashes pair up." },
+      { speaker: "cadet", cadetId: "c1", messageId: "m2", text: "Why pairs?" },
+    ]);
   });
 
   it("applies reactions, measures time to first reaction, and updates comprehension", () => {

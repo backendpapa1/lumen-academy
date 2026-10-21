@@ -194,6 +194,8 @@ export const periods = sqliteTable(
     startedAt: text("started_at").notNull(),
     endedAt: text("ended_at"),
     plannedMinutes: integer("planned_minutes").notNull(),
+    /** Teaching time so far: pauses and disconnects don't count. Saved on pause/suspend/end. */
+    elapsedMs: integer("elapsed_ms").notNull().default(0),
     recapIn: text("recap_in"),
     recapOut: text("recap_out"),
     randomEvent: text("random_event"),

@@ -7,6 +7,7 @@ const ctx = (key: string, over: Partial<KeyContext> = {}): KeyContext => ({
   focus: null,
   lecternEmpty: true,
   somethingOpen: false,
+  paused: false,
   ...over,
 });
 
@@ -37,6 +38,12 @@ describe("routeKey", () => {
 
   it("Esc closes an open drawer before it pauses", () => {
     expect(routeKey(ctx("Escape", { somethingOpen: true }))).toEqual({ do: "closeTop" });
+  });
+
+  it("while paused only Esc, Space and Enter do anything: they resume", () => {
+    const paused = (key: string) => routeKey(ctx(key, { paused: true }));
+    for (const key of ["Escape", " ", "Enter"]) expect(paused(key)).toEqual({ do: "resume" });
+    for (const key of ["Tab", "1", "f", "r", "`"]) expect(paused(key)).toEqual({ do: "none" });
   });
 
   it("other fields (transcript search) keep their keys", () => {

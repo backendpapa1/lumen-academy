@@ -60,6 +60,11 @@ async function boot() {
   });
   await app.listen({ host: "127.0.0.1", port: 0 });
   const { port } = app.server.address() as AddressInfo;
+  return { w, ...(await connect(port)), connect: () => connect(port) };
+}
+
+/** One browser tab: a socket plus helpers to send and wait for messages. */
+async function connect(port: number) {
   const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
   await new Promise((r) => (ws.onopen = r));
   const frames: string[] = [];
@@ -77,7 +82,7 @@ async function boot() {
     }
     throw new Error(`timed out waiting for ${type}; got ${inbox.map((m) => m.type).join(", ")}`);
   };
-  return { w, ws, send, until, inbox, frames };
+  return { ws, send, until, inbox, frames };
 }
 
 describe("classroom over WebSocket", () => {
@@ -156,19 +161,71 @@ describe("classroom over WebSocket", () => {
     ws.close();
   });
 
-  it("ends the period when the socket closes", async () => {
+  it("pauses and resumes: the clock stops and teaching is refused while paused", async () => {
     const { w, send, until, ws } = await boot();
     send("period.start", { classroomId: w.classroomId });
-    await until("period.started");
+    expect((await until("period.started")).payload).toMatchObject({
+      resumed: false,
+      paused: false,
+    });
+    send("period.pause", {});
+    const paused = await until("period.paused");
+    expect(paused.payload.paused).toBe(true);
+    send("teach.message", { text: "Hashes pair up." });
+    expect((await until("error")).payload.message).toMatch(/paused/);
+    await new Promise((r) => setTimeout(r, 60));
+    send("period.resume", {});
+    const resumed = await until("period.paused", 2);
+    expect(resumed.payload.paused).toBe(false);
+    expect(resumed.payload.elapsedMs - paused.payload.elapsedMs).toBeLessThan(40); // pause time not counted
+    send("teach.message", { text: "Hashes pair up." });
+    await until("ledger.update");
     ws.close();
-    for (let i = 0; i < 100; i++) {
-      const row = h!.sqlite.prepare("SELECT ended_at FROM periods").get() as {
+  });
+
+  it("closing the tab suspends the period; reopening continues it, paused, with the transcript", async () => {
+    const first = await boot();
+    const { w } = first;
+    first.send("period.start", { classroomId: w.classroomId });
+    const started = await first.until("period.started");
+    first.send("teach.message", { text: "Pairs of hashes are hashed again up to the root." });
+    await first.until("ledger.update");
+    first.send("hand.call", { cadetId: w.cadets[0]!.id });
+    await first.until("cadet.done");
+    first.ws.close();
+    const row = () =>
+      h!.sqlite.prepare("SELECT ended_at, elapsed_ms FROM periods").get() as {
         ended_at: string | null;
+        elapsed_ms: number;
       };
-      if (row.ended_at) return;
+    for (let i = 0; i < 100 && row().elapsed_ms === 0; i++)
       await new Promise((r) => setTimeout(r, 10));
-    }
-    throw new Error("period was not closed");
+    expect(row().ended_at).toBeNull();
+    expect(row().elapsed_ms).toBeGreaterThan(0);
+
+    const second = await first.connect();
+    second.send("period.start", { classroomId: w.classroomId });
+    const again = await second.until("period.started");
+    expect(again.payload).toMatchObject({
+      periodId: started.payload.periodId,
+      resumed: true,
+      paused: true,
+    });
+    expect(again.payload.elapsedMs).toBe(row().elapsed_ms);
+    const name = again.payload.cadets.find((c) => c.id === w.cadets[0]!.id)!.name;
+    expect(again.payload.transcript.map((t) => t.speaker)).toEqual(["Headmaster", name]);
+    expect(again.payload.transcript[1]).toMatchObject({
+      cadetId: w.cadets[0]!.id,
+      text: "Headmaster, where is the root kept?",
+    });
+    second.send("period.resume", {});
+    await second.until("period.paused");
+    second.send("teach.message", { text: "The root sits in the block header." });
+    await second.until("ledger.update");
+    second.send("period.end", {});
+    expect((await second.until("period.ended")).payload.turns).toBe(2); // turn numbering carried on
+    expect(row().ended_at).not.toBeNull();
+    second.ws.close();
   });
 
   it("serves schools and a classroom roster over REST", async () => {

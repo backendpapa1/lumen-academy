@@ -59,6 +59,61 @@ const directorJson = (conceptId: string, errors: unknown[] = []) =>
     ledgerDeltas: [],
   });
 
+describe("ClassSession: suspend and resume", () => {
+  it("resumes a recently suspended period, but closes one left too long", async () => {
+    const { w, factory } = await setup();
+    let now = Date.parse("2026-10-21T09:00:00Z");
+    const deps = { handle: w.handle, factory, game: cfg.game, now: () => now };
+    const a = ClassSession.open(deps, { classroomId: w.classroomId });
+    now += 4 * 60_000;
+    await a.suspend();
+    expect(a.elapsedMs()).toBe(4 * 60_000);
+
+    now += 60 * 60_000; // an hour away doesn't count
+    const b = ClassSession.open(deps, { classroomId: w.classroomId, resume: true });
+    expect(b).toMatchObject({ periodId: a.periodId, resumed: true, paused: true });
+    expect(b.elapsedMs()).toBe(4 * 60_000);
+    b.resume();
+    now += 60_000;
+    expect(b.periodMinute()).toBe(5);
+    b.pause();
+    now += 10 * 60_000;
+    expect(b.periodMinute()).toBe(5);
+    expect(() => b.teach("hello")).toThrow(/paused/);
+    await b.suspend();
+
+    // Past the resume window: that period is closed and a fresh one starts.
+    now = Date.now() + (cfg.game.period.resumeWithinHours + 1) * 3_600_000;
+    const c = ClassSession.open(deps, { classroomId: w.classroomId, resume: true });
+    expect(c.periodId).not.toBe(a.periodId);
+    expect(c.resumed).toBe(false);
+    const old = w.handle.db
+      .select()
+      .from(periods)
+      .all()
+      .find((p) => p.id === a.periodId)!;
+    expect(old.endedAt).not.toBeNull();
+    expect(old.elapsedMs).toBe(5 * 60_000);
+    await c.close();
+  });
+
+  it("without resume, unfinished periods are closed and a new one opens", async () => {
+    const { w, factory } = await setup();
+    const deps = { handle: w.handle, factory, game: cfg.game };
+    const a = ClassSession.open(deps, { classroomId: w.classroomId });
+    await a.suspend();
+    const b = ClassSession.open(deps, { classroomId: w.classroomId });
+    expect(b.periodId).not.toBe(a.periodId);
+    const open = w.handle.db
+      .select()
+      .from(periods)
+      .all()
+      .filter((p) => !p.endedAt);
+    expect(open.map((p) => p.id)).toEqual([b.periodId]);
+    await b.close();
+  });
+});
+
 describe("ClassSession", () => {
   it("streams reactions, queues hands, then commits ledger, turn and messages", async () => {
     const { w, factory } = await setup();

@@ -75,6 +75,16 @@ export class ClassroomConnection {
         case "concept.set":
           this.requireSession().setConcept(msg.payload.conceptId);
           return;
+        case "period.pause":
+        case "period.resume": {
+          const session = this.requireSession();
+          if (msg.type === "period.pause") session.pause();
+          else session.resume();
+          return this.send({
+            type: "period.paused",
+            payload: { paused: session.paused, elapsedMs: session.elapsedMs() },
+          });
+        }
         case "period.end":
           return await this.end();
       }
@@ -89,13 +99,16 @@ export class ClassroomConnection {
 
   private closing: Promise<void> | null = null;
 
-  /** Idempotent: socket close and server shutdown may both call it. */
+  /**
+   * Idempotent: socket close and server shutdown may both call it. A running
+   * period is suspended, not ended: reopening the classroom continues it.
+   */
   close(): Promise<void> {
     this.closing ??= (async () => {
       this.unsubscribe();
       const session = this.session;
       this.session = null;
-      if (session) await session.close();
+      if (session) await session.suspend();
     })();
     return this.closing;
   }
@@ -116,7 +129,7 @@ export class ClassroomConnection {
     const minutes = p.minutes ?? game.period.defaultMinutes;
     const session = ClassSession.open(
       { handle, factory: this.rt.factory, game, embedder: this.rt.embedder, budget: this.rt.meter },
-      { classroomId: room.id, conceptId: p.conceptId, plannedMinutes: minutes },
+      { classroomId: room.id, conceptId: p.conceptId, plannedMinutes: minutes, resume: true },
       {
         onReaction: (cadetId, state) =>
           this.turnId &&
@@ -160,12 +173,15 @@ export class ClassroomConnection {
         concept: { id: session.currentConcept.id, title: session.currentConcept.title },
         concepts: session.concepts.map((c) => ({ id: c.id, title: c.title })),
         cadets: this.cadetViews(session),
-        plannedMinutes: minutes,
-        transcript: [],
+        plannedMinutes: session.plannedMinutes,
+        elapsedMs: Math.round(session.elapsedMs()),
+        resumed: session.resumed,
+        paused: session.paused,
+        transcript: session.resumed ? this.transcriptView(session.periodId) : [],
       },
     });
     this.sendCost();
-    if (this.rt.extras?.recaps !== false) void this.sendRecap(session, room.id);
+    if (this.rt.extras?.recaps !== false && !session.resumed) void this.sendRecap(session, room.id);
   }
 
   private async sendRecap(session: ClassSession, classroomId: string) {
@@ -297,6 +313,22 @@ export class ClassroomConnection {
   }
 
   // --- views ------------------------------------------------------------------
+
+  /** The dialogue so far, for a resumed period. */
+  private transcriptView(periodId: string) {
+    const rows = this.rt.handle.sqlite
+      .prepare(
+        `SELECT m.id, m.speaker, m.text, c.name FROM messages m LEFT JOIN cadets c ON c.id = m.speaker
+         WHERE m.period_id = ? AND m.kind IN ('lecture','answer','question','objection','claim')
+         ORDER BY m.created_at, m.rowid`,
+      )
+      .all(periodId) as Array<{ id: string; speaker: string; text: string; name: string | null }>;
+    return rows.map((r) =>
+      r.speaker === "teacher"
+        ? { speaker: "Headmaster", messageId: r.id, text: r.text }
+        : { speaker: r.name ?? "Cadet", cadetId: r.speaker, messageId: r.id, text: r.text },
+    );
+  }
 
   private cadetViews(session: ClassSession): CadetView[] {
     const { db } = this.rt.handle;

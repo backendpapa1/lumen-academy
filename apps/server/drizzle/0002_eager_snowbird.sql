@@ -1,0 +1,1 @@
+ALTER TABLE `periods` ADD `elapsed_ms` integer DEFAULT 0 NOT NULL;

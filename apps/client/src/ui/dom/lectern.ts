@@ -24,13 +24,17 @@ el.addEventListener("keydown", (e) => {
 
 store.subscribe((s) => {
   const live = s.classroom.status === "live";
-  el.disabled = !live;
+  const paused = live && s.classroom.clock.paused;
+  el.disabled = !live || paused;
+  if (paused && document.activeElement === el) el.blur();
   el.placeholder =
     s.classroom.cost.state === "pause"
       ? "This month's AI budget is used up."
-      : live
-        ? "Teach your next idea. Keep it short."
-        : "Class isn't running.";
+      : paused
+        ? "Paused. Press Esc to resume."
+        : live
+          ? "Teach your next idea. Keep it short."
+          : "Class isn't running.";
 });
 
 export const lectern = {

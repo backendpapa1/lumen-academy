@@ -49,6 +49,7 @@ export type HandView = z.infer<typeof HandViewZ>;
 export const TranscriptLineViewZ = z.object({
   speaker: z.string(),
   cadetId: z.string().optional(),
+  messageId: z.string().optional(),
   text: z.string(),
 });
 export type TranscriptLineView = z.infer<typeof TranscriptLineViewZ>;
@@ -76,6 +77,8 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
   ),
   msg("hand.call", z.strictObject({ cadetId: z.string() })),
   msg("concept.set", z.strictObject({ conceptId: z.string() })),
+  msg("period.pause", empty),
+  msg("period.resume", empty),
   msg("period.end", empty),
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageZ>;
@@ -96,9 +99,15 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       concepts: z.array(ConceptViewZ),
       cadets: z.array(CadetViewZ),
       plannedMinutes: z.number(),
+      /** Teaching time already spent (non-zero when resumed). */
+      elapsedMs: z.number(),
+      /** Picked up an unfinished period; it starts paused. */
+      resumed: z.boolean(),
+      paused: z.boolean(),
       transcript: z.array(TranscriptLineViewZ),
     }),
   ),
+  msg("period.paused", z.strictObject({ paused: z.boolean(), elapsedMs: z.number() })),
   /** "Last time…" arrives after period.started so starting a class never waits on it. */
   msg("period.recap", z.strictObject({ periodId: z.string(), text: z.string() })),
   msg("turn.started", z.strictObject({ turnId: z.string(), text: z.string() })),

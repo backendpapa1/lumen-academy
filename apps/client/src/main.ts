@@ -11,6 +11,7 @@ import { GalleryScene } from "./ui/scenes/GalleryScene";
 import { ClassroomScene } from "./world/scenes/ClassroomScene";
 import { world } from "./world/anchors";
 import { WorldDirector } from "./world/WorldDirector";
+import { app } from "./core/app";
 import { installKeyboard } from "./core/input";
 
 const worldCanvas = document.querySelector<HTMLCanvasElement>("#world");
@@ -66,6 +67,8 @@ store.subscribe(applyRoute);
 if (view === "classroom-demo") {
   loadDemoClassroom();
   store.setState({ route: { name: "classroom", classroomId: "cls_demo" } });
+} else if (view !== "gallery") {
+  app.rejoin(); // a reload mid-period continues it
 }
 ui.events.once(Phaser.Core.Events.READY, () => {
   if (view !== "gallery") {

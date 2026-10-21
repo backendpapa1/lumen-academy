@@ -9,8 +9,28 @@ import { store } from "./store";
 let net: Net | null = null;
 const TOAST_MS = 5000;
 
+// The classroom you're in survives a reload: reopening the tab rejoins it,
+// and the server picks the unfinished period back up (paused).
+const LAST_CLASS_KEY = "lumen.liveClassroom";
+const remember = (id: string | null) => {
+  try {
+    if (id) localStorage.setItem(LAST_CLASS_KEY, id);
+    else localStorage.removeItem(LAST_CLASS_KEY);
+  } catch {
+    /* storage blocked: reload just returns to the class picker */
+  }
+};
+
 function receive(m: ServerMessage) {
+  const wasStarting = store.getState().classroom.status === "starting";
   store.setState((s) => ({ classroom: applyServerMessage(s.classroom, m) }));
+  // A class that can't start (archived, no cadets…) sends you back to the picker.
+  if (m.type === "error" && wasStarting) {
+    remember(null);
+    store.setState({ route: { name: "boot" } });
+  }
+  if (m.type === "period.started") remember(m.payload.classroom.id);
+  if (m.type === "period.ended") remember(null);
   if (m.type === "toast" || m.type === "error") {
     const id = store.getState().classroom.toasts.at(-1)?.id;
     if (id !== undefined)
@@ -50,6 +70,28 @@ export const app = {
   setConcept(conceptId: string) {
     ensureNet().send("concept.set", { conceptId });
   },
+  pause() {
+    if (store.getState().classroom.status === "live") ensureNet().send("period.pause", {});
+  },
+  resume() {
+    if (store.getState().classroom.status === "live") ensureNet().send("period.resume", {});
+  },
+  togglePause() {
+    if (store.getState().classroom.clock.paused) this.resume();
+    else this.pause();
+  },
+  /** After a reload: rejoin the classroom that was live, if any. */
+  rejoin(): boolean {
+    let id: string | null;
+    try {
+      id = localStorage.getItem(LAST_CLASS_KEY);
+    } catch {
+      return false;
+    }
+    if (!id) return false;
+    this.startClass(id);
+    return true;
+  },
   endClass() {
     store.setState((s) => ({ classroom: { ...s.classroom, status: "ending" } }));
     ensureNet().send("period.end", {});
@@ -62,6 +104,7 @@ export const app = {
     if (store.getState().selectedId !== cadetId) store.setState({ selectedId: cadetId });
   },
   backToBoot() {
+    remember(null);
     store.setState({ route: { name: "boot" } });
   },
 };

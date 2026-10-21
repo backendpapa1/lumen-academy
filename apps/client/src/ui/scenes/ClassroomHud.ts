@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 import { ARCHETYPE_INFO, type HandView } from "@lumen/shared";
 import { app } from "../../core/app";
-import type { ClassroomState } from "../../core/classroom";
+import { elapsedMs, type ClassroomState } from "../../core/classroom";
 import { pointer } from "../../core/input";
 import { store, type AppState } from "../../core/store";
 import { Button } from "../components/Button";
@@ -103,7 +103,8 @@ export class ClassroomHud extends Phaser.Scene {
     )
       this.buildHands(c);
     if (c.cadets !== p.cadets) this.buildRoster(c);
-    if (c.status !== p.status || c.ended !== p.ended) this.buildOverlay(c);
+    if (c.status !== p.status || c.ended !== p.ended || c.clock.paused !== p.clock.paused)
+      this.buildOverlay(c);
     if (c.toasts !== p.toasts) this.buildToasts(c);
     if (c.recap !== p.recap) this.buildRecap(c);
     if (c.cost !== p.cost) this.cost?.setText(this.costText(c));
@@ -111,8 +112,8 @@ export class ClassroomHud extends Phaser.Scene {
 
   override update(): void {
     const c = store.getState().classroom;
-    if (this.timer && c.startedAt && c.status === "live")
-      this.timer.set((Date.now() - c.startedAt) / 1000, c.plannedMinutes * 60);
+    if (this.timer && c.status === "live")
+      this.timer.set(elapsedMs(c) / 1000, c.plannedMinutes * 60);
   }
 
   // --- top bar ----------------------------------------------------------------
@@ -175,7 +176,7 @@ export class ClassroomHud extends Phaser.Scene {
     ).setOrigin(1, 0);
     this.cost.setInteractive({ useHandCursor: true }).on("pointerdown", () => {
       const k = store.getState().classroom.cost;
-      this.toast(
+      app.notify(
         `Today $${k.dayUsd.toFixed(3)} · this month $${k.monthUsd.toFixed(2)} of $${k.capUsd}`,
       );
     });
@@ -388,6 +389,7 @@ export class ClassroomHud extends Phaser.Scene {
       ]);
       return;
     }
+    if (c.status === "live" && c.clock.paused) return this.buildPause(c);
     if (c.status !== "ended" || !c.ended) return;
     const w = 560 * s;
     const recap = c.ended.recapOut ?? "";
@@ -425,26 +427,61 @@ export class ClassroomHud extends Phaser.Scene {
     this.overlay = panel;
   }
 
-  // --- toasts and recap card -------------------------------------------------------------
-
-  private toast(text: string) {
-    store.setState((st) => ({
-      classroom: {
-        ...st.classroom,
-        toasts: [...st.classroom.toasts, { id: Date.now(), level: "info" as const, text }].slice(
-          -3,
-        ),
-      },
-    }));
-    const id = store.getState().classroom.toasts.at(-1)!.id;
-    setTimeout(
-      () =>
-        store.setState((st) => ({
-          classroom: { ...st.classroom, toasts: st.classroom.toasts.filter((t) => t.id !== id) },
-        })),
-      4000,
+  /** Esc pauses: the class waits, the clock stops. A resumed period opens here too. */
+  private buildPause(c: ClassroomState) {
+    const s = this.s;
+    const { width, height } = this.scale.gameSize;
+    const w = 480 * s;
+    const h = 186 * s;
+    const left = Math.max(0, c.plannedMinutes - Math.floor(elapsedMs(c) / 60_000));
+    const g = this.add.container(0, 0);
+    // Dim the room, not black it out: the class is still there, waiting.
+    const dim = this.add.rectangle(0, 0, width, height, color.void, 0.55).setOrigin(0);
+    dim.setInteractive(); // swallow clicks so nothing behind is called on
+    const panel = new Panel(this, (width - w) / 2, (height - h) / 2, w, h);
+    panel.add(
+      label(this, 28 * s, 26 * s, c.resumed ? "Welcome back" : "Paused", "micro", { scale: s }),
     );
+    panel.add(
+      label(
+        this,
+        28 * s,
+        48 * s,
+        c.resumed
+          ? `${c.classroom?.name ?? "Your class"} kept your seat.`
+          : "The class is waiting.",
+        "h1",
+        { scale: s },
+      ),
+    );
+    panel.add(
+      label(this, 28 * s, 96 * s, `${left} min left in this period`, "mono", {
+        scale: s * 0.85,
+        color: css.aurum,
+      }),
+    );
+    // Buttons are centre-anchored: lay them out left to right by width.
+    const resume = new Button(this, 0, 0, "Resume", {
+      primary: true,
+      scale: s,
+      onClick: () => app.resume(),
+    });
+    const end = new Button(this, 0, 0, "End class", { scale: s, onClick: () => app.endClass() });
+    const rowY = h - 44 * s;
+    resume.setPosition(28 * s + resume.width / 2, rowY);
+    end.setPosition(resume.x + resume.width / 2 + 12 * s + end.width / 2, rowY);
+    panel.add([resume, end]);
+    panel.add(
+      label(this, w - 28 * s, rowY, "Esc or Space to resume", "caption", { scale: s }).setOrigin(
+        1,
+        0.5,
+      ),
+    );
+    g.add([dim, panel]);
+    this.overlay = g;
   }
+
+  // --- toasts and recap card -------------------------------------------------------------
 
   private buildToasts(c: ClassroomState) {
     this.toasts?.destroy();

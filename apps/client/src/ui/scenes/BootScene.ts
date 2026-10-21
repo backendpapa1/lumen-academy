@@ -14,6 +14,8 @@ interface SchoolRow {
     status: string;
     cadets: number;
     lastPeriodAt: string | null;
+    /** Set when a period was left unfinished: it continues on open. */
+    openPeriodElapsedMs: number | null;
   }>;
 }
 
@@ -75,9 +77,11 @@ export class BootScene extends Phaser.Scene {
           this,
           w - 20 * s,
           36 * s,
-          `${r.cadets} cadets${i === 0 && r.lastPeriodAt ? " · last taught" : ""}`,
+          r.openPeriodElapsedMs !== null
+            ? `In progress · ${Math.floor(r.openPeriodElapsedMs / 60_000)} min in`
+            : `${r.cadets} cadets${i === 0 && r.lastPeriodAt ? " · last taught" : ""}`,
           "caption",
-          { scale: s },
+          { scale: s, ...(r.openPeriodElapsedMs !== null ? { color: css.aurum } : {}) },
         ).setOrigin(1, 0),
       );
       card.setInteractive({

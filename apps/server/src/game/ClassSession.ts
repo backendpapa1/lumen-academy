@@ -131,7 +131,9 @@ export class ClassSession {
   private conceptId: string;
   private offConceptStreak: { id: string; count: number } | null = null;
   private speaking: { cadetId: string; abort: AbortController; hand?: HandRaise } | null = null;
-  private readonly startedAt: number;
+  /** Teaching time banked so far, plus the stretch running since `runningSince` (null = paused). */
+  private activeMs: number;
+  private runningSince: number | null;
   private closed = false;
   /** Overachievers who already used peek_ahead this period (once per period). */
   private readonly peeked = new Set<string>();
@@ -147,15 +149,31 @@ export class ClassSession {
     conceptId: string,
     periodId: string,
     private readonly events: SessionEvents,
+    readonly plannedMinutes: number,
+    /** True when this picked up an unfinished period (tab closed, server restarted). */
+    readonly resumed: boolean,
+    elapsedMs: number,
   ) {
     this.conceptId = conceptId;
     this.periodId = periodId;
-    this.startedAt = (deps.now ?? Date.now)();
+    this.activeMs = elapsedMs;
+    // A resumed period waits for the teacher to press Resume.
+    this.runningSince = resumed ? null : this.now();
+  }
+
+  private now(): number {
+    return (this.deps.now ?? Date.now)();
   }
 
   static open(
     deps: SessionDeps,
-    input: { classroomId: string; conceptId?: string; plannedMinutes?: number },
+    input: {
+      classroomId: string;
+      conceptId?: string;
+      plannedMinutes?: number;
+      /** Continue this classroom's unfinished period if it was active recently. */
+      resume?: boolean;
+    },
     events: SessionEvents = {},
   ): ClassSession {
     const { db } = deps.handle;
@@ -211,15 +229,19 @@ export class ClassSession {
       };
     });
 
-    const periodId = newId("period");
-    db.insert(periods)
-      .values({
-        id: periodId,
-        classroomId: room.id,
-        startedAt: new Date().toISOString(),
-        plannedMinutes: input.plannedMinutes ?? deps.game.period.defaultMinutes,
-      })
-      .run();
+    const open = settleOpenPeriods(deps, room.id, input.resume === true);
+    const periodId = open?.id ?? newId("period");
+    const plannedMinutes =
+      open?.plannedMinutes ?? input.plannedMinutes ?? deps.game.period.defaultMinutes;
+    if (!open)
+      db.insert(periods)
+        .values({
+          id: periodId,
+          classroomId: room.id,
+          startedAt: new Date().toISOString(),
+          plannedMinutes,
+        })
+        .run();
     db.update(classrooms)
       .set({ currentConceptId: conceptId })
       .where(eq(classrooms.id, room.id))
@@ -232,7 +254,11 @@ export class ClassSession {
       conceptId,
       periodId,
       events,
+      plannedMinutes,
+      !!open,
+      open?.elapsedMs ?? 0,
     );
+    if (open) session.restore(roster.map((c) => ({ id: c.id, name: c.name })));
     const earlier = deps.handle.sqlite
       .prepare(
         `SELECT m.text FROM messages m JOIN periods p ON p.id = m.period_id
@@ -277,13 +303,72 @@ export class ClassSession {
     return this.cadetStates;
   }
 
+  /** Teaching time so far; pauses and disconnects don't count. */
+  elapsedMs(): number {
+    return this.activeMs + (this.runningSince === null ? 0 : this.now() - this.runningSince);
+  }
+
   periodMinute(): number {
-    return ((this.deps.now ?? Date.now)() - this.startedAt) / 60_000;
+    return this.elapsedMs() / 60_000;
+  }
+
+  get paused(): boolean {
+    return this.runningSince === null;
+  }
+
+  /** Esc at the lectern: the clock stops and the class waits; a speaking cadet stops. */
+  pause(): void {
+    if (this.closed || this.paused) return;
+    this.interruptSpeaker();
+    this.activeMs = this.elapsedMs();
+    this.runningSince = null;
+    this.saveElapsed();
+  }
+
+  resume(): void {
+    if (this.closed || !this.paused) return;
+    this.runningSince = this.now();
+  }
+
+  private assertTeaching() {
+    if (this.closed) throw new Error("period has ended");
+    if (this.paused) throw new Error("class is paused; resume it first");
+  }
+
+  private saveElapsed() {
+    this.deps.handle.db
+      .update(periods)
+      .set({ elapsedMs: Math.round(this.elapsedMs()) })
+      .where(eq(periods.id, this.periodId))
+      .run();
+  }
+
+  /** Rebuilds what a resumed period had in memory: the dialogue so far and the turn count. */
+  private restore(roster: Array<{ id: string; name: string }>) {
+    const { sqlite } = this.deps.handle;
+    const rows = sqlite
+      .prepare(
+        `SELECT speaker, text FROM messages WHERE period_id = ?
+         AND kind IN ('lecture','answer','question','objection','claim') ORDER BY created_at, rowid`,
+      )
+      .all(this.periodId) as Array<{ speaker: string; text: string }>;
+    for (const r of rows)
+      this.transcript.push({
+        speaker:
+          r.speaker === "teacher"
+            ? "Headmaster"
+            : (roster.find((c) => c.id === r.speaker)?.name ?? r.speaker),
+        text: r.text,
+      });
+    const ord = sqlite
+      .prepare("SELECT max(ord) AS n FROM turns WHERE period_id = ?")
+      .get(this.periodId) as { n: number | null };
+    this.turnOrd = ord.n ?? 0;
   }
 
   /** The teacher said something (T-1..T-6). */
   teach(text: string, opts: { conceptId?: string; replyToCadetId?: string } = {}): TurnHandle {
-    if (this.closed) throw new Error("period has ended");
+    this.assertTeaching();
     // Refuse up front when paused, so nothing is half-saved (BudgetPausedError).
     this.deps.budget?.assertCanCall();
     this.interruptSpeaker();
@@ -346,6 +431,7 @@ export class ClassSession {
 
   /** The teacher called on a cadet: they speak until the next teach() (M1-10 plugs in the voice). */
   call(cadetId: string): { cadetId: string; signal: AbortSignal; hand?: HandRaise } {
+    this.assertTeaching();
     const hand = this.hands.find((h) => h.cadetId === cadetId);
     this.hands = this.hands.filter((h) => h.cadetId !== cadetId);
     this.events.onHands?.(this.handQueue);
@@ -521,17 +607,38 @@ export class ClassSession {
     return outcome;
   }
 
+  /** Ends the period for good (End class, bell). */
   async close(): Promise<void> {
-    if (this.closed) return;
-    this.closed = true;
-    this.interruptSpeaker();
-    await this.analysisChain.catch(() => undefined);
-    await Promise.allSettled(this.background);
+    if (await this.settle()) this.endPeriod();
+  }
+
+  /**
+   * The connection went away mid-period: finish pending writes and bank the
+   * time, but leave the period open so reopening the classroom continues it.
+   */
+  async suspend(): Promise<void> {
+    await this.settle();
+  }
+
+  private endPeriod() {
     this.deps.handle.db
       .update(periods)
       .set({ endedAt: new Date().toISOString() })
       .where(eq(periods.id, this.periodId))
       .run();
+  }
+
+  /** Stops the session once; false if it already was. */
+  private async settle(): Promise<boolean> {
+    if (this.closed) return false;
+    this.activeMs = this.elapsedMs();
+    this.runningSince = null;
+    this.closed = true;
+    this.interruptSpeaker();
+    await this.analysisChain.catch(() => undefined);
+    await Promise.allSettled(this.background);
+    this.saveElapsed();
+    return true;
   }
 
   // --- internals -------------------------------------------------------------
@@ -812,4 +919,39 @@ export class ClassSession {
     );
     this.background.push(job);
   }
+}
+
+/**
+ * Before a period opens: the classroom's most recent unfinished period, if it
+ * may be resumed (asked for, and active within game.period.resumeWithinHours).
+ * Every other unfinished period is closed at its last activity.
+ */
+function settleOpenPeriods(
+  deps: SessionDeps,
+  classroomId: string,
+  resume: boolean,
+): { id: string; plannedMinutes: number; elapsedMs: number } | null {
+  const { sqlite } = deps.handle;
+  const open = sqlite
+    .prepare(
+      `SELECT p.id, p.planned_minutes AS plannedMinutes, p.elapsed_ms AS elapsedMs,
+         coalesce((SELECT max(m.created_at) FROM messages m WHERE m.period_id = p.id), p.started_at) AS lastActive
+       FROM periods p WHERE p.classroom_id = ? AND p.ended_at IS NULL ORDER BY p.started_at DESC`,
+    )
+    .all(classroomId) as Array<{
+    id: string;
+    plannedMinutes: number;
+    elapsedMs: number;
+    lastActive: string;
+  }>;
+  const windowMs = deps.game.period.resumeWithinHours * 3_600_000;
+  const now = (deps.now ?? Date.now)();
+  const [latest] = open;
+  const keep =
+    resume && latest && now - Date.parse(latest.lastActive) <= windowMs ? latest : undefined;
+  const end = sqlite.prepare("UPDATE periods SET ended_at = ? WHERE id = ?");
+  for (const p of open) if (p !== keep) end.run(p.lastActive, p.id);
+  return keep
+    ? { id: keep.id, plannedMinutes: keep.plannedMinutes, elapsedMs: keep.elapsedMs }
+    : null;
 }

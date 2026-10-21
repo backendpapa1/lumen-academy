@@ -3,6 +3,7 @@ period:
   defaultMinutes: 15
   minMinutes: 5
   maxMinutes: 45
+  resumeWithinHours: 12
 
 cohort: { min: 4, mode: 9, max: 15 } # triangular distribution (docs/03 §5.2)
 classroomsPerSchool: 6

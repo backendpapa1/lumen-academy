@@ -10,6 +10,8 @@ export interface KeyContext {
   lecternEmpty: boolean;
   /** Something Esc should close first: concept menu, transcript, roster. */
   somethingOpen: boolean;
+  /** While paused only resuming works (Esc, Space or Enter). */
+  paused: boolean;
 }
 
 export type KeyAction =
@@ -21,6 +23,7 @@ export type KeyAction =
   | { do: "callPosition"; index: number }
   | { do: "closeTop" }
   | { do: "pause" }
+  | { do: "resume" }
   | { do: "transcript" }
   | { do: "roster" }
   | { do: "notYet"; feature: "hyperfocus" | "notes" };
@@ -28,6 +31,8 @@ export type KeyAction =
 const NONE: KeyAction = { do: "none" };
 
 export function routeKey(k: KeyContext): KeyAction {
+  if (k.paused)
+    return !k.focus && ["Escape", " ", "Enter"].includes(k.key) ? { do: "resume" } : NONE;
   if (k.key === "Tab") return { do: "cycleHands", dir: k.shift ? -1 : 1 };
   if (k.key === "Escape")
     return k.focus ? { do: "blur" } : k.somethingOpen ? { do: "closeTop" } : { do: "pause" };

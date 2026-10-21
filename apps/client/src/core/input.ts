@@ -42,6 +42,7 @@ export function installKeyboard(game: Phaser.Game): void {
             : null,
       lecternEmpty: lectern.el.value.trim() === "",
       somethingOpen: transcript.open || !!hud?.hasOpen,
+      paused: c.clock.paused,
     });
     const queue = c.hands.map((h) => h.cadetId);
     switch (action.do) {
@@ -73,7 +74,10 @@ export function installKeyboard(game: Phaser.Game): void {
         if (!hud?.closeTop()) transcript.toggle(false);
         break;
       case "pause":
-        // Wired up with pause/resume (M2-08).
+        app.pause();
+        break;
+      case "resume":
+        app.resume();
         break;
       case "transcript":
         transcript.toggle();

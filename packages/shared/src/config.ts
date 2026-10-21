@@ -214,6 +214,8 @@ export const GameConfigZ = z.strictObject({
     defaultMinutes: z.number().int().min(5).max(45),
     minMinutes: z.number().int().positive(),
     maxMinutes: z.number().int().positive(),
+    /** An unfinished period is picked back up if it was last active this recently; older ones are closed. */
+    resumeWithinHours: z.number().positive(),
   }),
   cohort: z
     .strictObject({

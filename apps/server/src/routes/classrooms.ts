@@ -16,7 +16,9 @@ export function registerClassroomRoutes(app: FastifyInstance, handle: DbHandle) 
       .prepare(
         `SELECT c.id, c.school_id AS schoolId, c.name, c.status, c.current_concept_id AS currentConceptId,
            (SELECT count(*) FROM cadets d WHERE d.classroom_id = c.id AND d.status IN ('enrolled','transferred_in')) AS cadets,
-           (SELECT max(p.started_at) FROM periods p WHERE p.classroom_id = c.id) AS lastPeriodAt
+           (SELECT max(p.started_at) FROM periods p WHERE p.classroom_id = c.id) AS lastPeriodAt,
+           (SELECT p.elapsed_ms FROM periods p WHERE p.classroom_id = c.id AND p.ended_at IS NULL
+              ORDER BY p.started_at DESC LIMIT 1) AS openPeriodElapsedMs
          FROM classrooms c ORDER BY c.created_at`,
       )
       .all() as Array<{ schoolId: string }>;

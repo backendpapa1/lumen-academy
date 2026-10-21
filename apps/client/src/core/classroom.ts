@@ -43,7 +43,10 @@ export interface ClassroomState {
   transcript: TranscriptEntry[];
   speech: Speech | null;
   plannedMinutes: number;
-  startedAt?: number;
+  /** The server's teaching clock: elapsedMs as of `at` (client time), frozen while paused. */
+  clock: { elapsedMs: number; at: number; paused: boolean };
+  /** This period was picked up after a reload; the pause card says "Welcome back". */
+  resumed: boolean;
   recap?: string;
   classAverage: number | null;
   cost: {
@@ -69,6 +72,8 @@ export const initialClassroom = (): ClassroomState => ({
   transcript: [],
   speech: null,
   plannedMinutes: 15,
+  clock: { elapsedMs: 0, at: 0, paused: false },
+  resumed: false,
   classAverage: null,
   cost: { periodUsd: 0, dayUsd: 0, monthUsd: 0, capUsd: 20, state: "ok" },
   thinking: false,
@@ -96,12 +101,21 @@ export function applyServerMessage(
         concepts: m.payload.concepts,
         cadets: Object.fromEntries(m.payload.cadets.map((c) => [c.id, { ...c }])),
         plannedMinutes: m.payload.plannedMinutes,
-        startedAt: now,
+        clock: { elapsedMs: m.payload.elapsedMs, at: now, paused: m.payload.paused },
+        resumed: m.payload.resumed,
         transcript: m.payload.transcript.map((t) => ({
           speaker: t.cadetId ? "cadet" : "headmaster",
           cadetId: t.cadetId,
+          messageId: t.messageId,
           text: t.text,
         })),
+      };
+    case "period.paused":
+      return {
+        ...s,
+        clock: { elapsedMs: m.payload.elapsedMs, at: now, paused: m.payload.paused },
+        speech: m.payload.paused && s.speech && !s.speech.done ? null : s.speech,
+        thinking: false,
       };
     case "period.recap":
       return m.payload.periodId === s.periodId ? { ...s, recap: m.payload.text } : s;
@@ -215,6 +229,10 @@ export function applyServerMessage(
       return s;
   }
 }
+
+/** Teaching time on the clock now, in ms. */
+export const elapsedMs = (s: ClassroomState, now = Date.now()) =>
+  s.clock.elapsedMs + (s.clock.paused || s.status !== "live" ? 0 : now - s.clock.at);
 
 export const dismissToast = (s: ClassroomState, id: number): ClassroomState => ({
   ...s,
