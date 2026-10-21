@@ -10,6 +10,7 @@ import { applyServerMessage, dismissToast } from "./classroom";
 import { serverEvents } from "./bus";
 import { applySetupMessage } from "./setup";
 import { Net } from "./net";
+import { rhythm } from "./rhythm";
 import { store } from "./store";
 
 // The one place that talks to the server: actions in, server messages applied
@@ -30,6 +31,15 @@ const remember = (id: string | null) => {
   }
 };
 
+/** A period is open in this classroom (resume it, don't check in). */
+function inProgress(classroomId: string): boolean {
+  const { schools, campus } = store.getState().setup;
+  if (campus?.resume?.inProgress && campus.resume.classroomId === classroomId) return true;
+  return !!schools?.some((s) =>
+    s.classrooms.some((c) => c.id === classroomId && c.openPeriodElapsedMs != null),
+  );
+}
+
 function receive(m: ServerMessage) {
   const wasStarting = store.getState().classroom.status === "starting";
   store.setState((s) => ({
@@ -46,7 +56,18 @@ function receive(m: ServerMessage) {
     remember(null);
     store.setState({ route: { name: "boot" } });
   }
-  if (m.type === "period.started") remember(m.payload.classroom.id);
+  if (m.type === "period.started") {
+    remember(m.payload.classroom.id);
+    const { kind, energy, resumed, plannedMinutes } = m.payload;
+    if (!resumed && kind === "micro")
+      app.notify(
+        `Micro-lesson: one idea, one question. The bell rings at ${plannedMinutes} minutes.`,
+      );
+    else if (!resumed && energy === "high")
+      app.notify("Feeling sharp? Press F for Hyperfocus: lights down, harder questions.");
+    else if (!resumed && energy === "low")
+      app.notify("A gentle class today: shorter questions, no surprises.");
+  }
   if (m.type === "period.ended") remember(null);
   if (m.type === "toast" || m.type === "error") {
     const id = store.getState().classroom.toasts.at(-1)?.id;
@@ -141,12 +162,40 @@ export const app = {
       },
     }));
   },
-  startClass(classroomId: string, opts: { minutes?: number; conceptId?: string } = {}) {
+  /**
+   * Start (or rejoin) a class. A new period first asks how my energy is
+   * (V3-02) unless I've turned that off; a period already in progress never asks.
+   */
+  startClass(
+    classroomId: string,
+    opts: {
+      minutes?: number;
+      conceptId?: string;
+      kind?: "class" | "micro";
+      cadetId?: string;
+      energy?: "low" | "ok" | "high";
+      ask?: boolean;
+    } = {},
+  ) {
+    const { ask, ...start } = opts;
+    if (ask !== false && !start.energy && rhythm.prefs.checkIn && !inProgress(classroomId)) {
+      void import("../ui/screens/checkin").then(async (m) => {
+        const r = await m.energyCheckIn({ micro: start.kind === "micro" });
+        if (!r) return;
+        this.startClass(classroomId, {
+          ...start,
+          ...(r.energy ? { energy: r.energy } : {}),
+          ...(r.micro ? { kind: "micro" as const } : {}),
+          ask: false,
+        });
+      });
+      return;
+    }
     store.setState((s) => ({
       route: { name: "classroom", classroomId },
       classroom: { ...s.classroom, status: "starting" },
     }));
-    ensureNet().send("period.start", { classroomId, ...opts });
+    ensureNet().send("period.start", { classroomId, ...start });
   },
   teach(text: string) {
     const t = text.trim();
@@ -224,7 +273,7 @@ export const app = {
       return false;
     }
     if (!id) return false;
-    this.startClass(id);
+    this.startClass(id, { ask: false });
     return true;
   },
   endClass() {

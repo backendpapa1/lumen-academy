@@ -123,6 +123,13 @@ function roomMarkup(): string {
     </g>`;
   return `
     <defs>
+      <radialGradient id="spot-g">
+        <stop offset="0.5" stop-color="#000"/><stop offset="1" stop-color="#fff"/>
+      </radialGradient>
+      <mask id="spot" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
+        <rect width="${W}" height="${H}" fill="#fff"/>
+        <ellipse cx="${CX}" cy="${ROWS[0].y - 110}" rx="300" ry="330" fill="url(#spot-g)"/>
+      </mask>
       <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stop-color="${skyTop}"/><stop offset="1" stop-color="${skyLow}"/>
       </linearGradient>
@@ -304,8 +311,9 @@ export class Room {
 
   private sync(c: ClassroomState) {
     const students = Object.values(c.cadets).sort((a, b) => a.seat - b.seat);
-    const key = students.map((x) => x.id).join(",");
-    if (key !== this.layoutKey) this.relayout(students);
+    const micro = c.kind === "micro";
+    const key = `${micro}|${students.map((x) => x.id).join(",")}`;
+    if (key !== this.layoutKey) this.relayout(students, micro);
     const queue = c.hands.map((h) => h.cadetId);
     const speaking = c.speech && !c.speech.done ? c.speech.cadetId : (c.speech?.cadetId ?? null);
     for (const st of students) {
@@ -338,6 +346,7 @@ export class Room {
     }
     this.board(c);
     this.el.classList.toggle("focus", c.hyperfocus);
+    this.el.classList.toggle("micro", micro);
     if (c.event && c.event.id !== this.lastEventId) {
       this.lastEventId = c.event.id;
       if (c.event.kind === "power_flicker") this.flicker();
@@ -345,10 +354,14 @@ export class Room {
     this.highlight(store.getState().hoveredId, store.getState().selectedId);
   }
 
-  private relayout(students: CadetState[]) {
-    this.layoutKey = students.map((x) => x.id).join(",");
+  private relayout(students: CadetState[], micro = false) {
+    this.layoutKey = `${micro}|${students.map((x) => x.id).join(",")}`;
     const desks = deskLayout(students.length);
-    const byId = new Map(students.map((s, i) => [s.id, desks[i]!]));
+    // V3-01: a micro-lesson's one student sits front and centre, under the light.
+    const seated: Array<CadetState | undefined> = micro
+      ? desks.map((_, i) => (i === Math.floor(PER_ROW / 2) ? students[0] : undefined))
+      : students;
+    const byId = new Map(seated.flatMap((s, i) => (s ? [[s.id, desks[i]!] as const] : [])));
     // Remove students who left.
     for (const [id, seat] of this.seats)
       if (!byId.has(id)) {
@@ -358,7 +371,7 @@ export class Room {
     this.desksG.innerHTML = "";
     // Back row first so nearer desks overlap farther students.
     const order = desks
-      .map((d, i) => ({ d, st: students[i] }))
+      .map((d, i) => ({ d, st: seated[i] }))
       .sort((a, b) => a.d.y - b.d.y || a.d.x - b.d.x);
     for (const { d, st } of order) {
       if (!st) {

@@ -204,6 +204,12 @@ export const periods = sqliteTable(
     recapOut: text("recap_out"),
     randomEvent: text("random_event"),
     xpEarned: integer("xp_earned").notNull().default(0),
+    /** V3-01: "class", or "micro" (one student, one idea, a few minutes). */
+    kind: text("kind").notNull().default("class"),
+    /** V3-02: the optional check-in before class: low / ok / high. */
+    energy: text("energy"),
+    /** V3-01: the one student at the front desk in a micro-lesson. */
+    focusCadetId: text("focus_cadet_id"),
   },
   (t) => [index("periods_classroom_started").on(t.classroomId, t.startedAt)],
 );
@@ -486,3 +492,21 @@ export const selfRatings = sqliteTable("self_ratings", {
   rating: integer("rating").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/** V3-04: stray thoughts filed mid-class without leaving the flow. */
+export const parkingLot = sqliteTable(
+  "parking_lot",
+  {
+    id: text("id").primaryKey(),
+    schoolId: text("school_id")
+      .notNull()
+      .references(() => schools.id),
+    periodId: text("period_id"),
+    text: text("text").notNull(),
+    /** open → kept (a note) | concept (added to the curriculum) | dismissed. */
+    status: text("status").notNull().default("open"),
+    createdAt: text("created_at").notNull(),
+    resolvedAt: text("resolved_at"),
+  },
+  (t) => [index("parking_school_status").on(t.schoolId, t.status)],
+);

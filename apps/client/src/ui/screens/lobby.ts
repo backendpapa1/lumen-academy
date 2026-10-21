@@ -106,7 +106,9 @@ export function mountLobby(root: HTMLElement): () => void {
 /** Resume (ADHD rule 1: one click back into teaching), rank, and the forgiving streak. */
 function heroParts(c: CampusView): HTMLElement[] {
   const out: HTMLElement[] = [];
-  if (c.resume) {
+  // V3-03: with nothing in progress, the one button is "today's best class".
+  if (c.best && !c.resume?.inProgress) out.push(bestCard(c.best));
+  else if (c.resume) {
     const r = c.resume;
     const go = h(
       "button",
@@ -131,7 +133,7 @@ function heroParts(c: CampusView): HTMLElement[] {
     // Enter goes straight in: the lobby opens with Resume focused.
     queueMicrotask(() => go.focus({ preventScroll: true }));
   }
-  if (c.fading && !c.resume?.inProgress) out.push(fadingCard(c.fading));
+  if (c.fading && !c.resume?.inProgress && !c.best) out.push(fadingCard(c.fading));
   const insignia = rankInsignia(c.xp.rank);
   const pct = Math.round(c.xp.progress * 100);
   const st = c.streak;
@@ -174,21 +176,67 @@ function heroParts(c: CampusView): HTMLElement[] {
         h(
           "div",
           { class: "dim", style: "font-size:13px;margin-top:4px" },
-          // Forgiving (P-3): never a dramatic zero; the best streak is shown with pride.
-          st.missedDays >= 2
+          // Forgiving (P-3, V3-07): it celebrates showing up, never a dramatic zero.
+          st.missedDays >= 2 && !st.current
             ? "A few clouds rolled in over the campus. Teach once to clear the sky."
             : st.taughtToday
-              ? "You taught today."
-              : st.current
-                ? "Teach today to keep it going."
-                : "Teach a class to start one.",
+              ? "You showed up today. That's the whole trick."
+              : st.missedDays >= 2
+                ? "A freeze is holding your streak. Even 3 minutes today counts."
+                : st.current
+                  ? "Teach today to keep it going. A micro-lesson counts."
+                  : "Teach a class to start one.",
         ),
+        (st.freezes > 0 || st.frozenDays > 0) &&
+          h(
+            "div",
+            { class: "mono freeze", style: "margin-top:6px" },
+            st.freezes > 0
+              ? `${plural(st.freezes, "freeze")} banked (a week earns one)`
+              : `A freeze covered ${plural(st.frozenDays, "missed day")}`,
+          ),
         st.best > 0 &&
           h("div", { class: "mono", style: "margin-top:6px" }, `Best: ${plural(st.best, "day")}`),
       ),
     ),
   );
   return out;
+}
+
+/** V3-03: one button, no choosing. Enter starts it; a micro-lesson is right beside it. */
+function bestCard(b: NonNullable<CampusView["best"]>): HTMLElement {
+  const go = h(
+    "button",
+    {
+      class: "btn primary resume-btn",
+      onclick: () => app.startClass(b.classroomId, { conceptId: b.conceptId }),
+    },
+    icon(ICONS.play),
+    "Start class",
+  );
+  queueMicrotask(() => go.focus({ preventScroll: true }));
+  return h(
+    "section",
+    { class: `card pad resume best ${b.why}`, "aria-label": "Today's best class" },
+    h("div", { class: "micro" }, "Today's best class"),
+    h("div", { class: "h2", style: "margin:6px 0 2px" }, b.conceptTitle),
+    h("div", { class: "dim" }, `${b.schoolName} · ${b.classroomName}`),
+    h("p", { class: "best-why" }, b.reason),
+    h(
+      "div",
+      { class: "row", style: "margin-top:14px" },
+      go,
+      h(
+        "button",
+        {
+          class: "btn",
+          onclick: () => app.startClass(b.classroomId, { conceptId: b.conceptId, kind: "micro" }),
+        },
+        "Micro-lesson · 3 min",
+      ),
+      h("span", { class: "dim small" }, "One student, one idea, one question."),
+    ),
+  );
 }
 
 /** V2-03: a gentle nudge, not an alarm. One concept, one button. */

@@ -112,6 +112,9 @@ export interface ClassroomState {
   board: string;
   /** V2-04: days since this concept was last taught in this class (null: new). */
   lastTaughtDays: number | null;
+  /** V3-01/02: a micro-lesson, and how I said I felt at the start. */
+  kind: "class" | "micro";
+  energy: "low" | "ok" | "high" | null;
   /** T-10: Hyperfocus mode for this period. */
   hyperfocus: boolean;
   /** The exit-ticket minigame at the bell (M4-05). */
@@ -136,6 +139,8 @@ export const initialClassroom = (): ClassroomState => ({
   xp: null,
   board: "",
   lastTaughtDays: null,
+  kind: "class",
+  energy: null,
   hyperfocus: false,
 });
 
@@ -165,6 +170,8 @@ export function applyServerMessage(
         xp: m.payload.xp,
         board: m.payload.board ?? "",
         lastTaughtDays: m.payload.lastTaughtDays ?? null,
+        kind: m.payload.kind ?? "class",
+        energy: m.payload.energy ?? null,
         transcript: m.payload.transcript.map((t) => ({
           speaker: t.cadetId ? "cadet" : "headmaster",
           cadetId: t.cadetId,

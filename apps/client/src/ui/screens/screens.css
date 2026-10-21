@@ -1894,3 +1894,95 @@ table.heat td {
 .know-refs {
   margin: 0;
 }
+
+/* V3-03 today's best class: the reason sits on a marigold tab. */
+.resume.best .best-why {
+  display: inline-block;
+  margin: 12px 0 0;
+  padding: 6px 10px;
+  background: var(--navy);
+  color: var(--marigold);
+  font: 700 13px var(--font-ui);
+  border: 1.5px solid var(--marigold);
+}
+.resume.best .row .btn:not(.primary) {
+  background: transparent;
+  color: #fff;
+  border-color: #fff;
+  box-shadow: 3px 3px 0 var(--navy);
+}
+.resume.best .row .btn:not(.primary):hover {
+  background: var(--cobalt-lo);
+}
+.resume.best .row .dim.small {
+  color: var(--cobalt-wash);
+}
+.streak .freeze {
+  color: var(--cobalt);
+}
+
+/* V3-02 energy check-in: three tall choices with a little battery. */
+.energy-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 14px 0 6px;
+}
+.btn.energy {
+  position: relative;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 6px;
+  min-height: 132px;
+  padding: 14px;
+  text-align: left;
+  white-space: normal;
+}
+.btn.energy b {
+  font: 400 20px var(--font-display);
+  color: var(--navy);
+}
+.btn.energy kbd {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font: 700 11px var(--font-ui);
+  color: var(--ink-dim);
+  border: 1px solid currentColor;
+  padding: 0 5px;
+}
+.energy-meter {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1.5px solid var(--navy);
+}
+.energy-meter i {
+  width: 12px;
+  height: 16px;
+  background: var(--paper-2);
+}
+.btn.energy.low .energy-meter i:nth-child(-n + 1) {
+  background: var(--marigold);
+}
+.btn.energy.ok .energy-meter i:nth-child(-n + 2) {
+  background: var(--cobalt);
+}
+.btn.energy.high .energy-meter i {
+  background: var(--coral);
+}
+.btn.energy.low:hover {
+  background: var(--marigold-wash);
+}
+.btn.energy.high:hover {
+  background: var(--coral-wash);
+}
+@media (max-width: 560px) {
+  .energy-row {
+    grid-template-columns: 1fr;
+  }
+  .btn.energy {
+    min-height: 0;
+  }
+}

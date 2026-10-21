@@ -108,6 +108,10 @@ export interface Streak {
   /** Whole days since the last completed period (0 = today). */
   missedDays: number;
   taughtToday: boolean;
+  /** V3-07: freezes banked now (each covers one missed day). */
+  freezes: number;
+  /** Missed days a freeze covered in the current run. */
+  frozenDays: number;
 }
 
 /** YYYY-MM-DD in the given zone. */
@@ -122,8 +126,14 @@ export function dayIn(tz: string, at: Date): string {
 
 const dayNumber = (d: string) => Math.round(Date.parse(`${d}T00:00:00Z`) / 86_400_000);
 
+/**
+ * The forgiving streak (P-3, V3-07). Any completed period counts, a 3-minute
+ * micro-lesson too. Every `freezeEveryDays` taught days in a run earn a
+ * freeze (up to `maxFreezes`); a gap is bridged if there are freezes to
+ * cover each missed day, so one bad day doesn't undo a good week.
+ */
 export function streak(handle: DbHandle, game: GameConfig, now = new Date()): Streak {
-  const tz = game.streak.timezone;
+  const { timezone: tz, freezeEveryDays: every, maxFreezes } = game.streak;
   const ended = handle.sqlite
     .prepare("SELECT ended_at FROM periods WHERE ended_at IS NOT NULL")
     .all() as Array<{ ended_at: string }>;
@@ -133,19 +143,33 @@ export function streak(handle: DbHandle, game: GameConfig, now = new Date()): St
   const today = dayNumber(dayIn(tz, now));
   let best = 0;
   let run = 0;
+  let freezes = 0;
+  let frozen = 0;
   for (let i = 0; i < days.length; i++) {
-    run = i && days[i]! - days[i - 1]! === 1 ? run + 1 : 1;
+    const missed = i ? days[i]! - days[i - 1]! - 1 : 0;
+    if (i && missed <= freezes) {
+      freezes -= missed;
+      frozen += missed;
+      run++;
+    } else {
+      run = 1;
+      freezes = 0;
+      frozen = 0;
+    }
+    if (run % every === 0) freezes = Math.min(maxFreezes, freezes + 1);
     best = Math.max(best, run);
   }
   const last = days.at(-1);
   const missedDays = last === undefined ? 0 : Math.max(0, today - last);
-  // The streak stays alive through today: it only counts as missed once a whole day passes.
-  const current = last !== undefined && missedDays <= 1 ? run : 0;
+  // Alive through today: a whole missed day only breaks it once no freeze covers it.
+  const alive = last !== undefined && missedDays - 1 <= freezes;
   return {
-    current,
+    current: alive ? run : 0,
     best,
     missedDays: last === undefined ? 0 : missedDays,
     taughtToday: missedDays === 0 && last !== undefined,
+    freezes: alive ? freezes - Math.max(0, missedDays - 1) : 0,
+    frozenDays: alive ? frozen + Math.max(0, missedDays - 1) : 0,
   };
 }
 

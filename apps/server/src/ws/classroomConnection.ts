@@ -10,7 +10,7 @@ import { and, eq } from "drizzle-orm";
 import { writeRecap } from "../agents/realtime/recap.js";
 import type { DbHandle } from "../db/client.js";
 import { cadets, classrooms, ledgerEntries, schools } from "../db/schema.js";
-import { ClassSession } from "../game/ClassSession.js";
+import { ClassSession, type Energy, type PeriodKind } from "../game/ClassSession.js";
 import { recall, retention } from "../game/memory.js";
 import { rewriteNotes } from "../game/notes.js";
 import {
@@ -208,7 +208,14 @@ export class ClassroomConnection {
     return this.session;
   }
 
-  private async start(p: { classroomId: string; conceptId?: string; minutes?: number }) {
+  private async start(p: {
+    classroomId: string;
+    conceptId?: string;
+    minutes?: number;
+    kind?: PeriodKind;
+    cadetId?: string;
+    energy?: Energy;
+  }) {
     if (this.session) await this.end();
     const { handle, game } = this.rt;
     const room = handle.db.select().from(classrooms).where(eq(classrooms.id, p.classroomId)).get();
@@ -217,7 +224,15 @@ export class ClassroomConnection {
     const minutes = p.minutes ?? game.period.defaultMinutes;
     const session = ClassSession.open(
       { handle, factory: this.rt.factory, game, embedder: this.rt.embedder, budget: this.rt.meter },
-      { classroomId: room.id, conceptId: p.conceptId, plannedMinutes: minutes, resume: true },
+      {
+        classroomId: room.id,
+        conceptId: p.conceptId,
+        plannedMinutes: minutes,
+        resume: true,
+        kind: p.kind,
+        cadetId: p.cadetId,
+        energy: p.energy,
+      },
       {
         onReaction: (cadetId, state) =>
           this.turnId &&
@@ -270,6 +285,8 @@ export class ClassroomConnection {
         transcript: session.resumed ? this.transcriptView(session.periodId) : [],
         xp: standing(handle, game),
         lastTaughtDays: this.lastTaughtDays(room.id, session.currentConcept.id),
+        kind: session.kind,
+        energy: session.energy,
       },
     });
     this.sendCost();
@@ -398,7 +415,7 @@ export class ClassroomConnection {
       turnOrd: session.turnCount,
       cadets: session.roster.map((r) => ({ id: r.id, name: r.name, archetype: r.archetype })),
     };
-    let ev = this.rt.game.events.enabled ? await maybeStartEvent(ctx) : null;
+    let ev = this.rt.game.events.enabled && !session.quiet ? await maybeStartEvent(ctx) : null;
     // V2-05: the mistake journal isn't a surprise, so it runs even with events off.
     if (!ev && !this.event && !this.inspection) ev = maybeRecheck(ctx);
     if (!ev || this.session !== session) return;
@@ -476,7 +493,10 @@ export class ClassroomConnection {
       classroomId: session.classroomId,
       periodId: session.periodId,
     };
-    settleTeachingMinutes(handle, game, scope, session.elapsedMs());
+    // V3-01: a micro-lesson earns a flat, smaller award instead of per-minute XP.
+    if (session.kind === "micro") {
+      if (session.turnCount > 0) awardXp(handle, game, scope, "microLesson");
+    } else settleTeachingMinutes(handle, game, scope, session.elapsedMs());
     const breakdown = periodXp(handle, session.periodId);
     const after = standing(handle, game);
     const { sqlite } = this.rt.handle;
@@ -535,6 +555,7 @@ export class ClassroomConnection {
         classroomId: session.classroomId,
         conceptId: session.currentConcept.id,
         memory: this.rt.game.memory,
+        ...(session.kind === "micro" ? { cadetIds: session.roster.map((r) => r.id) } : {}),
       });
       if (tickets.length)
         this.send({

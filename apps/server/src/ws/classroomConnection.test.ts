@@ -176,6 +176,26 @@ describe("classroom over WebSocket", () => {
     ws.close();
   });
 
+  it("a micro-lesson: one student, a short period, flat XP at the bell (V3-01)", async () => {
+    const { w, send, until, ws } = await boot();
+    send("period.start", { classroomId: w.classroomId, kind: "micro", energy: "low" });
+    const started = await until("period.started");
+    expect(started.payload).toMatchObject({
+      kind: "micro",
+      energy: "low",
+      plannedMinutes: cfg.game.micro.minutes,
+    });
+    expect(started.payload.cadets).toHaveLength(1);
+    send("teach.message", { text: "Pairs of hashes are hashed again up to the root." });
+    await until("ledger.update");
+    send("period.end", {});
+    const ended = await until("period.ended");
+    expect(ended.payload.xp.breakdown).toEqual([
+      { kind: "microLesson", amount: cfg.game.xp.microLesson },
+    ]);
+    ws.close();
+  });
+
   it("extends the period after the bell, and the extension is saved (T-7)", async () => {
     const { w, send, until, ws } = await boot();
     send("period.start", { classroomId: w.classroomId, minutes: 5 });

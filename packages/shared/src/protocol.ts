@@ -65,6 +65,8 @@ export const XpStandingZ = z.object({
 export type XpStanding = z.infer<typeof XpStandingZ>;
 
 export const BudgetStateZ = z.enum(["ok", "warn", "degrade", "pause"]);
+export const PeriodKindZ = z.enum(["class", "micro"]);
+export const EnergyZ = z.enum(["low", "ok", "high"]);
 
 // --- Client → Server ----------------------------------------------------------------
 
@@ -76,6 +78,11 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
       classroomId: z.string(),
       conceptId: z.string().optional(),
       minutes: z.number().int().min(5).max(45).optional(),
+      /** V3-01: a micro-lesson, one student (picked by the server if omitted). */
+      kind: PeriodKindZ.optional(),
+      cadetId: z.string().optional(),
+      /** V3-02: the optional energy check-in. */
+      energy: EnergyZ.optional(),
     }),
   ),
   msg(
@@ -138,6 +145,8 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       xp: XpStandingZ,
       /** V2-04: days since this concept was last taught in this class (null: never). */
       lastTaughtDays: z.number().int().nullable().optional(),
+      kind: PeriodKindZ.optional(),
+      energy: EnergyZ.nullable().optional(),
     }),
   ),
   /** XP just earned (e.g. answering a cadet's question). */

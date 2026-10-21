@@ -136,7 +136,25 @@ export interface CampusView {
     graduations: number;
     decalUrl: string | null;
   }>;
-  streak: { current: number; best: number; missedDays: number; taughtToday: boolean };
+  streak: {
+    current: number;
+    best: number;
+    missedDays: number;
+    taughtToday: boolean;
+    /** V3-07: banked freezes, and missed days one covered. */
+    freezes: number;
+    frozenDays: number;
+  };
+  /** V3-03: the one class to teach now, and why. */
+  best: {
+    classroomId: string;
+    classroomName: string;
+    schoolName: string;
+    conceptId: string;
+    conceptTitle: string;
+    why: "fading" | "next" | "weak";
+    reason: string;
+  } | null;
   /** V2-03: the one concept a class is forgetting most (null when nothing's fading). */
   fading: {
     classroomId: string;

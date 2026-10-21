@@ -1,6 +1,7 @@
 import { api, ApiError, type Settings } from "../../core/api";
 import { app } from "../../core/app";
 import { sound } from "../../core/audio";
+import { rhythm, type BreakPlan } from "../../core/rhythm";
 import { voice } from "../../core/voice";
 import { h } from "./dom";
 import { openModal } from "./modal";
@@ -98,6 +99,7 @@ function form(s: Settings, close: () => void): HTMLElement {
       events,
       "Surprises in class (pop quizzes, mix-ups, flickering lights, a visit from the Dean)",
     ),
+    rhythmSection(),
     voiceSection(),
     keys,
     err,
@@ -129,6 +131,53 @@ function form(s: Settings, close: () => void): HTMLElement {
       });
   });
   return f;
+}
+
+/** V3: the energy check-in and breaks, saved in this browser. */
+function rhythmSection(): HTMLElement {
+  const box = h("input", { type: "checkbox", checked: rhythm.prefs.checkIn });
+  box.addEventListener("change", () => rhythm.set({ checkIn: box.checked }));
+  const plans: Array<[BreakPlan, string]> = [
+    ["25/5", "25 + 5"],
+    ["15/3", "15 + 3"],
+    ["off", "No breaks"],
+  ];
+  const seg = h(
+    "div",
+    { class: "seg", role: "group", "aria-label": "Breaks" },
+    ...plans.map(([p, label]) =>
+      h(
+        "button",
+        {
+          type: "button",
+          "aria-pressed": String(rhythm.prefs.breaks === p),
+          onclick: (e: Event) => {
+            rhythm.set({ breaks: p });
+            for (const b of seg.querySelectorAll("button"))
+              b.setAttribute("aria-pressed", String(b === e.currentTarget));
+          },
+        },
+        label,
+      ),
+    ),
+  );
+  return h(
+    "div",
+    { style: "margin-top:18px" },
+    h("label", { class: "lbl" }, "Before and during class"),
+    h(
+      "label",
+      { class: "row", style: "gap:8px;margin-top:8px;font-size:14px" },
+      box,
+      "Ask how my energy is before a class",
+    ),
+    h(
+      "div",
+      { class: "row", style: "gap:10px;margin-top:10px;font-size:14px;flex-wrap:wrap" },
+      "Breaks (minutes of teaching + rest)",
+      seg,
+    ),
+  );
 }
 
 /** V1 voice: local speech, saved in this browser (it's a per-viewer preference). */

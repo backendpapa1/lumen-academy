@@ -276,3 +276,43 @@ function smallId(body: FakeRequest): string {
   const sys = body.messages.map((m) => m.content).join("\n");
   return /Current concept \((cpt_[0-9a-z]+)\)/.exec(sys)?.[1] ?? "";
 }
+
+describe("ClassSession: micro-lessons and energy (V3-01/02)", () => {
+  it("a micro-lesson seats only the student who knows the concept least, for a few minutes", async () => {
+    const { w, factory } = await setup();
+    const deps = { handle: w.handle, factory, game: cfg.game };
+    // Seat 2 knows it least.
+    const put = w.handle.sqlite.prepare(
+      "INSERT INTO ledger_entries (cadet_id, concept_id, comprehension, exposures, misconceptions_json) VALUES (?, ?, ?, 2, '[]')",
+    );
+    put.run(w.cadets[0]!.id, w.conceptIds[0], 0.7);
+    put.run(w.cadets[1]!.id, w.conceptIds[0], 0.1);
+    put.run(w.cadets[2]!.id, w.conceptIds[0], 0.5);
+    const s = ClassSession.open(deps, {
+      classroomId: w.classroomId,
+      conceptId: w.conceptIds[0],
+      kind: "micro",
+    });
+    expect(s.roster.map((r) => r.id)).toEqual([w.cadets[1]!.id]);
+    expect(s).toMatchObject({ kind: "micro", plannedMinutes: cfg.game.micro.minutes, quiet: true });
+    await s.suspend();
+    // Resuming keeps it a micro-lesson with the same student, whatever is asked.
+    const again = ClassSession.open(deps, { classroomId: w.classroomId, resume: true });
+    expect(again).toMatchObject({ periodId: s.periodId, kind: "micro" });
+    expect(again.roster).toHaveLength(1);
+    await again.close();
+  });
+
+  it("low energy makes the class gentle and quiet; it's saved on the period", async () => {
+    const { w, factory } = await setup();
+    const s = ClassSession.open(
+      { handle: w.handle, factory, game: cfg.game },
+      { classroomId: w.classroomId, energy: "low" },
+    );
+    expect(s).toMatchObject({ difficulty: "gentle", quiet: true, energy: "low" });
+    expect(s.roster).toHaveLength(3);
+    const row = w.handle.db.select().from(periods).all()[0]!;
+    expect(row).toMatchObject({ kind: "class", energy: "low" });
+    await s.close();
+  });
+});

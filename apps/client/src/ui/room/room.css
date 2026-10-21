@@ -681,3 +681,11 @@
     transform: translateY(-5%);
   }
 }
+/* Micro-lesson (V3-01): the room dims around one lit desk. */
+.room.micro .dim {
+  opacity: 0.42;
+  mask: url(#spot);
+}
+.room.micro .seat.empty {
+  opacity: 0.55;
+}

@@ -47,6 +47,37 @@ describe("streak (forgiving)", () => {
   });
 });
 
+describe("streak freezes (V3-07)", () => {
+  it("a week earns a freeze that bridges one missed day; no week, no freeze", async () => {
+    const w = await smallWorld([{ attention: 0.5, skepticism: 0.5 }]);
+    h = w.handle;
+    // Oct 1–7 (a week: one freeze), Oct 8 missed, Oct 9–10.
+    const taught = ["01", "02", "03", "04", "05", "06", "07", "09", "10"];
+    taught.forEach((d, i) => endedOn(h!, w.classroomId, `2026-10-${d}T09:00:00Z`, i));
+    expect(streak(h, cfg.game, new Date("2026-10-10T12:00:00Z"))).toMatchObject({
+      current: 9,
+      freezes: 0,
+      frozenDays: 1,
+    });
+    // Missing Oct 11 and 12 too: no freeze left, so it's over.
+    expect(streak(h, cfg.game, new Date("2026-10-13T12:00:00Z")).current).toBe(0);
+  });
+
+  it("a banked freeze keeps today's streak alive after one missed day", async () => {
+    const w = await smallWorld([{ attention: 0.5, skepticism: 0.5 }]);
+    h = w.handle;
+    ["01", "02", "03", "04", "05", "06", "07"].forEach((d, i) =>
+      endedOn(h!, w.classroomId, `2026-10-${d}T09:00:00Z`, i),
+    );
+    // Oct 8 missed; on Oct 9 the freeze covers it until the day ends.
+    expect(streak(h, cfg.game, new Date("2026-10-09T12:00:00Z"))).toMatchObject({
+      current: 7,
+      freezes: 0,
+      frozenDays: 1,
+    });
+  });
+});
+
 describe("tiers, resume and graduation", () => {
   it("goes Frame → Wing as concepts are mastered, and graduates when every module passes", async () => {
     const w = await smallWorld([{ attention: 0.5, skepticism: 0.5 }]);

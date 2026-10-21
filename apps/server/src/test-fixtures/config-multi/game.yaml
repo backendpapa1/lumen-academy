@@ -166,6 +166,7 @@ xp: # docs/02 §7.1
   examPassPerAvgScore: 200
   glitchCaught: 50
   popQuizPerPoint: 6 # pop quiz: Grader score 0–5 × this
+  microLesson: 25
 
 ranks: # placeholder thresholds; tune after M5
   - { name: Cadet Instructor, minXp: 0 }

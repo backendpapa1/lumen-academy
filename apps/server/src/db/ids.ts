@@ -20,6 +20,7 @@ export const ID_PREFIXES = {
   debrief: "dbf",
   teacherError: "ter",
   asset: "ast",
+  parked: "prk",
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIXES;

@@ -174,6 +174,11 @@ export class ClassSession {
       plannedMinutes?: number;
       /** Continue this classroom's unfinished period if it was active recently. */
       resume?: boolean;
+      /** V3-01: a micro-lesson, one student at the front desk (picked if not given). */
+      kind?: PeriodKind;
+      cadetId?: string;
+      /** V3-02: how I feel today. Low makes the class gentle and quiet. */
+      energy?: Energy;
     },
     events: SessionEvents = {},
   ): ClassSession {
@@ -216,7 +221,18 @@ export class ClassSession {
       .orderBy(cadets.seat)
       .all();
     if (!roster.length) throw new Error("no cadets enrolled");
-    const states: CadetState[] = roster.map((c) => {
+
+    const open = settleOpenPeriods(deps, room.id, input.resume === true);
+    // A resumed period keeps what it was; a new one takes what was asked for.
+    const kind: PeriodKind = open?.kind ?? input.kind ?? "class";
+    const energy = open ? open.energy : (input.energy ?? null);
+    const focusId =
+      kind === "micro"
+        ? (open?.focusCadetId ?? input.cadetId ?? microStudent(deps, roster, conceptId))
+        : null;
+    const seated = focusId ? roster.filter((c) => c.id === focusId) : roster;
+    if (!seated.length) throw new Error(`cadet ${focusId} is not in this class`);
+    const states: CadetState[] = seated.map((c) => {
       const traits = JSON.parse(c.traitsJson) as { attention: number; skepticism: number };
       return {
         id: c.id,
@@ -230,10 +246,12 @@ export class ClassSession {
       };
     });
 
-    const open = settleOpenPeriods(deps, room.id, input.resume === true);
     const periodId = open?.id ?? newId("period");
     const plannedMinutes =
-      open?.plannedMinutes ?? input.plannedMinutes ?? deps.game.period.defaultMinutes;
+      open?.plannedMinutes ??
+      (kind === "micro" ? deps.game.micro.minutes : undefined) ??
+      input.plannedMinutes ??
+      deps.game.period.defaultMinutes;
     if (!open)
       db.insert(periods)
         .values({
@@ -241,6 +259,9 @@ export class ClassSession {
           classroomId: room.id,
           startedAt: new Date().toISOString(),
           plannedMinutes,
+          kind,
+          energy,
+          focusCadetId: focusId,
         })
         .run();
     db.update(classrooms)
@@ -259,7 +280,10 @@ export class ClassSession {
       !!open,
       open?.elapsedMs ?? 0,
     );
-    session.difficulty = room.difficulty ?? "standard";
+    session.kind = kind;
+    session.energy = energy;
+    // Low energy (V3-02): a gentler crowd and shorter questions, whatever the class's usual difficulty.
+    session.difficulty = energy === "low" ? "gentle" : (room.difficulty ?? "standard");
     if (open) session.restore(roster.map((c) => ({ id: c.id, name: c.name })));
     const earlier = deps.handle.sqlite
       .prepare(
@@ -337,6 +361,12 @@ export class ClassSession {
 
   /** T-10 Hyperfocus: sharper, more frequent questions (lighting is the client's). */
   hyperfocus = false;
+  kind: PeriodKind = "class";
+  energy: Energy | null = null;
+  /** V3-01/02: no surprise events in a micro-lesson or on a low-energy day. */
+  get quiet(): boolean {
+    return this.kind === "micro" || this.energy === "low";
+  }
   /** R-6: the class's difficulty also sets how sharp its questions are. */
   difficulty: "gentle" | "standard" | "ruthless" = "standard";
 
@@ -1003,11 +1033,19 @@ function settleOpenPeriods(
   deps: SessionDeps,
   classroomId: string,
   resume: boolean,
-): { id: string; plannedMinutes: number; elapsedMs: number } | null {
+): {
+  id: string;
+  plannedMinutes: number;
+  elapsedMs: number;
+  kind: PeriodKind;
+  energy: Energy | null;
+  focusCadetId: string | null;
+} | null {
   const { sqlite } = deps.handle;
   const open = sqlite
     .prepare(
       `SELECT p.id, p.planned_minutes AS plannedMinutes, p.elapsed_ms AS elapsedMs,
+         p.kind, p.energy, p.focus_cadet_id AS focusCadetId,
          coalesce((SELECT max(m.created_at) FROM messages m WHERE m.period_id = p.id), p.started_at) AS lastActive
        FROM periods p WHERE p.classroom_id = ? AND p.ended_at IS NULL ORDER BY p.started_at DESC`,
     )
@@ -1015,6 +1053,9 @@ function settleOpenPeriods(
     id: string;
     plannedMinutes: number;
     elapsedMs: number;
+    kind: PeriodKind;
+    energy: Energy | null;
+    focusCadetId: string | null;
     lastActive: string;
   }>;
   const windowMs = deps.game.period.resumeWithinHours * 3_600_000;
@@ -1024,7 +1065,30 @@ function settleOpenPeriods(
     resume && latest && now - Date.parse(latest.lastActive) <= windowMs ? latest : undefined;
   const end = sqlite.prepare("UPDATE periods SET ended_at = ? WHERE id = ?");
   for (const p of open) if (p !== keep) end.run(p.lastActive, p.id);
-  return keep
-    ? { id: keep.id, plannedMinutes: keep.plannedMinutes, elapsedMs: keep.elapsedMs }
-    : null;
+  if (!keep) return null;
+  return {
+    id: keep.id,
+    plannedMinutes: keep.plannedMinutes,
+    elapsedMs: keep.elapsedMs,
+    kind: keep.kind,
+    energy: keep.energy,
+    focusCadetId: keep.focusCadetId,
+  };
+}
+
+export type PeriodKind = "class" | "micro";
+export type Energy = "low" | "ok" | "high";
+
+/** V3-01: the student who understands this concept least comes to the front (ties: by seat). */
+function microStudent(deps: SessionDeps, roster: Array<{ id: string }>, conceptId: string): string {
+  const known = new Map(
+    (
+      deps.handle.sqlite
+        .prepare(
+          "SELECT cadet_id AS id, comprehension AS c FROM ledger_entries WHERE concept_id = ?",
+        )
+        .all(conceptId) as Array<{ id: string; c: number }>
+    ).map((r) => [r.id, r.c]),
+  );
+  return roster.reduce((a, c) => ((known.get(c.id) ?? 0) < (known.get(a.id) ?? 0) ? c : a)).id;
 }

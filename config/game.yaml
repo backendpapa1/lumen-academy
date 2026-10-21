@@ -178,6 +178,11 @@ exam:
 
 streak:
   timezone: Africa/Lagos # days are counted in this zone (docs/06 §4)
+  freezeEveryDays: 7 # V3-07: a week of streak earns a freeze (covers one missed day)
+  maxFreezes: 2
+
+micro: # V3-01: one idea, one student, one exit question
+  minutes: 3
 
 buildingTiers: [0.25, 0.6, 1.0] # mastered fraction for tiers 2, 3, 4 (docs/02 §7.3)
 
@@ -190,6 +195,7 @@ xp: # docs/02 §7.1
   examPassPerAvgScore: 200
   glitchCaught: 50
   popQuizPerPoint: 6 # pop quiz: Grader score 0–5 × this
+  microLesson: 25 # V3-01: flat, instead of teachingMinute (a reduced rate)
 
 ranks: # placeholder thresholds; tune after M5
   - { name: Student Teacher, minXp: 0 }

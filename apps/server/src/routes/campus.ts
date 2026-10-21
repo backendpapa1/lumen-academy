@@ -1,3 +1,4 @@
+import { bestClass } from "../game/bestClass.js";
 import { fadingTarget } from "../game/fading.js";
 import type { FastifyInstance } from "fastify";
 import type { GameConfig } from "@lumen/shared";
@@ -45,6 +46,7 @@ export function registerCampusRoutes(
       xp: standing(deps.handle, deps.game),
       resume: resumeTarget(deps.handle),
       fading: fadingTarget(deps.handle, deps.game),
+      best: bestClass(deps.handle, deps.game),
     };
   });
 }

@@ -361,7 +361,14 @@ export const GameConfigZ = z.strictObject({
     masteredComprehension: unit,
   }),
   exam: z.strictObject({ passThreshold: unit, unlockTaughtFraction: unit }),
-  streak: z.strictObject({ timezone: z.string().min(1) }),
+  streak: z.strictObject({
+    timezone: z.string().min(1),
+    /** V3-07: every this many streak days earns a freeze, which covers one missed day. */
+    freezeEveryDays: z.number().int().positive().default(7),
+    maxFreezes: z.number().int().nonnegative().default(2),
+  }),
+  /** V3-01: one idea, one student, one question. XP is a flat xp.microLesson, not per minute. */
+  micro: z.strictObject({ minutes: z.number().int().min(1).max(10) }).default({ minutes: 3 }),
   buildingTiers: z.array(unit).length(3), // mastered fraction for tiers 2, 3, 4
   xp: z.record(z.string(), z.number()),
   ranks: z.array(z.strictObject({ name: z.string(), minXp: z.number().int().nonnegative() })),

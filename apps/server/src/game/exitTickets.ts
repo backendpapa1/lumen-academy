@@ -25,6 +25,8 @@ export function issueExitTickets(
     classroomId: string;
     conceptId: string;
     memory?: import("@lumen/shared").GameConfig["memory"];
+    /** Only these students (a micro-lesson's one student, V3-01). */
+    cadetIds?: string[];
   },
 ): ExitTicket[] {
   const { sqlite } = handle;
@@ -52,7 +54,10 @@ export function issueExitTickets(
     .prepare(
       "SELECT id FROM cadets WHERE classroom_id = ? AND status IN ('enrolled','transferred_in') ORDER BY seat",
     )
-    .all(input.classroomId) as Array<{ id: string }>;
+    .all(input.classroomId)
+    .filter((c) => !input.cadetIds || input.cadetIds.includes((c as { id: string }).id)) as Array<{
+    id: string;
+  }>;
   const insert = sqlite.prepare(
     "INSERT INTO exit_tickets (id, period_id, cadet_id, concept_id, statement, is_true, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
   );
