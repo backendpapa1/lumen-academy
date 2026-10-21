@@ -41,6 +41,19 @@ async function boot(page: Page) {
     const url = req.url();
     let body: unknown = [];
     if (url.includes("/api/campus")) body = campus;
+    else if (url.endsWith("/api/schools"))
+      body = [
+        {
+          id: "sch_fake",
+          name: "Blockchain",
+          description: null,
+          accent: null,
+          emblemUrl: null,
+          sources: 1,
+          concepts: 4,
+          classrooms: [],
+        },
+      ];
     else if (url.includes("/parking") && req.method() === "POST") {
       const { text, periodId } = req.postDataJSON() as { text: string; periodId?: string };
       lot.push({ id: `prk_${lot.length}`, text, status: "open", periodId: periodId ?? null });
@@ -212,4 +225,24 @@ test("P parks a thought: a sticky note on the board, sorted at the bell", async 
   await expect(card.getByText("Is a Merkle tree just a hash list?")).toBeVisible();
   await card.getByRole("button", { name: "Keep as a note" }).click();
   await expect(card.getByText("Kept as a note")).toBeVisible();
+});
+
+test("study hall: a quiet companion, a calm timer and the parking lot", async ({ page }) => {
+  await boot(page);
+  await page.getByRole("button", { name: "Study hall" }).click();
+  await expect(page.getByRole("heading", { name: "Study hall" })).toBeVisible();
+  const timer = page.getByRole("timer");
+  await expect(timer).toHaveText("25:00");
+  await page.getByRole("button", { name: "15 min" }).click();
+  await expect(timer).toHaveText("15:00");
+  await page.getByRole("button", { name: "Start" }).click();
+  await expect(timer).toHaveText(/^14:5\d$/);
+  await page.getByRole("button", { name: "Pause" }).click();
+  await expect(page.getByRole("button", { name: "Carry on" })).toBeVisible();
+  const add = page.getByRole("textbox", { name: "Park a thought" });
+  await add.fill("Why is SHA-256 used twice in Bitcoin?");
+  await add.press("Enter");
+  await expect(page.getByText("Why is SHA-256 used twice in Bitcoin?")).toBeVisible();
+  await expect(page.locator(".sh-person svg")).toBeVisible();
+  await page.screenshot({ path: "docs/screens/v3-study-hall.png" });
 });

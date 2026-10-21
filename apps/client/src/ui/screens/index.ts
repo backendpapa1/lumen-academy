@@ -8,6 +8,7 @@ import { mountDesk } from "./desk";
 import { mountLobby } from "./lobby";
 import { mountRegistration } from "./registration";
 import { mountSchool } from "./school";
+import { mountStudyHall } from "./studyhall";
 import "../dom/overlay.css";
 import "./screens.css";
 
@@ -32,6 +33,8 @@ function keyOf(r: AppState["route"]): string | null {
       return `exam:${r.examId}`;
     case "debrief":
       return `debrief:${r.examId}`;
+    case "studyhall":
+      return "studyhall";
     default:
       return null;
   }
@@ -59,7 +62,9 @@ function mount(r: AppState["route"]) {
               ? mountArena(root, r.examId, r.classroomId, r.schoolId)
               : r.name === "debrief"
                 ? mountDebrief(root, r.examId, r.classroomId, r.schoolId)
-                : () => {};
+                : r.name === "studyhall"
+                  ? mountStudyHall(root, r.schoolId)
+                  : () => {};
   current = { key, root, unmount };
 }
 

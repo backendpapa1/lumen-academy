@@ -40,6 +40,15 @@ export function mountLobby(root: HTMLElement): () => void {
         h("div", { class: "spacer" }),
         h(
           "button",
+          {
+            class: "btn quiet",
+            onclick: () => store.setState({ route: { name: "studyhall" } }),
+          },
+          icon(ICONS.book),
+          "Study hall",
+        ),
+        h(
+          "button",
           { class: "btn quiet", onclick: () => importSchoolDialog() },
           icon(ICONS.upload),
           "Import",

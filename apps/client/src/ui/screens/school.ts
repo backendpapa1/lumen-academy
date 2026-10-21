@@ -67,6 +67,16 @@ export function mountSchool(root: HTMLElement, schoolId: string): () => void {
             "Yearbook",
           ),
           h(
+            "button",
+            {
+              class: "btn quiet",
+              title: "Work alongside a quiet companion, with a timer and this School's parking lot",
+              onclick: () => store.setState({ route: { name: "studyhall", schoolId: s.id } }),
+            },
+            icon(ICONS.book),
+            "Study hall",
+          ),
+          h(
             "a",
             {
               class: "btn quiet",

@@ -302,7 +302,7 @@ function bedFor(s: AppState): Bed {
   const r = s.route.name;
   if (r === "exam") return "exam";
   if (r === "classroom" || r === "registration") return "classroom";
-  if (r === "gallery") return null;
+  if (r === "gallery" || r === "studyhall") return null;
   return "campus";
 }
 
@@ -328,6 +328,7 @@ export function installSound() {
   const ambienceFor = (s: AppState): Ambience => {
     const bed = bedFor(s);
     if (bed === "classroom") return "room";
+    if (s.route.name === "studyhall") return "rain"; // V3-06: a soft bed, nothing more
     if (bed === "campus" && (s.setup.campus?.streak.missedDays ?? 0) >= 3) return "rain";
     return null;
   };

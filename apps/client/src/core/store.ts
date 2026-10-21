@@ -24,6 +24,8 @@ export interface AppState {
     | { name: "exam"; examId: string; classroomId: string; schoolId: string }
     | { name: "debrief"; examId: string; classroomId: string; schoolId: string }
     | { name: "classroom"; classroomId: string }
+    /** V3-06: body doubling, a calm timer and the parking lot. */
+    | { name: "studyhall"; schoolId?: string }
     | { name: "gallery" };
   setup: SetupState;
   /** idle = never connected (e.g. demo mode). */
