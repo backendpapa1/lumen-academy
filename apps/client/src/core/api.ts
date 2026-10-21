@@ -118,6 +118,8 @@ export interface Settings {
   imagesUsdCap: number;
   periodMinutes: number;
   randomEvents: boolean;
+  peerTalk: boolean;
+  growthArcs: boolean;
   minMinutes: number;
   maxMinutes: number;
   hasOpenAiKey: boolean;

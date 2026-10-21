@@ -46,10 +46,14 @@ describe("/api/settings", () => {
         monthlyUsdCap: 7,
         imagesUsdCap: 2,
         periodMinutes: 20,
+        peerTalk: false,
+        growthArcs: false,
       },
     });
     expect(put.statusCode).toBe(200);
     expect(cfg.game.period.defaultMinutes).toBe(20);
+    // V4: peer talk and growth arcs switch off live.
+    expect([cfg.game.peerTalk.enabled, cfg.game.arcs.enabled]).toEqual([false, false]);
     expect(meter.totals().capUsd).toBe(7); // the meter reads the same live object
     // A fresh config picks the saved values up at startup.
     const fresh = loadConfig({ env: {} });

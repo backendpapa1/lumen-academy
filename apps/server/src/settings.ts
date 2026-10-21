@@ -13,6 +13,9 @@ export const UserSettingsZ = z.strictObject({
   periodMinutes: z.number().int(),
   /** M6-01: pop quizzes, glitches and flickers in class. */
   randomEvents: z.boolean().default(true),
+  /** V4: students talk to each other; students grow over weeks. */
+  peerTalk: z.boolean().default(true),
+  growthArcs: z.boolean().default(true),
 });
 export type UserSettings = z.infer<typeof UserSettingsZ>;
 
@@ -25,6 +28,8 @@ export function currentSettings(cfg: AppConfig): UserSettings {
     imagesUsdCap: cfg.models.budget.imagesUsdCap,
     periodMinutes: cfg.game.period.defaultMinutes,
     randomEvents: cfg.game.events.enabled,
+    peerTalk: cfg.game.peerTalk.enabled,
+    growthArcs: cfg.game.arcs.enabled,
   };
 }
 
@@ -47,6 +52,8 @@ export function applySettings(cfg: AppConfig, s: UserSettings): void {
   cfg.models.budget.imagesUsdCap = s.imagesUsdCap;
   cfg.game.period.defaultMinutes = s.periodMinutes;
   cfg.game.events.enabled = s.randomEvents;
+  cfg.game.peerTalk.enabled = s.peerTalk;
+  cfg.game.arcs.enabled = s.growthArcs;
 }
 
 /** At startup: saved settings win over the YAML defaults (LUMEN_PROFILE still wins for the profile). */

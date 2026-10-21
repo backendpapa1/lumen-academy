@@ -52,6 +52,8 @@ function form(s: Settings, close: () => void): HTMLElement {
     value: s.periodMinutes,
   });
   const events = h("input", { type: "checkbox", checked: s.randomEvents, id: "set-events" });
+  const peers = h("input", { type: "checkbox", checked: s.peerTalk, id: "set-peers" });
+  const arcs = h("input", { type: "checkbox", checked: s.growthArcs, id: "set-arcs" });
   const err = h("p", { class: "error-text", role: "alert" });
   const save = h("button", { class: "btn primary", type: "submit" }, "Save settings");
   const keys = h(
@@ -99,6 +101,18 @@ function form(s: Settings, close: () => void): HTMLElement {
       events,
       "Surprises in class (pop quizzes, mix-ups, flickering lights, a visit from the Dean)",
     ),
+    h(
+      "label",
+      { class: "row", style: "gap:8px;margin-top:8px;font-size:14px" },
+      peers,
+      "Students talk to each other (only from what you've taught them)",
+    ),
+    h(
+      "label",
+      { class: "row", style: "gap:8px;margin-top:8px;font-size:14px" },
+      arcs,
+      "Students grow over the weeks (the Skeptic warms up, the Quiet One speaks up…)",
+    ),
     rhythmSection(),
     voiceSection(),
     keys,
@@ -120,6 +134,8 @@ function form(s: Settings, close: () => void): HTMLElement {
         imagesUsdCap: Number(images.value),
         periodMinutes: Number(minutes.value),
         randomEvents: events.checked,
+        peerTalk: peers.checked,
+        growthArcs: arcs.checked,
       })
       .then(() => {
         close();
