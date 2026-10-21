@@ -12,6 +12,7 @@ import { TimerRing } from "../components/TimerRing";
 import { lectern } from "../dom/lectern";
 import "../dom/cadetTag";
 import "../dom/exitTickets";
+import "../dom/rankUp";
 import "../dom/speech";
 import { transcript } from "../dom/transcript";
 import { accentCss, accentOf, color, css, motion, uiScale } from "../theme";

@@ -54,7 +54,7 @@ test("M3 gate: School → PDF → curriculum → class with portraits, no CLI", 
   await expect(page.locator(".node").first()).toContainText("(core)");
 
   await page.getByRole("tab", { name: "Classes" }).click();
-  await page.getByRole("button", { name: "Open a new class" }).last().click();
+  await page.getByRole("button", { name: "Open a class" }).last().click();
   await expect(page.locator(".enroll").first()).toBeVisible({ timeout: 60_000 });
   mark("firstArrival");
   await expect(page.getByText("Class assembled")).toBeVisible({ timeout: 240_000 });

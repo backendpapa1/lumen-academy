@@ -85,7 +85,11 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
     const classrooms = sqlite
       .prepare(
         `SELECT c.id, c.name, c.status, c.difficulty,
-           (SELECT count(*) FROM cadets d WHERE d.classroom_id = c.id AND d.status IN ('enrolled','transferred_in')) AS cadets
+           (SELECT count(*) FROM cadets d WHERE d.classroom_id = c.id AND d.status IN ('enrolled','transferred_in','alumni')) AS cadets,
+           (SELECT avg(l.comprehension) FROM ledger_entries l JOIN cadets d ON d.id = l.cadet_id
+              WHERE d.classroom_id = c.id AND l.exposures > 0) AS understanding,
+           (SELECT max(coalesce(p.ended_at, p.started_at)) FROM periods p WHERE p.classroom_id = c.id) AS lastPeriodAt,
+           (SELECT count(*) FROM periods p WHERE p.classroom_id = c.id AND p.ended_at IS NOT NULL) AS periods
          FROM classrooms c WHERE c.school_id = ? AND c.status != 'archived' ORDER BY c.created_at`,
       )
       .all(s.id);

@@ -75,4 +75,5 @@ export function statusChip(status: string, label?: string) {
   return h("span", { class: `chip ${kind}` }, h("span", { class: "dot" }), label ?? status);
 }
 
-export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+export const plural = (n: number, word: string, many = `${word}s`) =>
+  `${n} ${n === 1 ? word : many}`;

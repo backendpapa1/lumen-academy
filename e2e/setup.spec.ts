@@ -193,7 +193,7 @@ test("found a School → add a source → edit the curriculum → open a class �
   // Classes: open one; cadets arrive one by one, then the class assembles.
   await page.getByRole("tab", { name: "Classes" }).click();
   await page.getByRole("button", { name: "Gentle" }).click();
-  await page.getByRole("button", { name: "Open a new class" }).last().click();
+  await page.getByRole("button", { name: "Open a class" }).last().click();
   await expect(page.locator(".enroll .who", { hasText: "Ada Okafor" })).toBeVisible();
   await expect(page.locator(".enroll .who", { hasText: "Cy Tanaka" })).toBeVisible({
     timeout: 15_000,

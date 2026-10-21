@@ -302,92 +302,135 @@ function progressOrChip(status: SourceJob["status"]) {
 // --- Classes (R-1) -----------------------------------------------------------------
 
 function mountClasses(root: HTMLElement, schoolId: string): () => void {
-  const list = h("div", { class: "card" });
-  let difficulty: "gentle" | "standard" | "ruthless" = "standard";
-  const seg = h("div", { class: "seg", role: "group", "aria-label": "Difficulty" });
-  const err = h("p", { class: "error-text", role: "alert" });
-  const openBtn = h("button", { class: "btn primary" }, icon(ICONS.plus), "Open a new class");
-  const renderSeg = () =>
-    fill(
-      seg,
-      ...(["gentle", "standard", "ruthless"] as const).map((d) =>
-        h(
-          "button",
-          {
-            "aria-pressed": String(d === difficulty),
-            onclick: () => ((difficulty = d), renderSeg()),
-          },
-          d[0]!.toUpperCase() + d.slice(1),
-        ),
-      ),
-    );
-  renderSeg();
-  openBtn.addEventListener("click", () => {
-    err.textContent = "";
-    openBtn.disabled = true;
-    app
-      .openClassroom(schoolId, difficulty)
-      .catch((e: unknown) => (err.textContent = e instanceof ApiError ? e.message : String(e)))
-      .finally(() => (openBtn.disabled = false));
+  // The wing's holo-directory (M5-06): up to six classes, each with how it's
+  // doing; empty slots invite a new class.
+  const grid = h("div", {
+    class: "class-dir",
+    role: "list",
+    "aria-label": "Classes in this School",
   });
-  root.append(
-    list,
-    h(
-      "div",
-      { class: "card pad", style: "margin-top:20px" },
-      h("div", { class: "h2" }, "Open a new class"),
+  let difficulty: "gentle" | "standard" | "ruthless" = "standard";
+  const err = h("p", { class: "error-text", role: "alert" });
+  root.append(grid);
+
+  const openForm = () => {
+    const seg = h("div", { class: "seg", role: "group", "aria-label": "Difficulty" });
+    const openBtn = h("button", { class: "btn primary" }, icon(ICONS.plus), "Open a class");
+    const renderSeg = () =>
+      fill(
+        seg,
+        ...(["gentle", "standard", "ruthless"] as const).map((d) =>
+          h(
+            "button",
+            {
+              "aria-pressed": String(d === difficulty),
+              onclick: () => ((difficulty = d), renderSeg()),
+            },
+            d[0]!.toUpperCase() + d.slice(1),
+          ),
+        ),
+      );
+    renderSeg();
+    openBtn.addEventListener("click", () => {
+      err.textContent = "";
+      openBtn.disabled = true;
+      app
+        .openClassroom(schoolId, difficulty)
+        .catch((e: unknown) => (err.textContent = e instanceof ApiError ? e.message : String(e)))
+        .finally(() => (openBtn.disabled = false));
+    });
+    return h(
+      "article",
+      { class: "card pad slot open", role: "listitem" },
+      h("div", { class: "micro" }, "Empty slot"),
+      h("div", { class: "h2", style: "margin:4px 0 6px" }, "Open a class"),
       h(
         "p",
-        { class: "dim" },
-        "4–15 cadets register with their own personalities. Gentle cadets forgive vague explanations; ruthless ones don't.",
+        { class: "dim", style: "margin:0 0 12px;font-size:13px" },
+        "4–15 cadets register with their own personalities. Gentle ones forgive vague explanations; ruthless ones don't.",
       ),
-      h("div", { class: "row wrap-row" }, seg, h("span", { class: "spacer" }), openBtn),
+      seg,
+      h("div", { class: "row", style: "margin-top:12px" }, openBtn),
       err,
-    ),
-  );
-  const render = (school: SchoolDetail | null) => {
-    if (!school) return fill(list, h("div", { class: "empty" }, "Loading…"));
-    const classes = school.classrooms;
-    openBtn.disabled = classes.length >= school.classroomLimit;
-    if (!classes.length)
-      return fill(list, h("div", { class: "empty" }, "No classes yet. Open one below."));
-    fill(
-      list,
-      ...classes.map((c) =>
+    );
+  };
+
+  const classCard = (c: SchoolDetail["classrooms"][number]) => {
+    const graduated = c.status === "graduated";
+    const pct = c.understanding == null ? null : Math.round(c.understanding * 100);
+    return h(
+      "article",
+      { class: `card pad slot${graduated ? " graduated" : ""}`, role: "listitem" },
+      h(
+        "div",
+        { class: "row" },
+        h("div", { class: "h2" }, c.name),
+        h("span", { class: "spacer" }),
+        graduated
+          ? h("span", { class: "chip gold" }, "Graduated")
+          : c.status !== "active"
+            ? statusChip(c.status)
+            : h("span", { class: "chip" }, c.difficulty ?? "standard"),
+      ),
+      h(
+        "div",
+        { class: "mono", style: "margin-top:4px" },
+        `${graduated ? plural(c.cadets, "alumnus", "alumni") : plural(c.cadets, "cadet")} · ${plural(c.periods ?? 0, "class", "classes")} taught`,
+      ),
+      h(
+        "div",
+        { class: "stat" },
+        h("span", { class: "dim" }, "Understanding"),
         h(
           "div",
-          { class: "source-row" },
-          h(
-            "div",
-            {},
-            h("div", { class: "h2" }, c.name),
-            h(
-              "div",
-              { class: "mono" },
-              `${plural(c.cadets, "cadet")} · ${c.difficulty ?? "standard"}`,
-            ),
-          ),
-          h("span", { class: "spacer" }),
-          c.status === "active"
-            ? h(
-                "div",
-                { class: "row", style: "gap:8px" },
-                h(
-                  "button",
-                  { class: "btn", onclick: () => app.openDesk(schoolId, c.id) },
-                  "Homework & exams",
-                ),
-                h(
-                  "button",
-                  { class: "btn primary", onclick: () => app.startClass(c.id) },
-                  icon(ICONS.play),
-                  "Teach",
-                ),
-              )
-            : statusChip(c.status),
+          { class: "progress", style: "flex:1" },
+          h("span", {
+            style: `width:${pct ?? 0}%;background:${(pct ?? 0) >= 70 ? "var(--aurum)" : "var(--lumen)"}`,
+          }),
         ),
+        h("span", { class: "mono" }, pct == null ? "–" : `${pct}%`),
       ),
+      h(
+        "div",
+        { class: "dim", style: "font-size:12px;margin-top:6px" },
+        c.lastPeriodAt
+          ? `Last taught ${new Date(c.lastPeriodAt).toLocaleDateString([], { day: "numeric", month: "short" })}`
+          : "Not taught yet",
+      ),
+      c.status === "active" || graduated
+        ? h(
+            "div",
+            { class: "row", style: "margin-top:14px;gap:8px" },
+            !graduated &&
+              h(
+                "button",
+                { class: "btn primary", onclick: () => app.startClass(c.id) },
+                icon(ICONS.play),
+                "Teach",
+              ),
+            h(
+              "button",
+              {
+                class: "btn",
+                onclick: () => app.openDesk(schoolId, c.id, graduated ? "exams" : "assignments"),
+              },
+              graduated ? "Results" : "Homework & exams",
+            ),
+          )
+        : null,
     );
+  };
+
+  const render = (school: SchoolDetail | null) => {
+    if (!school) return fill(grid, h("div", { class: "card empty" }, "Loading…"));
+    const slots: HTMLElement[] = school.classrooms.map(classCard);
+    for (let i = school.classrooms.length; i < school.classroomLimit; i++)
+      slots.push(
+        i === school.classrooms.length
+          ? openForm()
+          : h("div", { class: "slot empty-slot", "aria-hidden": "true" }),
+      );
+    fill(grid, ...slots);
   };
   render(store.getState().setup.school);
   return store.subscribe((s, p) =>

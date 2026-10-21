@@ -57,6 +57,9 @@ export interface ClassroomSummary {
   lastPeriodAt?: string | null;
   openPeriodElapsedMs?: number | null;
   difficulty?: string;
+  /** Mean comprehension on taught concepts, 0..1 (School detail only). */
+  understanding?: number | null;
+  periods?: number;
 }
 
 export interface SchoolSummary {

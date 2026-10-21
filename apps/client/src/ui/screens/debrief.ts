@@ -72,6 +72,19 @@ function view(d: DebriefView, classroomId: string, schoolId: string): HTMLElemen
         ),
       ),
     ),
+    d.graduated
+      ? h(
+          "section",
+          { class: "card debrief-grad" },
+          h("div", { class: "micro" }, "Graduation"),
+          h("div", { class: "h2", style: "color:var(--aurum)" }, "This class has graduated."),
+          h(
+            "p",
+            { class: "dim", style: "margin:4px 0 0" },
+            "Every module passed. Your cadets are alumni now, and the School's wing grows.",
+          ),
+        )
+      : h("span"),
     d.analysis
       ? h(
           "section",
