@@ -5,7 +5,12 @@ export default defineConfig({
   reporter: "list",
   // One worker: frame-time tests can't share the GPU and CPU with other browsers.
   workers: 1,
-  use: { baseURL: "http://localhost:5173", ...devices["Desktop Chrome"] },
+  // e2e/storage.json marks onboarding as seen, so the first-run cards don't cover the lobby.
+  use: {
+    baseURL: "http://localhost:5173",
+    ...devices["Desktop Chrome"],
+    storageState: "e2e/storage.json",
+  },
   projects: [
     // Functional tests: default headless (software GL is fine for behaviour).
     { name: "default", testIgnore: /(perf|live)\.spec\.ts/ },

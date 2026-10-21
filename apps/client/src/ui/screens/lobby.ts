@@ -5,6 +5,7 @@ import { hoverSchool } from "./campusSync";
 import { emblem, plural, rankInsignia } from "./common";
 import { fill, h, icon, ICONS } from "./dom";
 import { openModal } from "./modal";
+import { maybeOnboard } from "./onboarding";
 import { openSettings } from "./settings";
 
 // The lobby over the campus (M3-09, M5): Resume in one click, rank and the
@@ -72,6 +73,7 @@ export function mountLobby(root: HTMLElement): () => void {
   };
 
   render();
+  const offOnboarding = maybeOnboard(root);
   const off = store.subscribe((s, p) => {
     if (s.setup.schools !== p.setup.schools || s.setup.campus !== p.setup.campus) render();
   });
@@ -81,6 +83,7 @@ export function mountLobby(root: HTMLElement): () => void {
   });
   return () => {
     off();
+    offOnboarding();
     root.classList.remove("lobby");
     hoverSchool(null);
   };
