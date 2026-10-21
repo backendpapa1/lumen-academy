@@ -2,6 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-local",
   "description": "The game window's local loading page: open the configurator or the log if the server can't start.",
+  "platforms": ["linux", "macOS", "windows"],
   "windows": ["main"],
   "permissions": ["core:default", "allow-open-configurator", "allow-get-setup", "allow-open-path"]
 }

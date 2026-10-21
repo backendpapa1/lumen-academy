@@ -1,0 +1,18 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "main-android",
+  "description": "Android: the game, served by our own server on 127.0.0.1. It may open the configurator, and speak and listen through the phone (ADR-012).",
+  "platforms": ["android"],
+  "windows": ["main"],
+  "remote": {
+    "urls": ["http://127.0.0.1:*"]
+  },
+  "permissions": [
+    "allow-open-configurator",
+    "lumen:allow-speak",
+    "lumen:allow-stop-speaking",
+    "lumen:allow-voices",
+    "lumen:allow-listen-start",
+    "lumen:allow-listen-stop"
+  ]
+}
