@@ -1,6 +1,7 @@
 import type * as Phaser from "phaser";
 import { transcript } from "../ui/dom/transcript";
 import { lectern } from "../ui/dom/lectern";
+import { statsOverlay } from "../ui/dom/stats";
 import { world } from "../world/anchors";
 import { app } from "./app";
 import { cycle, routeKey } from "./keys";
@@ -84,6 +85,9 @@ export function installKeyboard(game: Phaser.Game): void {
         break;
       case "roster":
         hud?.toggleRoster();
+        break;
+      case "stats":
+        statsOverlay.toggle();
         break;
       case "notYet":
         app.notify(NOT_YET[action.feature]);

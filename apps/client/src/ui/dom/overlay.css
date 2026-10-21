@@ -262,3 +262,23 @@
   font: 400 12px var(--font-body);
   color: var(--ink-dim);
 }
+
+/* Perf overlay (P). */
+#stats {
+  position: absolute;
+  z-index: 6;
+  left: 16px;
+  bottom: 16px;
+  display: none;
+  margin: 0;
+  padding: 8px 10px;
+  background: rgba(5, 7, 13, 0.8);
+  border: 1px solid var(--hull-500);
+  border-radius: 6px;
+  color: var(--lumen);
+  font: 400 11px/1.5 var(--font-mono);
+  pointer-events: none;
+}
+#stats.open {
+  display: block;
+}

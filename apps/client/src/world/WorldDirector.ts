@@ -71,11 +71,18 @@ export class WorldDirector {
     this.active?.resize(w, h);
   }
 
+  private lastFrameAt = 0;
+
   update(time: number, deltaMs: number): void {
-    const dt = Math.min(deltaMs, 100) / 1000;
-    this.stats.frameMs = this.stats.frameMs * 0.9 + deltaMs * 0.1;
+    // Phaser smooths and clamps its delta, which hides slow frames; measure
+    // the real interval for the stats, adaptive DPR and animation.
+    const now = performance.now();
+    const realMs = this.lastFrameAt ? now - this.lastFrameAt : deltaMs;
+    this.lastFrameAt = now;
+    const dt = Math.min(realMs, 100) / 1000;
+    this.stats.frameMs = this.stats.frameMs * 0.9 + realMs * 0.1;
     this.stats.fps = 1000 / this.stats.frameMs;
-    this.adaptDpr(deltaMs);
+    this.adaptDpr(realMs);
     this.active?.update(dt, time / 1000);
   }
 

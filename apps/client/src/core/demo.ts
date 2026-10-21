@@ -16,7 +16,14 @@ export function loadDemoClassroom(): void {
     ["Oskar Brandt", "skeptic", 12],
     ["Zuri Mwangi", "connector", 13],
     ["Ravi Iyer", "pragmatist", 14],
+    // Seats 1, 3, 7, 10: a full house with ?cadets=15 (the perf gate).
+    ["Noor Rahman", "quiet", 1],
+    ["Teo Vasquez", "overachiever", 3],
+    ["Hana Sato", "literalist", 7],
+    ["Bram Visser", "connector", 10],
   ];
+  const n = Number(new URLSearchParams(location.search).get("cadets") ?? 11);
+  cadets.splice(Math.min(15, Math.max(4, n)));
   const msgs: ServerMessage[] = [
     {
       type: "period.started",
@@ -74,11 +81,17 @@ export function loadDemoClassroom(): void {
         "skeptical",
         "attentive",
         "notetaking",
+        "attentive",
+        "excited",
+        "confused",
+        "notetaking",
       ] as const
-    ).map((state, i): ServerMessage => ({
-      type: "crowd.reaction",
-      payload: { turnId: "t1", cadetId: `cdt_${i}`, state },
-    })),
+    )
+      .slice(0, cadets.length)
+      .map((state, i): ServerMessage => ({
+        type: "crowd.reaction",
+        payload: { turnId: "t1", cadetId: `cdt_${i}`, state },
+      })),
     {
       type: "hands.update",
       payload: {

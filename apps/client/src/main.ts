@@ -13,6 +13,7 @@ import { world } from "./world/anchors";
 import { WorldDirector } from "./world/WorldDirector";
 import { app } from "./core/app";
 import { installKeyboard } from "./core/input";
+import { statsOverlay } from "./ui/dom/stats";
 
 const worldCanvas = document.querySelector<HTMLCanvasElement>("#world");
 const uiCanvas = document.querySelector<HTMLCanvasElement>("#ui");
@@ -91,14 +92,17 @@ declare global {
       /** Feed a server message straight into the store (demo/e2e only). */
       receive(m: ServerMessage): void;
       world: typeof world;
+      app: typeof app;
     };
   }
 }
+statsOverlay.attach(director.stats);
 window.__lumen = {
   store,
   phaserVersion: Phaser.VERSION,
   threeRevision: THREE.REVISION,
   stats: director.stats,
   world,
+  app,
   receive: (m) => store.setState((s) => ({ classroom: applyServerMessage(s.classroom, m) })),
 };

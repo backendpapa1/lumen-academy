@@ -245,17 +245,12 @@ export class ClassroomHud extends Phaser.Scene {
     if (!c.xp) return;
     const s = this.s;
     const { width } = this.scale.gameSize;
-    const w = 150 * s;
+    const w = 170 * s;
     const x = width - 28 * s - 290 * s - w;
-    const g = (this.xpBar = this.add.container(x, 28 * s + 8 * s));
+    const g = (this.xpBar = this.add.container(x, 28 * s + 6 * s));
+    // Rank on top, the bar, then progress left and total right.
     g.add(label(this, 0, 0, c.xp.rank, "micro", { scale: s }));
-    g.add(
-      label(this, w, 0, `${c.xp.total.toLocaleString()} XP`, "mono", {
-        scale: s * 0.7,
-        color: css.aurum,
-      }).setOrigin(1, 0),
-    );
-    const meter = new Meter(this, 0, 20 * s, w, color.aurum);
+    const meter = new Meter(this, 0, 18 * s, w, color.aurum);
     meter.setValue(c.xp.progress);
     g.add(meter);
     if (c.xp.next)
@@ -263,14 +258,18 @@ export class ClassroomHud extends Phaser.Scene {
         label(
           this,
           0,
-          30 * s,
+          28 * s,
           `${(c.xp.next.minXp - c.xp.total).toLocaleString()} to ${c.xp.next.name}`,
           "caption",
-          {
-            scale: s * 0.8,
-          },
+          { scale: s * 0.8 },
         ),
       );
+    g.add(
+      label(this, w, 27 * s, `${c.xp.total.toLocaleString()} XP`, "mono", {
+        scale: s * 0.7,
+        color: css.aurum,
+      }).setOrigin(1, 0),
+    );
   }
 
   /** "+15 XP · Answered a question" rises from the XP bar and fades. */

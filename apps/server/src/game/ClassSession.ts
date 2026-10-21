@@ -384,16 +384,20 @@ export class ClassSession {
     );
     this.embedTeacherMessage(messageId, text);
 
-    // Build both calls only after the previous turn's ledger is committed.
     // Snapshot the transcript now: "recent class" must not include this message,
     // which the prompts present separately as what the Headmaster just said.
     const before = [...this.transcript];
     this.transcript.push({ speaker: "Headmaster", text });
+    // The reactor starts at once on the ledger as it stands (at most one turn
+    // stale): a gut reaction doesn't need the last analysis, and waiting for it
+    // cost ~1s of first-reaction latency (D13). The Director still waits, so
+    // ledger writes stay serialized (ADR-002).
+    const now = Promise.resolve({ cards: this.cards(), transcript: before });
     const ready = this.analysisChain.catch(() => undefined);
     const shared = ready.then(() => ({ cards: this.cards(), transcript: before }));
 
     const reaction = withUsageContext({ periodId: this.periodId }, () =>
-      shared.then(({ cards, transcript }) =>
+      now.then(({ cards, transcript }) =>
         runCrowdReactor(
           this.deps.factory,
           {
