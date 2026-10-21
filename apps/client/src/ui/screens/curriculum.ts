@@ -19,6 +19,15 @@ const STATUS_LABEL: Record<ConceptStatus, string> = {
   mastered: "Mastered",
 };
 
+/** V5-06 */
+interface StartHere {
+  conceptId: string;
+  title: string;
+  reason: string;
+  because: Array<{ cadet: string; concept: string; where: string }>;
+  path: string[];
+}
+
 export function mountCurriculum(
   root: HTMLElement,
   schoolId: string,
@@ -42,6 +51,16 @@ export function mountCurriculum(
     banner,
     h("div", { class: "map-shell" }, h("div", {}, map, savebar), editor),
   );
+
+  // V5-06: "start here" pins from the prerequisite detective.
+  let pins = new Map<string, StartHere>();
+  void api
+    .get<StartHere[]>(`/api/schools/${schoolId}/start-here`)
+    .then((list) => {
+      pins = new Map(list.map((p) => [p.conceptId, p]));
+      if (saved) render();
+    })
+    .catch(() => undefined);
 
   const load = () =>
     api
@@ -391,6 +410,23 @@ export function mountCurriculum(
         `${STATUS_LABEL[status]}${st?.comprehension != null && status !== "untaught" ? ` · ${Math.round(st.comprehension * 100)}%` : ""} · ${c.keyFacts.length} facts`,
       ),
     );
+    const pin = c.id ? pins.get(c.id) : undefined;
+    if (pin) {
+      b.classList.add("start-here");
+      b.append(
+        h(
+          "span",
+          {
+            class: "pin-tag",
+            title: `${pin.reason} ${pin.because
+              .slice(0, 4)
+              .map((x) => `${x.cadet}'s ${x.where} miss on ${x.concept}`)
+              .join("; ")}. Path: ${pin.path.join(" → ")}`,
+          },
+          `Start here · ${pin.because.length} miss${pin.because.length === 1 ? "" : "es"}`,
+        ),
+      );
+    }
     return b;
   };
 

@@ -674,6 +674,19 @@ export class ClassroomHud {
               "Set homework",
             )
           : null,
+        c.periodId && e.turns > 0
+          ? h(
+              "button",
+              {
+                class: "btn",
+                onclick: () =>
+                  void import("../screens/confusionMap").then((m) =>
+                    m.openConfusionMap(c.periodId!),
+                  ),
+              },
+              "What confused them",
+            )
+          : null,
         h("button", { class: "btn primary", onclick: () => app.backToBoot() }, "Back to classes"),
       ),
     );

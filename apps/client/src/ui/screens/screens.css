@@ -2040,3 +2040,86 @@ table.heat td {
   margin-top: auto;
   color: var(--leaf);
 }
+
+/* V5-07 confusion map. */
+.cmap-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.cmap-row {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border: var(--line);
+  background: var(--paper);
+  cursor: pointer;
+  font: 400 14px/1.35 var(--font-body);
+  color: var(--ink);
+}
+.cmap-row:hover {
+  background: var(--cobalt-wash);
+}
+.cmap-row:focus-visible {
+  outline: 3px solid var(--marigold);
+  outline-offset: 2px;
+}
+.cmap-bars {
+  display: grid;
+  gap: 3px;
+}
+.cmap-bars i {
+  display: block;
+  height: 8px;
+  min-width: 2px;
+}
+.cmap-bars i.bad {
+  background: var(--coral);
+}
+.cmap-bars i.good {
+  background: var(--leaf);
+}
+.cmap-who {
+  padding: 6px 12px 2px 110px;
+  font-size: 13px;
+}
+.cmap-who p {
+  margin: 0 0 4px;
+}
+.chip.good {
+  background: var(--leaf-wash);
+  color: var(--leaf);
+}
+.chip.bad {
+  background: var(--coral-wash);
+  color: var(--coral);
+}
+@media (max-width: 560px) {
+  .cmap-row {
+    grid-template-columns: 60px 1fr;
+  }
+  .cmap-who {
+    padding-left: 12px;
+  }
+}
+
+/* V5-06: the prerequisite detective's pin on the curriculum map. */
+.node.start-here {
+  box-shadow: 4px 4px 0 var(--coral);
+  border-color: var(--coral);
+}
+.node .pin-tag {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 6px;
+  background: var(--coral);
+  color: #fff;
+  font: 700 11px var(--font-ui);
+}

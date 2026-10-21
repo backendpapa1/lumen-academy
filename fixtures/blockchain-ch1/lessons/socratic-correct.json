@@ -1,0 +1,17 @@
+{
+  "description": "V5 eval: a Socratic lesson whose questions lead toward the key facts.",
+  "messages": [
+    { "concept": "Block Header", "text": "If a block is a small header plus the list of transactions, which part do you think is bigger?" },
+    { "concept": "Block Header", "text": "The header is only 80 bytes. So could it hold a copy of all the transactions, or must it hold something smaller?" },
+    { "concept": "Block Header", "text": "If each header holds the hash of the previous block's header, what does that do to the blocks?" },
+    { "concept": "Block Header", "text": "A block is identified by hashing its header twice with SHA256. Would that hash need to be stored inside the block, or can anyone recompute it?" },
+    { "concept": "Merkle Trees", "text": "Suppose we hash each transaction, then pair neighbouring hashes and hash each pair. What happens if we keep doing that level by level?" },
+    { "concept": "Merkle Trees", "text": "When one hash is left at the top, the Merkle root, what do you think it summarises?" },
+    { "concept": "Merkle Trees", "text": "If one transaction changes, its hash changes. What happens to every hash above it, and to the root?" },
+    { "concept": "Merkle Trees", "text": "If a level has an odd number of hashes, and we duplicate the last one, why does that help?" },
+    { "concept": "Merkle Trees and Lightweight Clients", "text": "A phone wallet keeps only headers. How could it check a transaction is in a block without downloading them all?" },
+    { "concept": "Merkle Trees and Lightweight Clients", "text": "If a full node sends the sibling hashes along the path from the transaction up to the root, what can the wallet do with them?" },
+    { "concept": "Merkle Trees and Lightweight Clients", "text": "The path is about log2 of N hashes. For a few thousand transactions, is that a lot of hashes or around a dozen?" },
+    { "concept": "Merkle Trees and Lightweight Clients", "text": "If the wallet rehashes up the path and it matches the Merkle root in its header, what has it proved?" }
+  ]
+}

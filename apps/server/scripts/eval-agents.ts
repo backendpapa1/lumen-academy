@@ -14,6 +14,7 @@ import { newId } from "../src/db/ids.js";
 import { cadets, classrooms, concepts } from "../src/db/schema.js";
 import { ClassSession } from "../src/game/ClassSession.js";
 import { cadetPack } from "../src/game/packs.js";
+import { planTeachBack } from "../src/game/teachBack.js";
 import { planCohort, type CadetPlan } from "../src/game/registration.js";
 import { OpenAIEmbedder } from "../src/ingest/embed.js";
 import { ensureSchool, ingestSource } from "../src/ingest/pipeline.js";
@@ -165,7 +166,18 @@ interface LessonRun {
   planted: number;
 }
 const runs: LessonRun[] = [];
-for (const lessonId of ["correct", "wrong"] as const) {
+// V5: two Socratic lessons (questions only) join the mirror unless EVAL_V5=0.
+const LESSONS: Array<{ id: string; kind: "class" | "socratic" }> = [
+  { id: "correct", kind: "class" },
+  { id: "wrong", kind: "class" },
+  ...(process.env.EVAL_V5 === "0"
+    ? []
+    : [
+        { id: "socratic-correct", kind: "socratic" as const },
+        { id: "socratic-wrong", kind: "socratic" as const },
+      ]),
+];
+for (const { id: lessonId, kind } of LESSONS) {
   const lesson = JSON.parse(readFileSync(join(FIX, `lessons/${lessonId}.json`), "utf8")) as {
     messages: Array<{ concept: string; text: string; plantedError?: string }>;
   };
@@ -186,7 +198,7 @@ for (const lessonId of ["correct", "wrong"] as const) {
   const beats: PeerBeat[] = [];
   const session = ClassSession.open(
     { handle, factory, game: cfg.game, embedder },
-    { classroomId, conceptId: conceptByTitle.get(lesson.messages[0]!.concept)!.id },
+    { classroomId, conceptId: conceptByTitle.get(lesson.messages[0]!.concept)!.id, kind },
     { onPeerBeat: (b) => beats.push(b) },
   );
   /** Guards what was said, re-checks a rewrite independently, and records it. */
@@ -252,6 +264,12 @@ for (const lessonId of ["correct", "wrong"] as const) {
         });
         if (b) await record(b, beat.listenerId, i, true);
       }
+    }
+    // V5-02: in Socratic mode the hot seat answers every question.
+    if (kind === "socratic" && session.hotSeat) {
+      const answer = await session.speak(session.hotSeat, { answer: m.text });
+      if (answer) await record(answer, session.hotSeat, i);
+      continue;
     }
     if ((i + 1) % SPEAK_EVERY === 0 && session.handQueue.length) {
       const hand = session.handQueue[0]!;
@@ -376,6 +394,42 @@ const conceptWins = evalConcepts.filter(
 ).length;
 const mirrorPass = gap >= MIRROR_MARGIN && conceptWins >= Math.ceil((evalConcepts.length * 2) / 3);
 const leakPass = leakRate < LEAK_TARGET;
+// V5-02: the Socratic mirror (questions that lead right beat questions that steer wrong).
+const hasSocratic = runs.some((r) => r.id === "socratic-correct");
+const socraticGap = hasSocratic ? examMean("socratic-correct") - examMean("socratic-wrong") : 0;
+const socraticPass = !hasSocratic || NO_EXAM || socraticGap >= MIRROR_MARGIN;
+// V5-03: the teach-back mirror, free: what each student would explain back
+// after the lecture, and how much of it is true.
+const teachBackShare = (lessonId: string) => {
+  const run = runs.find((r) => r.id === lessonId);
+  if (!run) return 0;
+  const roster = handle.db
+    .select()
+    .from(cadets)
+    .all()
+    .filter((c) => c.classroomId === run.classroomId);
+  const shares: number[] = [];
+  for (const cadet of roster)
+    for (const ec of evalConcepts) {
+      const c = conceptByTitle.get(ec.title)!;
+      const lines = planTeachBack(handle, cfg.game, {
+        classroomId: run.classroomId,
+        cadetId: cadet.id,
+        periodId: `eval-${lessonId}`,
+        concept: {
+          id: c.id,
+          title: c.title,
+          keyFacts: JSON.parse(c.keyFactsJson) as string[],
+          misconceptions: JSON.parse(c.misconceptionsJson) as string[],
+        },
+      });
+      shares.push(lines.length ? lines.filter((l) => l.true).length / lines.length : 0);
+    }
+  return mean(shares);
+};
+const tbCorrect = teachBackShare("correct");
+const tbWrong = teachBackShare("wrong");
+const teachBackPass = tbCorrect - tbWrong >= MIRROR_MARGIN;
 const peerLines = utterances.filter((u) => u.peer);
 const peerDelivered = peerLines.filter((u) => u.deliveredLeak);
 const peerBeats = runs.reduce((a, r) => a + r.peerBeats, 0);
@@ -417,6 +471,12 @@ out(
 );
 out(
   `| Mirror check | correct − wrong ≥ ${MIRROR_MARGIN} and ≥ ${Math.ceil((evalConcepts.length * 2) / 3)}/${evalConcepts.length} concepts | ${gap.toFixed(2)} (${examMean("correct").toFixed(2)} vs ${examMean("wrong").toFixed(2)}), ${conceptWins}/${evalConcepts.length} concepts | ${mirrorPass ? "✅" : "❌"} |`,
+);
+out(
+  `| Socratic mirror (V5-02) | socratic-correct − socratic-wrong ≥ ${MIRROR_MARGIN} | ${hasSocratic ? `${socraticGap.toFixed(2)} (${examMean("socratic-correct").toFixed(2)} vs ${examMean("socratic-wrong").toFixed(2)})` : "not run"} | ${socraticPass ? "✅" : "❌"} |`,
+);
+out(
+  `| Teach-back mirror (V5-03): true share of what they'd explain back | correct − wrong ≥ ${MIRROR_MARGIN} | ${(tbCorrect - tbWrong).toFixed(2)} (${tbCorrect.toFixed(2)} vs ${tbWrong.toFixed(2)}) | ${teachBackPass ? "✅" : "❌"} |`,
 );
 out(
   `| First reaction p50 | ≤ 1.5s | ${ms(pct(all("firstReaction"), 50))} (p95 ${ms(pct(all("firstReaction"), 95))}) | ${pct(all("firstReaction"), 50) <= 1500 ? "✅" : "❌"} |`,
@@ -486,4 +546,4 @@ const reportPath = join(root, "eval/reports", `${stamp}-${cfg.models.profile}.md
 writeFileSync(reportPath, report);
 console.log(`\n${report}\nReport: ${reportPath}`);
 handle.close();
-process.exit(leakPass && mirrorPass ? 0 : 1);
+process.exit(leakPass && mirrorPass && socraticPass && teachBackPass ? 0 : 1);

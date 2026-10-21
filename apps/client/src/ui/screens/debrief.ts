@@ -27,7 +27,65 @@ export function mountDebrief(
   root.append(wrap);
   api
     .get<DebriefView>(`/api/exams/${examId}/results`)
-    .then((d) => fill(wrap, ...view(d, classroomId, schoolId)))
+    .then((d) => {
+      fill(wrap, ...view(d, classroomId, schoolId));
+      // V5-06: where the misses really start.
+      void api
+        .get<
+          Array<{
+            conceptId: string;
+            title: string;
+            reason: string;
+            because: Array<{ cadet: string; concept: string; where: string }>;
+            path: string[];
+          }>
+        >(`/api/schools/${schoolId}/start-here`)
+        .then((pins) => {
+          if (!pins.length) return;
+          wrap.append(
+            h(
+              "section",
+              { class: "card pad start-here-card", "aria-label": "Start here" },
+              h("div", { class: "micro" }, "Start here"),
+              h(
+                "p",
+                { class: "dim small" },
+                "Some misses start in an earlier concept. Fixing these first lifts the rest.",
+              ),
+              ...pins.slice(0, 4).map((p) =>
+                h(
+                  "div",
+                  { class: "row", style: "gap:12px;margin-top:10px;align-items:flex-start" },
+                  h(
+                    "div",
+                    { style: "flex:1;min-width:0" },
+                    h("b", {}, p.title),
+                    h("p", { class: "small", style: "margin:2px 0" }, p.reason),
+                    h(
+                      "p",
+                      { class: "dim small", style: "margin:0" },
+                      `${p.because
+                        .slice(0, 3)
+                        .map((x) => `${x.cadet}'s ${x.where} miss on ${x.concept}`)
+                        .join(" · ")} · ${p.path.join(" → ")}`,
+                    ),
+                  ),
+                  h(
+                    "button",
+                    {
+                      class: "btn primary small",
+                      onclick: () => app.reteach(classroomId, p.conceptId),
+                    },
+                    icon(ICONS.play),
+                    "Teach this",
+                  ),
+                ),
+              ),
+            ),
+          );
+        })
+        .catch(() => undefined);
+    })
     .catch((e: Error) => fill(wrap, h("p", { class: "error-text" }, e.message)));
   return () => {};
 }

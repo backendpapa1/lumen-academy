@@ -1,0 +1,17 @@
+{
+  "description": "V5 eval: a Socratic lesson whose questions steer toward wrong ideas (the mirror should catch it).",
+  "messages": [
+    { "concept": "Block Header", "text": "Since the header holds a copy of all the transactions, isn't it the biggest part of the block?", "plantedError": "The header is 80 bytes and does not contain the transactions." },
+    { "concept": "Block Header", "text": "If each block repeats the transactions of the block before it, isn't that what links them into a chain?", "plantedError": "Blocks are linked by the previous block's header hash." },
+    { "concept": "Block Header", "text": "The block hash is stored as a field in the header, right? Why would it be kept there?", "plantedError": "The block hash is not stored in the block." },
+    { "concept": "Block Header", "text": "So a header has fields like the version and a timestamp. What else would you expect?" },
+    { "concept": "Merkle Trees", "text": "If we just concatenate all transactions and hash them once, isn't that the Merkle root?", "plantedError": "The Merkle root comes from hashing pairs level by level." },
+    { "concept": "Merkle Trees", "text": "Since every transaction stores the root inside it, how do you think they stay tied together?", "plantedError": "Transactions don't store the root; the root is in the header." },
+    { "concept": "Merkle Trees", "text": "If one transaction changes, only its own hash changes and the root stays the same, doesn't it?", "plantedError": "Changing a transaction changes the root." },
+    { "concept": "Merkle Trees", "text": "With an odd number of hashes, we just drop the last one, don't we?", "plantedError": "The last hash is duplicated, not dropped." },
+    { "concept": "Merkle Trees and Lightweight Clients", "text": "A phone wallet has to download every transaction to check one, doesn't it?", "plantedError": "A Merkle path lets it check without downloading all transactions." },
+    { "concept": "Merkle Trees and Lightweight Clients", "text": "Wouldn't a proof need every transaction hash in the block, thousands of them?", "plantedError": "A Merkle path is about log2 N hashes." },
+    { "concept": "Merkle Trees and Lightweight Clients", "text": "So what does a wallet actually keep, if not the transactions?" },
+    { "concept": "Merkle Trees and Lightweight Clients", "text": "If the wallet's check matches, it's proved the transaction is valid and unspent, right?", "plantedError": "A match proves inclusion in the block, not that it is valid or unspent." }
+  ]
+}
