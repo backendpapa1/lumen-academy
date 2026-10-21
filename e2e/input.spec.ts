@@ -52,8 +52,8 @@ test("the lectern owns typing; Esc leaves it; Enter returns to it", async ({ pag
   await expect
     .poll(() =>
       page.evaluate(() =>
-        window.__lumen!.store
-          .getState()
+        window
+          .__lumen!.store.getState()
           .classroom.toasts.map((t) => t.text)
           .join(" | "),
       ),
