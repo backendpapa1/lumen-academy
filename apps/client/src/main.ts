@@ -9,7 +9,8 @@ import { ClassroomHud } from "./ui/scenes/ClassroomHud";
 import { GalleryScene } from "./ui/scenes/GalleryScene";
 import { installScreens } from "./ui/screens";
 import { CampusScene } from "./world/scenes/CampusScene";
-import { campusView, fx } from "./world/anchors";
+import { campusView, fx, setArena } from "./world/anchors";
+import { ArenaScene } from "./world/scenes/ArenaScene";
 import { ClassroomScene } from "./world/scenes/ClassroomScene";
 import { world } from "./world/anchors";
 import { WorldDirector } from "./world/WorldDirector";
@@ -54,7 +55,7 @@ window.addEventListener("resize", () => director.resize());
 // Route → 3D scene + UI layer (docs/05 §4.3). The classroom uses the Phaser
 // HUD; setup screens (lobby, School Wing, registration) are DOM (D14).
 let showing: string | null = null;
-let showingWorld: "campus" | "classroom" | null = null;
+let showingWorld: "campus" | "classroom" | "arena" | null = null;
 function applyRoute() {
   const route = store.getState().route;
   const key =
@@ -66,6 +67,7 @@ function applyRoute() {
   if (key === showing) return;
   showing = key;
   if (route.name === "gallery") return;
+  if (route.name !== "exam") setArena(null);
   if (route.name === "classroom") {
     // Registration already shows this room; keep it so the cadets stay put.
     if (showingWorld !== "classroom") director.show(new ClassroomScene());
@@ -74,9 +76,15 @@ function applyRoute() {
     return;
   }
   ui.scene.stop("classroomHud");
-  if (route.name === "registration" || route.name === "exam") {
-    // Registration and the exam both happen in the room itself.
-    director.show(new ClassroomScene({ arrivals: route.name === "registration" }));
+  if (route.name === "exam") {
+    // The exam leaves the classroom for the arena (M6-09).
+    const arena = new ArenaScene();
+    director.show(arena);
+    setArena(arena);
+    showingWorld = "arena";
+  } else if (route.name === "registration") {
+    // Registration happens in the room itself.
+    director.show(new ClassroomScene({ arrivals: true }));
     showingWorld = "classroom";
   } else if (showingWorld !== "campus") {
     // Lobby, School Wing, desk and debrief all sit over the campus (M5-02).

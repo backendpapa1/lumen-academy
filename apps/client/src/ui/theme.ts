@@ -27,6 +27,7 @@ export const css = {
   lumen: "#5BE7FF",
   aurum: "#F5C66B",
   danger: "#FF5C7A",
+  success: "#4ADE80",
   void: "#05070D",
 } as const;
 

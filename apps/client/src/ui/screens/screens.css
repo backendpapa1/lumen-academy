@@ -1550,3 +1550,25 @@ table.heat td {
     transform: translate(1px, 0);
   }
 }
+
+/* Exam arena (M6-09): the result shows on the 3D card, so the stinger takes
+   the question card's place at the bottom once the camera has pushed in. */
+.screen.arena .stinger {
+  top: auto;
+  bottom: 32px;
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 32px));
+  padding: 20px 28px 24px;
+  animation-delay: 2.8s;
+}
+.screen.arena .stinger .display {
+  font-size: 40px;
+}
+.screen.arena.done .arena-card {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen.arena .stinger {
+    animation-delay: 0s;
+  }
+}
