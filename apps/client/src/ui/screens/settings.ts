@@ -2,9 +2,11 @@ import { api, ApiError, type Settings } from "../../core/api";
 import { app } from "../../core/app";
 import { sound } from "../../core/audio";
 import { rhythm, type BreakPlan } from "../../core/rhythm";
+import { store } from "../../core/store";
 import { voice } from "../../core/voice";
 import { h } from "./dom";
 import { openModal } from "./modal";
+import { startTour } from "./tour";
 
 // Settings (O-1): model profile, monthly and image budgets, period length.
 // Saved on the server and applied at once, no restart.
@@ -115,6 +117,30 @@ function form(s: Settings, close: () => void): HTMLElement {
     ),
     rhythmSection(),
     voiceSection(),
+    h(
+      "div",
+      { style: "margin-top:18px" },
+      h("label", { class: "lbl" }, "Help"),
+      h(
+        "div",
+        { class: "row", style: "gap:10px;margin-top:8px;font-size:14px" },
+        h(
+          "button",
+          {
+            class: "btn small",
+            type: "button",
+            onclick: () => {
+              close();
+              // The tour points at the lobby, so it starts there.
+              if (store.getState().route.name !== "boot") app.backToBoot();
+              setTimeout(() => startTour(), 500);
+            },
+          },
+          "Take the guided tour",
+        ),
+        h("span", { class: "dim small" }, "The Head of School shows you around, out loud."),
+      ),
+    ),
     keys,
     err,
     h(

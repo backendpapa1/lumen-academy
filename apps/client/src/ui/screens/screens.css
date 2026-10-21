@@ -1366,37 +1366,6 @@ table.heat td {
   background: var(--marigold-wash);
 }
 
-/* First-run onboarding (M6-07). */
-.onboard-back {
-  position: fixed;
-  inset: 0;
-  z-index: 25;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: rgba(15, 26, 102, 0.3);
-  animation: fade-in 300ms ease-out both;
-}
-.onboard {
-  width: min(580px, 100%);
-  padding: 32px;
-  box-shadow: var(--shadow-lg);
-  animation: modal-in 360ms var(--ease) both;
-}
-.onboard .dots {
-  display: flex;
-  gap: 6px;
-}
-.onboard .dots i {
-  width: 10px;
-  height: 10px;
-  border: var(--line);
-  background: #fff;
-}
-.onboard .dots i.on {
-  background: var(--cobalt);
-}
-
 /* --- Random events (M6-01) --------------------------------------------------- */
 /* A side card, not a modal: the classroom stays visible behind it. */
 .event-back {

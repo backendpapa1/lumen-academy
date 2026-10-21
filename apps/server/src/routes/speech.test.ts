@@ -205,4 +205,39 @@ describe("speech routes", () => {
     const status = await app.inject({ method: "GET", url: "/api/speech/status" });
     expect(status.json()).toMatchObject({ stt: "ready", tts: "ready" });
   });
+
+  it("a student's voice follows their name, and a kept voice from the wrong register is re-picked", async () => {
+    const { w, app, tts } = await boot();
+    const id = w.cadets[0]!.id;
+    w.handle.sqlite
+      .prepare(
+        "UPDATE cadets SET name = 'Sofia Marchetti', traits_json = ?, voice_json = ? WHERE id = ?",
+      )
+      .run(
+        JSON.stringify({ appearance: { genderPresentation: "androgynous", voice: "higher" } }),
+        JSON.stringify({ voice: cfg.models.speech!.tts.voices.male[0], speed: 1 }),
+        id,
+      );
+    await app.inject({
+      method: "POST",
+      url: "/api/speech/say",
+      payload: { cadetId: id, text: "Hi." },
+    });
+    expect(cfg.models.speech!.tts.voices.female).toContain(tts.said[0]![1]);
+  });
+
+  it("narrates the guided tour in the narrator's voice", async () => {
+    const { app, tts } = await boot();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/speech/narrate",
+      payload: { text: "Welcome to Lumen Academy." },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(tts.said[0]).toEqual([
+      "Welcome to Lumen Academy.",
+      cfg.models.speech!.tts.narrator.voice,
+      cfg.models.speech!.tts.narrator.speed,
+    ]);
+  });
 });

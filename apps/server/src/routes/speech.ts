@@ -141,6 +141,23 @@ export async function registerSpeechRoutes(
     }
   });
 
+  /** The guided tour's narrator: one line in the Head of School's voice. */
+  const NarrateZ = z.strictObject({ text: z.string().trim().min(1).max(600) });
+  app.post("/api/speech/narrate", async (req, reply) => {
+    if (speech.tts.problem) return reply.code(503).send({ error: speech.tts.problem });
+    const body = NarrateZ.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: "Narrate what?" });
+    const { voice, speed } = speech.cfg.tts.narrator;
+    try {
+      const r = await speech.tts.say(body.data.text, voice, speed);
+      deps.meter.record({ agent: "tts", provider: "local", model: "kokoro", latencyMs: r.ms });
+      return reply.type("audio/wav").send(r.wav);
+    } catch (e) {
+      req.log.warn({ err: e }, "narration failed");
+      return reply.code(502).send({ error: "The narrator lost their voice for a moment." });
+    }
+  });
+
   /** The School, the concept on the board, and my last two lines in this class. */
   function lessonContext(classroomId: string) {
     const room = sqlite

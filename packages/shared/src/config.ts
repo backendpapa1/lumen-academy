@@ -161,6 +161,10 @@ export const SpeechConfigZ = z.strictObject({
     speed: z.record(z.string(), z.number().min(0.5).max(2)),
     /** The first chunk ends at the first comma or after this many words (V1-S2). */
     firstChunkWords: z.number().int().min(2).default(6),
+    /** The guided tour's narrator (the Head of School), not a student. */
+    narrator: z
+      .strictObject({ voice: z.string().min(1), speed: z.number().min(0.5).max(2) })
+      .default({ voice: "bf_emma", speed: 1 }),
   }),
 });
 export type SpeechConfig = z.infer<typeof SpeechConfigZ>;

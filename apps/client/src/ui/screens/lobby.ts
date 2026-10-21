@@ -12,7 +12,7 @@ import { hoverSchool } from "./campusSync";
 import { emblem, plural, rankInsignia } from "./common";
 import { fill, h, icon, ICONS } from "./dom";
 import { openModal } from "./modal";
-import { maybeOnboard } from "./onboarding";
+import { maybeTour, startTour } from "./tour";
 import { openSettings } from "./settings";
 
 // The lobby over the campus (M3-09, M5): Resume in one click, rank and the
@@ -48,6 +48,7 @@ export function mountLobby(root: HTMLElement): () => void {
           "button",
           {
             class: "btn quiet",
+            "data-tour": "studyhall",
             onclick: () => store.setState({ route: { name: "studyhall" } }),
           },
           icon(ICONS.book),
@@ -64,6 +65,12 @@ export function mountLobby(root: HTMLElement): () => void {
           { class: "btn quiet", onclick: () => openSettings() },
           icon(ICONS.settings),
           "Settings",
+        ),
+        h(
+          "button",
+          { class: "btn quiet", "data-tour": "tour", onclick: () => startTour() },
+          icon(ICONS.help),
+          "Tour",
         ),
       ),
       hero,
@@ -102,7 +109,7 @@ export function mountLobby(root: HTMLElement): () => void {
   };
 
   render();
-  const offOnboarding = maybeOnboard(root);
+  const offOnboarding = maybeTour();
   const off = store.subscribe((s, p) => {
     if (
       s.setup.schools !== p.setup.schools ||

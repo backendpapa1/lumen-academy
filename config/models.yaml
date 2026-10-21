@@ -144,3 +144,5 @@ speech:
       quiet: 0.9
       saboteur: 1.08
     firstChunkWords: 6
+    # The guided tour's narrator, the Head of School (not one of the students).
+    narrator: { voice: bf_emma, speed: 1.0 }
