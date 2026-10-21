@@ -4,6 +4,7 @@ import { store } from "../../core/store";
 import { accentOf } from "../../ui/theme";
 import { dayPhase, PHASES } from "../lighting";
 import { Amphitheater, seatPose } from "../objects/Amphitheater";
+import { CadetLayer } from "../objects/CadetLayer";
 import { HexFloor } from "../objects/HexFloor";
 import { HoloBoard } from "../objects/HoloBoard";
 import { WindowView } from "../objects/WindowView";
@@ -23,6 +24,7 @@ export class ClassroomScene implements WorldScene {
   private readonly floor = new HexFloor();
   private readonly amphitheater = new Amphitheater();
   private readonly board = new HoloBoard();
+  private readonly cadetLayer = new CadetLayer();
   private readonly windowView: WindowView;
   private readonly disposables: Array<{ dispose(): void }> = [];
   private readonly unsubscribe: () => void;
@@ -44,12 +46,14 @@ export class ClassroomScene implements WorldScene {
     front.position.set(0, 2.2, -1);
     this.scene.add(key, fill, front);
 
-    this.board.group.position.set(3.6, 3.05, -4.6);
+    // Above the top row's heads (~3.3m) so it never hides a cadet.
+    this.board.group.position.set(3.9, 4.25, -5.2);
     this.board.group.rotation.y = -0.5;
     this.board.group.scale.setScalar(0.74);
     this.scene.add(
       this.floor.mesh,
       this.amphitheater.group,
+      this.cadetLayer.group,
       this.board.group,
       this.windowView.group,
       this.backWall(),
@@ -112,6 +116,7 @@ export class ClassroomScene implements WorldScene {
         new Map(Object.values(c.cadets).map((x) => [x.seat, accentOf(x.archetype)])),
       );
     }
+    this.cadetLayer.sync(c);
     const lastPoint =
       [...c.transcript].reverse().find((t) => t.speaker === "headmaster")?.text ?? "";
     this.board.set({
@@ -138,6 +143,7 @@ export class ClassroomScene implements WorldScene {
     );
     this.camera.lookAt(LOOK_AT);
     this.floor.update(dt);
+    this.cadetLayer.update(dt, this.camera);
     this.windowView.update(dt);
   }
 
@@ -150,6 +156,7 @@ export class ClassroomScene implements WorldScene {
     this.unsubscribe();
     this.floor.dispose();
     this.amphitheater.dispose();
+    this.cadetLayer.dispose();
     this.board.dispose();
     this.windowView.dispose();
     for (const d of this.disposables) d.dispose();

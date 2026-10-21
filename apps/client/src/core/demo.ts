@@ -51,6 +51,53 @@ export function loadDemoClassroom(): void {
       type: "ledger.update",
       payload: { turnId: "t1", conceptId: "cpt_demo", cadets: [], classAverage: 0.42 },
     },
+    // A realistic mix of reactions, two hands, and one cadet speaking.
+    ...(
+      [
+        "skeptical",
+        "confused",
+        "attentive",
+        "excited",
+        "notetaking",
+        "attentive",
+        "bored",
+        "confused",
+        "skeptical",
+        "attentive",
+        "notetaking",
+      ] as const
+    ).map((state, i): ServerMessage => ({
+      type: "crowd.reaction",
+      payload: { turnId: "t1", cadetId: `cdt_${i}`, state },
+    })),
+    {
+      type: "hands.update",
+      payload: {
+        queue: [
+          {
+            cadetId: "cdt_1",
+            intent: "clarify",
+            preview: "Wait, which hashes get paired first?",
+            urgency: 0.8,
+          },
+          {
+            cadetId: "cdt_8",
+            intent: "challenge",
+            preview: "Why does pairing make it tamper-proof?",
+            urgency: 0.7,
+          },
+        ],
+      },
+    },
+    {
+      type: "cadet.stream",
+      payload: {
+        cadetId: "cdt_0",
+        streamId: "s1",
+        delta:
+          "Headmaster, you said neighbouring hashes are paired. What if a level has an odd number?",
+      },
+    },
   ];
   store.setState((s) => ({
     classroom: msgs.reduce((acc, m) => applyServerMessage(acc, m), s.classroom),
