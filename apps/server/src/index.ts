@@ -9,6 +9,7 @@ import { openDb, runMigrations } from "./db/client.js";
 import { loadSavedSettings } from "./settings.js";
 import { OpenAIEmbedder } from "./ingest/embed.js";
 import { ModelFactory } from "./models/factory.js";
+import { castVoices } from "./game/voiceCast.js";
 import { UsageMeter } from "./usage/meter.js";
 import { WhisperSidecar } from "./speech/stt.js";
 import { KokoroSpeaker } from "./speech/tts.js";
@@ -59,6 +60,10 @@ const app = await buildApp({
   runtime: { handle, factory, meter, embedder, assets, game: config.game, speech },
 });
 await app.listen({ host: HOST, port: config.env.LUMEN_PORT });
+// Older students get a voice that fits their name (one small call, once).
+void castVoices({ handle, factory }, (m) => app.log.warn(m)).then(
+  (n) => n && app.log.info(`cast voices for ${n} students`),
+);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(

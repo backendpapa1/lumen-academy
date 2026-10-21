@@ -19,7 +19,7 @@ import { schoolConceptStatuses } from "../game/schoolStatus.js";
 import type { SourceKind } from "../ingest/parse.js";
 import { ensureSchool } from "../ingest/pipeline.js";
 import { join } from "node:path";
-import { exportSchool, importSchool } from "../school/exportImport.js";
+import { deleteSchool, exportSchool, importSchool } from "../school/exportImport.js";
 import { yearbookMarkdown } from "../school/yearbook.js";
 import { knowledgeMarkdown, knowledgeReport } from "../school/knowledge.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
@@ -134,6 +134,29 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
       return { ok: true };
     });
   }
+
+  // Delete for good, only from the Archived shelf, with the School's name typed to confirm.
+  const DeleteZ = z.object({ name: z.string() });
+  app.post<{ Params: { id: string } }>("/api/schools/:id/delete", async (req, reply) => {
+    const row = sqlite
+      .prepare("SELECT name, archived FROM schools WHERE id = ?")
+      .get(req.params.id) as { name: string; archived: number } | undefined;
+    if (!row) return reply.code(404).send({ error: "no such School" });
+    if (!row.archived)
+      return reply
+        .code(409)
+        .send({ error: "Archive the School first, then delete it from the shelf." });
+    const body = DeleteZ.safeParse(req.body);
+    if (!body.success || body.data.name.trim().toLowerCase() !== row.name.trim().toLowerCase())
+      return reply
+        .code(400)
+        .send({ error: `Type the School's name, “${row.name}”, to delete it.` });
+    deleteSchool(deps.handle, {
+      schoolId: req.params.id,
+      generatedDir: join(deps.dataDir, "generated"),
+    });
+    return { ok: true, name: row.name };
+  });
 
   // V2-07/08: "What I actually know", from the evidence, with my own ratings beside it.
   app.get<{ Params: { id: string } }>("/api/schools/:id/knowledge", async (req, reply) => {

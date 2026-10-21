@@ -44,6 +44,7 @@ export const AGENT_NAMES = [
   "guestLecturer",
   "parent",
   "styleCoach",
+  "voiceCaster",
 ] as const;
 export const AgentNameZ = z.enum(AGENT_NAMES);
 export type AgentName = z.infer<typeof AgentNameZ>;

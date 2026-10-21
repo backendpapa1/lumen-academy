@@ -355,10 +355,18 @@ export const CadetFlavourZ = z.object({
       hair: z.string().default(""),
       /** V4-04: one or two everyday interests. */
       interests: z.array(z.string().max(30)).max(3).default([]),
+      /** The speaking voice that fits the name, so the voice and drawing match it. */
+      voice: z.enum(["higher", "lower"]).optional().catch(undefined),
     }),
   ),
 });
 export type CadetFlavour = z.infer<typeof CadetFlavourZ>;
+
+/** Voice casting for students registered before the Registrar noted a voice. */
+export const VoiceCastZ = z.object({
+  students: z.array(z.object({ index: z.number().int(), voice: z.enum(["higher", "lower"]) })),
+});
+export type VoiceCast = z.infer<typeof VoiceCastZ>;
 
 // --- Cadet speech (docs/03 §4.4) ---------------------------------------------
 

@@ -111,6 +111,9 @@ textarea.field.grow {
 .btn.danger:hover {
   background: var(--coral-wash);
 }
+.btn.primary.danger:hover {
+  background: #d93a26;
+}
 .field:focus-visible,
 .seg button:focus-visible,
 .node:focus-visible {
@@ -1145,14 +1148,21 @@ table.heat td {
 }
 
 /* --- Lobby over the campus (M5) ------------------------------------------------------- */
+/* A white veil over the campus's own sky (whatever the time of day), so the
+   column reads clearly and the sky carries on behind it with no seam. */
 .screen.lobby {
+  --veil: 255, 255, 255;
+  --veil-a: 0.62;
   background: linear-gradient(
     90deg,
-    var(--sky) 0%,
-    var(--sky) 44%,
-    rgba(198, 236, 255, 0.75) 54%,
-    rgba(198, 236, 255, 0) 64%
+    rgba(var(--veil), var(--veil-a)) 0%,
+    rgba(var(--veil), var(--veil-a)) 42%,
+    rgba(var(--veil), calc(var(--veil-a) * 0.5)) 54%,
+    rgba(var(--veil), 0) 66%
   );
+}
+:root[data-phase="night"] .screen.lobby {
+  --veil-a: 0.74;
 }
 .lobby-col {
   max-width: 780px !important;
@@ -1213,7 +1223,7 @@ table.heat td {
     grid-template-columns: 1fr;
   }
   .screen.lobby {
-    background: var(--sky);
+    background: rgba(255, 255, 255, 0.7);
   }
   .lobby .topbar .display {
     font-size: 40px;
@@ -2361,4 +2371,77 @@ table.heat td {
 }
 .challenge-dots i.on {
   background: var(--marigold);
+}
+
+/* The lobby shows recent Schools; the rest are behind "See all". */
+.all-schools {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  padding: 20px;
+  text-align: center;
+  color: var(--ink-dim);
+  background: var(--paper);
+  border: var(--line);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.all-schools:hover {
+  background: var(--sky-hi);
+}
+.all-schools:focus-visible {
+  outline: 3px solid var(--marigold);
+}
+.all-schools .more-count {
+  margin: 0 auto 10px;
+  font: 400 34px var(--font-display);
+  color: var(--cobalt);
+}
+.all-schools-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(560px, 80vw);
+}
+.all-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+}
+.all-row {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--paper);
+  border: var(--line);
+  cursor: pointer;
+}
+.all-row:hover {
+  background: var(--sky-hi);
+}
+.all-row:focus-visible {
+  outline: 3px solid var(--marigold);
+}
+.all-row .all-name {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.all-row .all-name b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.archived-row .btn.danger {
+  color: var(--coral);
 }

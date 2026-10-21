@@ -255,6 +255,8 @@ function grounds(): string {
     <g class="clouds">
       <path class="cloud c1" d="M820 190 q16 -36 52 -24 q16 -32 56 -14 q36 -6 38 26 q24 4 20 28 h-160 q-22 -4 -6 -16z"/>
       <path class="cloud c2" d="M1160 110 q12 -26 38 -18 q12 -24 42 -10 q26 -4 28 20 q18 2 14 20 h-118 q-16 -2 -4 -12z"/>
+      <path class="cloud c4" d="M90 150 q16 -36 52 -24 q16 -32 56 -14 q36 -6 38 26 q24 4 20 28 h-160 q-22 -4 -6 -16z"/>
+      <path class="cloud c5" d="M330 330 q12 -26 38 -18 q12 -24 42 -10 q26 -4 28 20 q18 2 14 20 h-118 q-16 -2 -4 -12z"/>
       <path class="cloud c3" d="M540 260 q12 -26 38 -18 q12 -24 42 -10 q26 -4 28 20 q18 2 14 20 h-118 q-16 -2 -4 -12z"/>
     </g>
     <path class="hill far" d="M0 560 q200 -110 420 -40 q220 -120 480 -20 q240 -110 700 -30 v120 h-1600z"/>
@@ -301,6 +303,8 @@ export class Campus {
   constructor(stage: HTMLElement) {
     this.el = document.createElement("div");
     this.el.className = "campus";
+    // The lobby's veil adapts to the time of day.
+    document.documentElement.dataset.phase = dayPhase();
     this.svg = document.createElementNS(NS, "svg");
     this.svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     this.svg.setAttribute("preserveAspectRatio", "xMaxYMid slice");

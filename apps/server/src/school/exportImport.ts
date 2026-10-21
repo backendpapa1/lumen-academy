@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { GameConfig } from "@lumen/shared";
@@ -169,6 +169,62 @@ export function exportSchool(
       ] = strToU8(lines.join("\n\n") + "\n");
   }
   return { filename: `${root}.zip`, zip: zipSync(files, { level: 6 }) };
+}
+
+/**
+ * Deletes an archived School for good: every row export would carry, its
+ * vectors, its source files and its generated images. XP stays (my rank is
+ * mine), and so does the cost log. Refuses a School that isn't archived.
+ */
+export function deleteSchool(
+  handle: DbHandle,
+  input: { schoolId: string; generatedDir: string },
+): { name: string } {
+  const { sqlite } = handle;
+  const school = sqlite
+    .prepare("SELECT name, archived FROM schools WHERE id = ?")
+    .get(input.schoolId) as { name: string; archived: number } | undefined;
+  if (!school) throw new Error("no such School");
+  if (!school.archived) throw new Error("Archive the School first, then delete it from the shelf.");
+  const p = { school: input.schoolId };
+  const sources = sqlite
+    .prepare("SELECT file_path AS f FROM sources WHERE school_id = :school")
+    .all(p) as Array<{ f: string | null }>;
+  // Images only this School uses (assets are shared by prompt).
+  const assets = sqlite
+    .prepare(
+      `SELECT id, file_path AS f FROM assets WHERE (${TABLES.find(([t]) => t === "assets")![1]})
+       AND id NOT IN (SELECT emblem_asset_id FROM schools WHERE id != :school AND emblem_asset_id IS NOT NULL)
+       AND id NOT IN (SELECT d.portrait_asset_id FROM cadets d JOIN classrooms c ON c.id = d.classroom_id
+                      WHERE c.school_id != :school AND d.portrait_asset_id IS NOT NULL)`,
+    )
+    .all(p) as Array<{ id: string; f: string | null }>;
+  sqlite.transaction(() => {
+    const cadets =
+      "SELECT d.id FROM cadets d JOIN classrooms c ON c.id = d.classroom_id WHERE c.school_id = :school";
+    sqlite.prepare(`DELETE FROM leak_events WHERE cadet_id IN (${cadets})`).run(p);
+    sqlite
+      .prepare(
+        "DELETE FROM chunk_vec WHERE chunk_id IN (SELECT k.id FROM chunks k JOIN sources s ON s.id = k.source_id WHERE s.school_id = :school)",
+      )
+      .run(p);
+    sqlite
+      .prepare(
+        `DELETE FROM message_vec WHERE message_id IN (SELECT m.id FROM messages m JOIN periods r ON r.id = m.period_id
+         JOIN classrooms c ON c.id = r.classroom_id WHERE c.school_id = :school)`,
+      )
+      .run(p);
+    const del = sqlite.prepare("DELETE FROM assets WHERE id = ?");
+    for (const a of assets) del.run(a.id);
+    // Children first: each table's rows are found through parents still present.
+    for (const [t, where] of [...TABLES].reverse()) {
+      if (t === "assets" || t === "xp_events") continue;
+      sqlite.prepare(`DELETE FROM ${t} WHERE ${where}`).run(p);
+    }
+  })();
+  for (const s of sources) if (s.f) rmSync(s.f, { force: true });
+  for (const a of assets) if (a.f) rmSync(join(input.generatedDir, a.f), { force: true });
+  return { name: school.name };
 }
 
 /** Restores an exported School. Refuses one that's already here (same id). */

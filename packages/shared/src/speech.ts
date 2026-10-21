@@ -56,12 +56,13 @@ export function chunkLine(text: string, firstChunkWords = 6): string[] {
   return out;
 }
 
+export type VoiceRegister = "female" | "male";
+
 /**
- * A student's voice register, fixed by their id. The server picks their voice
- * from it and the drawing uses it too (only lower voices grow beards), so a
- * student looks and sounds like one person.
+ * A student's voice register, fixed by their id: only the fallback when the
+ * Registrar left no note (see registerFor).
  */
-export function voiceRegister(id: string): "female" | "male" {
+export function voiceRegister(id: string): VoiceRegister {
   let h = 2166136261;
   for (const ch of `voice:${id}`) h = Math.imul(h ^ ch.codePointAt(0)!, 16777619);
   return (h >>> 0) % 100 < 55 ? "female" : "male";
@@ -117,4 +118,21 @@ export function wordSwaps(
   }
   flush();
   return out;
+}
+
+/**
+ * A student's voice register, so name, voice and drawing agree: the
+ * Registrar's "higher"/"lower" note (written to fit the name), else a
+ * feminine or masculine presentation, else the id. The server picks their
+ * voice from it and the drawing follows it (only lower voices grow beards).
+ */
+export function registerFor(
+  id: string,
+  appearance?: { voice?: unknown; genderPresentation?: unknown } | null,
+): VoiceRegister {
+  if (appearance?.voice === "higher") return "female";
+  if (appearance?.voice === "lower") return "male";
+  if (appearance?.genderPresentation === "feminine") return "female";
+  if (appearance?.genderPresentation === "masculine") return "male";
+  return voiceRegister(id);
 }

@@ -1,7 +1,7 @@
-import { voiceRegister, type SpeechConfig } from "@lumen/shared";
+import { registerFor, type SpeechConfig, type VoiceRegister } from "@lumen/shared";
 
-// A student's voice (V1-04): a Kokoro voice from their register, spread so
-// classmates differ, and a speaking rate from their archetype.
+// A student's voice (V1-04): a Kokoro voice from their register (which fits
+// their name), spread so classmates differ, and a speaking rate from their archetype.
 
 export interface StudentVoice {
   voice: string;
@@ -17,10 +17,10 @@ function hash(s: string): number {
 /** Deterministic per student; `taken` (classmates' voices) is avoided while there are free ones. */
 export function pickVoice(
   cfg: SpeechConfig["tts"],
-  student: { id: string; archetype: string },
+  student: { id: string; archetype: string; register?: VoiceRegister },
   taken: string[] = [],
 ): StudentVoice {
-  const pool = cfg.voices[voiceRegister(student.id)];
+  const pool = cfg.voices[student.register ?? registerFor(student.id)];
   const start = hash(student.id) % pool.length;
   let voice = pool[start]!;
   for (let k = 0; k < pool.length; k++) {

@@ -102,6 +102,13 @@
   border-color: var(--coral);
   box-shadow: 3px 3px 0 var(--coral);
 }
+/* A filled danger button: the one irreversible action in a dialog. */
+.btn.primary.danger {
+  color: #fff;
+  background: var(--coral);
+  border-color: var(--navy);
+  box-shadow: 3px 3px 0 var(--navy);
+}
 .btn:disabled,
 .btn[aria-disabled="true"] {
   opacity: 0.45;

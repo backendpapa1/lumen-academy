@@ -54,6 +54,14 @@
   animation-duration: 110s;
   animation-delay: -60s;
 }
+.campus .cloud.c4 {
+  animation-duration: 120s;
+  animation-delay: -45s;
+}
+.campus .cloud.c5 {
+  animation-duration: 95s;
+  animation-delay: -15s;
+}
 @keyframes c-drift {
   from {
     transform: translateX(-60px);

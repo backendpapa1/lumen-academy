@@ -143,7 +143,12 @@ export async function registerClassroom(deps: RegisterDeps, input: RegisterInput
             archetype: p.archetype,
             traitsJson: JSON.stringify({
               ...p.traits,
-              appearance: { ...p.appearance, visualQuirk: f.visualQuirk, hair: f.hair },
+              appearance: {
+                ...p.appearance,
+                visualQuirk: f.visualQuirk,
+                hair: f.hair,
+                ...(f.voice ? { voice: f.voice } : {}),
+              },
             }),
             learningStyle: p.learningStyle,
             quirk: f.quirk,
@@ -260,7 +265,12 @@ export async function enrollTransfer(
       archetype: plan.archetype,
       traitsJson: JSON.stringify({
         ...plan.traits,
-        appearance: { ...plan.appearance, visualQuirk: f.visualQuirk, hair: f.hair },
+        appearance: {
+          ...plan.appearance,
+          visualQuirk: f.visualQuirk,
+          hair: f.hair,
+          ...(f.voice ? { voice: f.voice } : {}),
+        },
       }),
       learningStyle: plan.learningStyle,
       quirk: f.quirk,

@@ -38,6 +38,8 @@ export const CadetViewZ = z.object({
   portraitUrl: z.string().nullable().optional(),
   /** V4-07: the Registrar's hair description, so the drawn student matches it. */
   hair: z.string().optional(),
+  /** Voice register, so the drawing matches the name and voice. */
+  register: z.enum(["female", "male"]).optional(),
   /** V4-04 */
   interests: z.array(z.string()).optional(),
   /** V4-03: where they are in their growth arc, and what moves them on. */

@@ -89,6 +89,7 @@ agents:
   guestLecturer: { role: fast, maxOutputTokens: 600 } # V5-09: answers from my sources, with citations
   parent: { role: fast, maxOutputTokens: 300, temperature: 0.7 } # V5-10
   styleCoach: { role: fast, maxOutputTokens: 300, temperature: 0.3 } # V7-07: three sentences from our numbers
+  voiceCaster: { role: fast, maxOutputTokens: 400, temperature: 0 } # a voice that fits each older student's name
 
 budget:
   monthlyUsdCap: 20

@@ -1,5 +1,5 @@
 import type { Transcriber } from "./speech/stt.js";
-import { ARCHETYPE_INFO, type Archetype, type CadetView } from "@lumen/shared";
+import { ARCHETYPE_INFO, registerFor, type Archetype, type CadetView } from "@lumen/shared";
 import { emblemMotifs } from "./agents/artDirector.js";
 import { buildCurriculum } from "./agents/deep/curriculumArchitect.js";
 import { emblemPrompt, portraitPrompt, type PortraitSubject } from "./assets/prompts.js";
@@ -244,6 +244,8 @@ export interface CadetAppearance {
   heritageHint: string;
   visualQuirk?: string;
   hair?: string;
+  /** The Registrar's (or the voice caster's) "higher"/"lower" for the name. */
+  voice?: string;
 }
 
 /** Medium portrait price × count must fit the image budget; otherwise only the first few get one (docs/07 §6). */
@@ -346,6 +348,7 @@ function appearanceOf(deps: JobDeps, cadetId: string): CadetAppearance {
 }
 
 function cadetView(deps: JobDeps, c: RegisteredCadet, portraitAssetId: string | null): CadetView {
+  const appearance = appearanceOf(deps, c.id);
   const ready =
     portraitAssetId &&
     (
@@ -362,6 +365,7 @@ function cadetView(deps: JobDeps, c: RegisteredCadet, portraitAssetId: string | 
     comprehension: 0,
     state: "attentive",
     portraitUrl: ready ? `/api/assets/${portraitAssetId}` : null,
-    hair: appearanceOf(deps, c.id).hair ?? "",
+    hair: appearance.hair ?? "",
+    register: registerFor(c.id, appearance),
   };
 }

@@ -8,7 +8,7 @@ import { openDb, runMigrations, type DbHandle } from "../db/client.js";
 import { hybridSearch } from "../retrieval/search.js";
 import { BowEmbedder } from "../test-fixtures/bowEmbedder.js";
 import { smallWorld } from "../test-fixtures/world.js";
-import { exportSchool, importSchool } from "./exportImport.js";
+import { deleteSchool, exportSchool, importSchool } from "./exportImport.js";
 import { yearbookMarkdown } from "./yearbook.js";
 
 const cfg = loadConfig({ env: {} });
@@ -118,6 +118,44 @@ describe("School export/import (O-5)", () => {
       generatedDir: join(dir, "generated"),
     });
     expect(count(fresh, "ledger_entries")).toBe(1);
+  });
+
+  it("deletes an archived School for good: rows, vectors and files; XP stays", async () => {
+    const w = await smallWorld([{ attention: 0.6, skepticism: 0.4 }]);
+    handles.push(w.handle);
+    const { sqlite } = w.handle;
+    sqlite
+      .prepare(
+        "INSERT INTO ledger_entries (cadet_id, concept_id, comprehension, exposures, misconceptions_json) VALUES (?, ?, 0.5, 3, '[]')",
+      )
+      .run(w.cadets[0]!.id, w.conceptIds[0]);
+    sqlite
+      .prepare("INSERT INTO room_upgrades (classroom_id, item, placed_at) VALUES (?, 'cat', 'x')")
+      .run(w.classroomId);
+    sqlite
+      .prepare("INSERT INTO xp_events (ts, school_id, kind, amount) VALUES ('x', ?, 'turn', 10)")
+      .run(w.schoolId);
+    const gen = mkdtempSync(join(tmpdir(), "lumen-del-"));
+    expect(() => deleteSchool(w.handle, { schoolId: w.schoolId, generatedDir: gen })).toThrow(
+      /Archive the School first/,
+    );
+    sqlite.prepare("UPDATE schools SET archived = 1 WHERE id = ?").run(w.schoolId);
+    expect(count(w.handle, "chunk_vec")).toBeGreaterThan(0);
+    deleteSchool(w.handle, { schoolId: w.schoolId, generatedDir: gen });
+    for (const t of [
+      "schools",
+      "sources",
+      "chunks",
+      "chunk_vec",
+      "modules",
+      "concepts",
+      "classrooms",
+      "cadets",
+      "ledger_entries",
+      "room_upgrades",
+    ])
+      expect([t, count(w.handle, t)]).toEqual([t, 0]);
+    expect(count(w.handle, "xp_events")).toBe(1);
   });
 
   it("refuses a zip that isn't an export", () => {

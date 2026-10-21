@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { FastifyInstance } from "fastify";
 import type { DbHandle } from "../db/client.js";
-import { hairOf } from "../game/looks.js";
+import { hairOf, registerOf } from "../game/looks.js";
 import type { GameConfig } from "@lumen/shared";
 import { placeUpgrade, removeUpgrade, upgradeState } from "../game/upgrades.js";
 
@@ -40,6 +40,7 @@ export function registerClassroomRoutes(app: FastifyInstance, handle: DbHandle, 
       name: c.name,
       archetype: c.archetype,
       hair: hairOf(c.t),
+      register: registerOf(c.id, c.t),
       stickers: (
         sqlite
           .prepare("SELECT kind FROM stickers WHERE cadet_id = ? ORDER BY created_at")
@@ -115,13 +116,15 @@ export function registerClassroomRoutes(app: FastifyInstance, handle: DbHandle, 
     );
   }
 
-  /** V4-07: every student's hair description, so each screen draws the same person. */
+  /** V4-07: every student's hair and voice register, so each screen draws the same person. */
   app.get("/api/looks", async () => {
     const rows = sqlite.prepare("SELECT id, traits_json AS t FROM cadets").all() as Array<{
       id: string;
       t: string;
     }>;
-    return Object.fromEntries(rows.map((r) => [r.id, hairOf(r.t)]).filter(([, hair]) => hair));
+    return Object.fromEntries(
+      rows.map((r) => [r.id, { hair: hairOf(r.t), register: registerOf(r.id, r.t) }]),
+    );
   });
 
   app.get("/api/schools", async () => {

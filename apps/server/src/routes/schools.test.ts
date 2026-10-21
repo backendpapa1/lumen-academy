@@ -142,6 +142,25 @@ describe("School setup routes", () => {
     expect((await app.inject({ method: "GET", url: "/api/schools/archived" })).json()).toEqual([]);
   });
 
+  it("deletes only an archived School, and only with its name typed", async () => {
+    const { app } = await boot();
+    const id = (
+      await app.inject({ method: "POST", url: "/api/schools", payload: { name: "Geology" } })
+    ).json<{ id: string }>().id;
+    const del = (name: string) =>
+      app.inject({ method: "POST", url: `/api/schools/${id}/delete`, payload: { name } });
+    expect((await del("Geology")).statusCode).toBe(409);
+    await app.inject({ method: "POST", url: `/api/schools/${id}/archive` });
+    expect((await del("Geo")).statusCode).toBe(400);
+    expect((await del(" geology ")).statusCode).toBe(200);
+    expect((await app.inject({ method: "GET", url: "/api/schools/archived" })).json()).toEqual([]);
+    // The name is free again.
+    expect(
+      (await app.inject({ method: "POST", url: "/api/schools", payload: { name: "Geology" } }))
+        .statusCode,
+    ).toBe(201);
+  });
+
   it("indexes a pasted source in the background, reporting status on the bus", async () => {
     const { app, until } = await boot();
     const id = (

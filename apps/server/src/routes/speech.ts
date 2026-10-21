@@ -9,6 +9,7 @@ import type { ModelFactory } from "../models/factory.js";
 import { glossaryFor } from "../speech/glossary.js";
 import type { Speaker } from "../speech/tts.js";
 import type { Transcriber } from "../speech/stt.js";
+import { registerOf } from "../game/looks.js";
 import { pickVoice, type StudentVoice } from "../speech/voices.js";
 import type { UsageMeter } from "../usage/meter.js";
 
@@ -173,14 +174,17 @@ export async function registerSpeechRoutes(
   function voiceOf(cadetId: string): StudentVoice | null {
     const row = sqlite
       .prepare(
-        "SELECT id, archetype, classroom_id AS room, voice_json AS v FROM cadets WHERE id = ?",
+        "SELECT id, archetype, classroom_id AS room, voice_json AS v, traits_json AS t FROM cadets WHERE id = ?",
       )
       .get(cadetId) as
-      { id: string; archetype: string; room: string; v: string | null } | undefined;
+      { id: string; archetype: string; room: string; v: string | null; t: string } | undefined;
     if (!row) return null;
+    const register = registerOf(row.id, row.t);
     if (row.v) {
       try {
-        return JSON.parse(row.v) as StudentVoice;
+        const kept = JSON.parse(row.v) as StudentVoice;
+        // A voice picked before the register fitted the name is re-picked.
+        if (speech.cfg.tts.voices[register].includes(kept.voice)) return kept;
       } catch {
         /* re-pick below */
       }
@@ -188,9 +192,9 @@ export async function registerSpeechRoutes(
     const taken = (
       sqlite
         .prepare(
-          "SELECT voice_json AS v FROM cadets WHERE classroom_id = ? AND voice_json IS NOT NULL",
+          "SELECT voice_json AS v FROM cadets WHERE classroom_id = ? AND id != ? AND voice_json IS NOT NULL",
         )
-        .all(row.room) as Array<{ v: string }>
+        .all(row.room, row.id) as Array<{ v: string }>
     ).flatMap((r) => {
       try {
         return [(JSON.parse(r.v) as StudentVoice).voice];
@@ -198,7 +202,7 @@ export async function registerSpeechRoutes(
         return [];
       }
     });
-    const picked = pickVoice(speech.cfg.tts, row, taken);
+    const picked = pickVoice(speech.cfg.tts, { ...row, register }, taken);
     sqlite
       .prepare("UPDATE cadets SET voice_json = ? WHERE id = ?")
       .run(JSON.stringify(picked), row.id);

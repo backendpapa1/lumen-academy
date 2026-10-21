@@ -1,4 +1,10 @@
-import { UPGRADES, type Diagram, type PeriodKind, type ServerMessage } from "@lumen/shared";
+import {
+  UPGRADES,
+  type Diagram,
+  type PeriodKind,
+  type ServerMessage,
+  type VoiceRegister,
+} from "@lumen/shared";
 import {
   api,
   type ArchivedSchool,
@@ -11,7 +17,7 @@ import { serverEvents } from "./bus";
 import { applySetupMessage } from "./setup";
 import { Net } from "./net";
 import { rhythm } from "./rhythm";
-import { rememberHair } from "../ui/peeps/peep";
+import { rememberLooks } from "../ui/peeps/peep";
 import { store } from "./store";
 
 // The one place that talks to the server: actions in, server messages applied
@@ -61,9 +67,9 @@ function loadBreak(): { periodId: string; until: number } | null {
 
 function receive(m: ServerMessage) {
   // V4-07: learn each student's hair before anything draws them.
-  if (m.type === "period.started") rememberHair(m.payload.cadets.map((c) => [c.id, c.hair]));
-  if (m.type === "registration.arrival") rememberHair([[m.payload.cadet.id, m.payload.cadet.hair]]);
-  if (m.type === "cadet.joined") rememberHair([[m.payload.cadet.id, m.payload.cadet.hair]]);
+  if (m.type === "period.started") rememberLooks(m.payload.cadets);
+  if (m.type === "registration.arrival") rememberLooks([m.payload.cadet]);
+  if (m.type === "cadet.joined") rememberLooks([m.payload.cadet]);
   // V7-01: the class notices what's new in the room.
   if (m.type === "period.started" && m.payload.newUpgrades?.length) {
     const kids = m.payload.cadets;
@@ -143,8 +149,8 @@ export const app = {
   },
   async loadSchools() {
     void api
-      .get<Record<string, string>>("/api/looks")
-      .then((looks) => rememberHair(Object.entries(looks)))
+      .get<Record<string, { hair: string; register: VoiceRegister }>>("/api/looks")
+      .then((looks) => rememberLooks(Object.entries(looks).map(([id, l]) => ({ id, ...l }))))
       .catch(() => undefined);
     const [schools, campus, archived] = await Promise.all([
       api.get<SchoolSummary[]>("/api/schools"),
@@ -164,6 +170,11 @@ export const app = {
     await api.post(`/api/schools/${id}/restore`);
     await this.loadSchools();
     this.notify(`${name} is back on your campus.`);
+  },
+  async deleteSchool(id: string, name: string, typed: string) {
+    await api.post(`/api/schools/${id}/delete`, { name: typed });
+    await this.loadSchools();
+    this.notify(`${name} is deleted.`);
   },
   async createSchool(name: string, description: string) {
     const { id } = await api.post<{ id: string }>("/api/schools", {

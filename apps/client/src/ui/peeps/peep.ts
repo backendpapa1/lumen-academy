@@ -1,4 +1,9 @@
-import { voiceRegister, type Archetype, type ReactionState } from "@lumen/shared";
+import {
+  voiceRegister,
+  type Archetype,
+  type ReactionState,
+  type VoiceRegister,
+} from "@lumen/shared";
 import { PEEPS } from "./parts.generated";
 
 // Students drawn as Open Peeps (ADR-009): a stable look per student from their
@@ -47,6 +52,23 @@ const POSE_BODY: Record<Exclude<Pose, "idle">, Body> = {
   arms: "TeeArmsCrossed",
 };
 const HEADS = Object.keys(PEEPS.heads) as Head[];
+/**
+ * When the Registrar's hair description doesn't name a style, the head comes
+ * from styles that read as fitting the voice, so a "Sofia" doesn't get a
+ * buzz cut by chance (Paul's note: names, voices and looks should agree).
+ */
+const HEADS_BY_REGISTER: Record<VoiceRegister, Head[]> = {
+  female: HEADS.filter((k) =>
+    /^(Bangs|BangsTwo|BantuKnots|Bun|BunClip|BunKnots|BunTwo|ColorBun|ColorMedium|LongAfro|LongBangs|LongCurly|LongHair|Medium\w*|Wavy|Hijab|Twists|TwistsTwo|Afro)$/.test(
+      k,
+    ),
+  ),
+  male: HEADS.filter((k) =>
+    /^(Afro|Bald|Cornrows|CornrowsLight|DreadsOne|DreadsTwo|FlatTop|FlatTopLong|GrayShort|Mohawk|NoHairThree|NoHairTwo|Pomp|Shaved|ShavedOne|ShavedThree|Short\w*|Turban|Twists)$/.test(
+      k,
+    ),
+  ),
+};
 const BEARDS = Object.keys(PEEPS.beards) as Beard[];
 const GLASSES = Object.keys(PEEPS.accessories) as Accessory[];
 
@@ -96,24 +118,36 @@ function rng(seed: string) {
   };
 }
 
-// V4-07: the Registrar's hair description per student, so every screen draws
-// the same person. Filled from /api/looks at start and from each CadetView.
+// V4-07: the Registrar's hair description and the voice register per student,
+// so every screen draws the same person. Filled from /api/looks at start and
+// from each CadetView.
 const HAIR = new Map<string, string>();
-export function rememberHair(entries: Iterable<[string, string | undefined]>): void {
-  for (const [id, hair] of entries) if (hair) HAIR.set(id, hair);
+const REGISTER = new Map<string, VoiceRegister>();
+/** Hair and register, from anything shaped like a CadetView. */
+export function rememberLooks(
+  list: Iterable<{ id: string; hair?: string; register?: VoiceRegister }>,
+): void {
+  for (const c of list) {
+    if (c.hair) HAIR.set(c.id, c.hair);
+    if (c.register) REGISTER.set(c.id, c.register);
+  }
 }
 
-export function lookFor(id: string, hair = HAIR.get(id) ?? ""): Look {
+export function lookFor(
+  id: string,
+  hair = HAIR.get(id) ?? "",
+  register: VoiceRegister = REGISTER.get(id) ?? voiceRegister(id),
+): Look {
   const r = rng(id);
   const pick = <T>(xs: readonly T[]) => xs[Math.floor(r() * xs.length)]!;
   const matched = HAIR_WORDS.find(([re]) => re.test(hair))?.[1];
-  const head = matched ? pick(matched) : pick(HEADS);
+  const head = matched ? pick(matched) : pick(HEADS_BY_REGISTER[register]);
   const top = pick(CLOTHES);
   return {
     head,
-    body: pick(EVERYDAY),
+    body: pick(register === "male" ? EVERYDAY.filter((b) => b !== "Dress") : EVERYDAY),
     // Beards only on students with a lower voice, so look and voice agree (V1-04).
-    beard: r() < 0.3 && voiceRegister(id) === "male" ? pick(BEARDS) : undefined,
+    beard: r() < 0.3 && register === "male" ? pick(BEARDS) : undefined,
     accessory: r() < 0.24 ? pick(GLASSES) : undefined,
     skin: pick(SKIN),
     top,

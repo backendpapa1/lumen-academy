@@ -86,14 +86,17 @@ export function mountLobby(root: HTMLElement): () => void {
       ? "Pick up where you left off, or found a new School."
       : "Found your first School: pick a topic you want to really understand.";
     const wings = campus?.wings ?? [];
+    // The lobby shows the Schools I've taught most recently; the rest are a click away.
+    const shown = recentFirst(schools).slice(0, LOBBY_SCHOOLS);
     fill(
       grid,
-      ...schools.map((s) =>
+      ...shown.map((s) =>
         schoolCard(
           s,
           wings.find((w) => w.schoolId === s.id),
         ),
       ),
+      schools.length > shown.length ? allSchoolsCard(schools.length - shown.length) : null,
       newSchoolCard(),
     );
   };
@@ -243,14 +246,14 @@ function bestCard(b: NonNullable<CampusView["best"]>): HTMLElement {
   queueMicrotask(() => go.focus({ preventScroll: true }));
   return h(
     "section",
-    { class: `card pad resume best ${b.why}`, "aria-label": "Today's best class" },
+    { class: `card pad resume best why-${b.why}`, "aria-label": "Today's best class" },
     h("div", { class: "micro" }, "Today's best class"),
     h("div", { class: "h2", style: "margin:6px 0 2px" }, b.conceptTitle),
     h("div", { class: "dim" }, `${b.schoolName} · ${b.classroomName}`),
     h("p", { class: "best-why" }, b.reason),
     h(
       "div",
-      { class: "row", style: "margin-top:14px" },
+      { class: "row wrap-row", style: "margin-top:14px" },
       go,
       h(
         "button",
@@ -453,12 +456,181 @@ function archivedShelf(list: ArchivedSchool[]): HTMLElement[] {
             icon(ICONS.restore),
             "Restore",
           ),
+          h(
+            "button",
+            {
+              class: "btn small quiet danger",
+              "aria-label": `Delete ${s.name} for good`,
+              onclick: () => confirmDelete(s),
+            },
+            icon(ICONS.trash),
+            "Delete",
+          ),
         ),
       ),
     ),
   );
   details.addEventListener("toggle", () => (shelfOpen = details.open));
   return [details];
+}
+
+/** Deleting is for good, so the School's name has to be typed first. */
+function confirmDelete(s: ArchivedSchool) {
+  const input = h("input", {
+    class: "field",
+    "aria-label": "School name",
+    placeholder: s.name,
+    autocomplete: "off",
+  }) as HTMLInputElement;
+  const err = h("p", { class: "error-text", role: "alert" });
+  const go = h(
+    "button",
+    {
+      class: "btn primary danger",
+      disabled: true,
+      onclick: () => {
+        go.disabled = true;
+        app
+          .deleteSchool(s.id, s.name, input.value)
+          .then(() => close())
+          .catch((e: Error) => {
+            err.textContent = e.message;
+            go.disabled = false;
+          });
+      },
+    },
+    icon(ICONS.trash),
+    "Delete for good",
+  ) as HTMLButtonElement;
+  input.addEventListener("input", () => {
+    go.disabled = input.value.trim().toLowerCase() !== s.name.trim().toLowerCase();
+  });
+  input.addEventListener("keydown", (e) => e.key === "Enter" && !go.disabled && go.click());
+  const close = openModal(
+    `Delete ${s.name}?`,
+    h(
+      "div",
+      { class: "stack" },
+      h(
+        "p",
+        { style: "margin-top:0" },
+        `This removes ${plural(s.concepts, "concept")}, ${plural(s.classrooms, "class", "classes")}, their students, transcripts, exams and the School's sources and pictures. It can't be undone. Your XP and rank stay.`,
+      ),
+      h(
+        "p",
+        { class: "dim small" },
+        "Want a copy first? Restore it and use Export on the School screen.",
+      ),
+      h("label", { class: "micro" }, `Type “${s.name}” to confirm`),
+      input,
+      err,
+      h(
+        "div",
+        { class: "actions" },
+        h("button", { class: "btn quiet", onclick: () => close() }, "Keep it"),
+        h("span", { class: "spacer" }),
+        go,
+      ),
+    ),
+  );
+  input.focus();
+}
+
+/** Cards on the lobby before the rest go behind "See all". */
+const LOBBY_SCHOOLS = 5;
+
+const lastTaught = (s: SchoolSummary) =>
+  s.classrooms.reduce((m, c) => (c.lastPeriodAt && c.lastPeriodAt > m ? c.lastPeriodAt : m), "");
+
+/** Most recently taught first; never-taught Schools keep their order at the end. */
+function recentFirst(list: SchoolSummary[]): SchoolSummary[] {
+  return list
+    .map((s, i) => ({ s, i, t: lastTaught(s) }))
+    .sort((a, b) => (a.t === b.t ? a.i - b.i : a.t < b.t ? 1 : -1))
+    .map((x) => x.s);
+}
+
+function allSchoolsCard(more: number): HTMLElement {
+  return h(
+    "button",
+    {
+      class: "card pad interactive school-card all-schools",
+      onclick: () => openAllSchools(),
+      "aria-label": `See all Schools (${more} more)`,
+    },
+    h(
+      "div",
+      {},
+      h("div", { class: "more-count" }, `+${more}`),
+      h("div", { class: "h2" }, "See all Schools"),
+      h("p", { class: "dim", style: "margin:6px 0 0" }, "Search and open any of them."),
+    ),
+  );
+}
+
+/** Every School in one list, searchable, newest teaching first. */
+export function openAllSchools() {
+  const schools = store.getState().setup.schools ?? [];
+  const wings = store.getState().setup.campus?.wings ?? [];
+  const search = h("input", {
+    class: "field",
+    type: "search",
+    placeholder: "Search your Schools",
+    "aria-label": "Search your Schools",
+  }) as HTMLInputElement;
+  const list = h("ul", { class: "all-list", role: "list" });
+  const when = (iso: string) =>
+    iso
+      ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(iso))
+      : "not taught yet";
+  const render = () => {
+    const q = search.value.trim().toLowerCase();
+    const rows = recentFirst(schools).filter(
+      (s) =>
+        !q || s.name.toLowerCase().includes(q) || (s.description ?? "").toLowerCase().includes(q),
+    );
+    fill(
+      list,
+      ...(rows.length
+        ? rows.map((s) => {
+            const w = wings.find((x) => x.schoolId === s.id);
+            return h(
+              "li",
+              {},
+              h(
+                "button",
+                {
+                  class: "all-row",
+                  onclick: () => {
+                    close();
+                    app.openSchool(s.id);
+                  },
+                },
+                emblem(s),
+                h(
+                  "span",
+                  { class: "all-name" },
+                  h("b", {}, s.name),
+                  h(
+                    "span",
+                    { class: "dim small" },
+                    `${plural(s.concepts, "concept")} · ${plural(s.classrooms.length, "class", "classes")} · ${w ? w.tierName : "Blueprint"}`,
+                  ),
+                ),
+                h("span", { class: "mono small dim" }, when(lastTaught(s))),
+              ),
+            );
+          })
+        : [h("li", { class: "dim" }, `No School matches “${search.value}”.`)]),
+    );
+  };
+  search.addEventListener("input", render);
+  render();
+  const close = openModal(
+    `All Schools · ${schools.length}`,
+    h("div", { class: "all-schools-body" }, search, list),
+  );
+  search.focus();
 }
 
 function newSchoolCard(): HTMLElement {

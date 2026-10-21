@@ -38,7 +38,7 @@ function arcLabel(
   const s = students.find((x) => x.id === id);
   return s ? (ARCS[s.archetype as Archetype]?.stages[s.arc.stage]?.label ?? "") : "";
 }
-import { hairOf } from "../game/looks.js";
+import { hairOf, registerOf } from "../game/looks.js";
 import {
   ServerMessageZ,
   type CadetView,
@@ -1161,6 +1161,7 @@ export class ClassroomConnection {
         quirk: row.quirk,
         portraitUrl: this.portraitUrl(row.portraitAssetId),
         hair: hairOf(row.traitsJson),
+        register: registerOf(r.id, row.traitsJson),
         interests: interestsOf(row.interestsJson),
         ...arcView(row.archetype as Archetype, session.flavour.find((f) => f.id === r.id)?.arc),
         // What they recall today (V2 forgetting), not the old peak.

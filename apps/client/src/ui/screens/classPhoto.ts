@@ -1,6 +1,7 @@
 import { api, ApiError } from "../../core/api";
 import { app } from "../../core/app";
-import { lookFor, peepSvg, rememberHair, restingFace } from "../peeps/peep";
+import type { VoiceRegister } from "@lumen/shared";
+import { lookFor, peepSvg, rememberLooks, restingFace } from "../peeps/peep";
 import { fill, h } from "./dom";
 import { openModal } from "./modal";
 
@@ -21,6 +22,7 @@ interface PhotoData {
     name: string;
     archetype: string;
     hair: string;
+    register?: VoiceRegister;
     stickers: string[];
   }>;
 }
@@ -59,7 +61,7 @@ export function photoSvg(d: PhotoData): string {
     const x0 = W / 2 - ((row.length - 1) * gap) / 2 + (depth % 2 ? gap / 2 : 0);
     row.forEach((s, i) => {
       const cx = x0 + i * gap;
-      const bust = peepSvg(lookFor(s.id, s.hair), {
+      const bust = peepSvg(lookFor(s.id, s.hair, s.register), {
         face: s.stickers.length ? "Smile" : restingFace(s.archetype as never),
       }).replace("<svg ", `<svg x="${cx - bw / 2}" y="${y}" width="${bw}" height="${bh}" `);
       // A graduation stole in the School's colour, and a mortarboard on top.
@@ -118,7 +120,7 @@ export function openClassPhoto(classroomId: string) {
   api
     .get<PhotoData>(`/api/classrooms/${classroomId}/photo-data`)
     .then((d) => {
-      rememberHair(d.students.map((s) => [s.id, s.hair]));
+      rememberLooks(d.students);
       const svg = photoSvg(d);
       const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
       const save = h(
