@@ -87,6 +87,8 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
   ),
   msg("hand.call", z.strictObject({ cadetId: z.string() })),
   msg("concept.set", z.strictObject({ conceptId: z.string() })),
+  /** T-9: the chalkboard block; empty text clears it. */
+  msg("board.set", z.strictObject({ text: z.string().max(600) })),
   msg("period.pause", empty),
   /** T-7: more time after the bell. */
   msg("period.extend", z.strictObject({ minutes: z.number().int().min(1).max(30) })),
@@ -119,6 +121,8 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       /** Picked up an unfinished period; it starts paused. */
       resumed: z.boolean(),
       paused: z.boolean(),
+      /** The chalkboard block, if one was written this period (T-9). */
+      board: z.string().optional(),
       transcript: z.array(TranscriptLineViewZ),
       xp: XpStandingZ,
     }),
@@ -250,6 +254,7 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
   ),
   msg("period.paused", z.strictObject({ paused: z.boolean(), elapsedMs: z.number() })),
   msg("period.extended", z.strictObject({ plannedMinutes: z.number() })),
+  msg("board.updated", z.strictObject({ text: z.string() })),
   /** "Last time…" arrives after period.started so starting a class never waits on it. */
   msg("period.recap", z.strictObject({ periodId: z.string(), text: z.string() })),
   msg("turn.started", z.strictObject({ turnId: z.string(), text: z.string() })),

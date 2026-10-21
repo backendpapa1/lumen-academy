@@ -90,7 +90,10 @@ export function installKeyboard(game: Phaser.Game): void {
         statsOverlay.toggle();
         break;
       case "notYet":
-        app.notify(NOT_YET[action.feature]);
+        if (action.feature === "notes") void import("../ui/dom/notes").then((m) => m.toggleNotes());
+        else if (action.feature === "hyperfocus")
+          void import("./hyperfocus").then((m) => m.toggleHyperfocus());
+        else app.notify(NOT_YET[action.feature]);
         break;
     }
     e.preventDefault();

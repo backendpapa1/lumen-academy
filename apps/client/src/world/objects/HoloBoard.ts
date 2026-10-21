@@ -79,9 +79,30 @@ export class HoloBoard {
     g.fillStyle = "#E6EDF7";
     g.font = '700 64px "Space Grotesk"';
     wrap(g, c.concept || "Waiting for class…", pad, pad + 100, W - pad * 2, 72, 2);
-    g.fillStyle = "#C9D4E5";
-    g.font = '400 34px "Inter"';
-    if (c.point) wrap(g, `“${c.point}”`, pad, pad + 290, W - pad * 2, 48, 4);
+    if (c.board) {
+      // T-9: the chalkboard block, in mono on a darker slate; the last point shrinks below it.
+      const top = pad + 200;
+      const lines = c.board.split("\n").slice(0, 5);
+      const boxH = 34 + lines.length * 46;
+      g.fillStyle = "rgba(5,7,13,0.55)";
+      g.fillRect(pad - 16, top - 40, W - pad * 2 + 32, boxH);
+      g.fillStyle = "#5BE7FF";
+      g.fillRect(pad - 16, top - 40, 4, boxH);
+      g.fillStyle = "#DFF8FF";
+      g.font = '500 34px "JetBrains Mono"';
+      lines.forEach((l, i) =>
+        g.fillText(l.length > 52 ? `${l.slice(0, 51)}…` : l, pad + 4, top + i * 46),
+      );
+      if (c.point) {
+        g.fillStyle = "#8A96AD";
+        g.font = '400 26px "Inter"';
+        wrap(g, `“${c.point}”`, pad, top + boxH + 10, W - pad * 2, 36, 2);
+      }
+    } else {
+      g.fillStyle = "#C9D4E5";
+      g.font = '400 34px "Inter"';
+      if (c.point) wrap(g, `“${c.point}”`, pad, pad + 290, W - pad * 2, 48, 4);
+    }
     if (c.understanding !== null) {
       const y = H - pad - 10;
       g.fillStyle = "#8A96AD";

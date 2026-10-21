@@ -328,6 +328,24 @@ export class ClassSession {
     return this.planned;
   }
 
+  /** T-9: the chalkboard block for this period ("" = clear). Cadets see it in the transcript. */
+  get board(): string {
+    const row = this.deps.handle.sqlite
+      .prepare(
+        "SELECT text FROM messages WHERE period_id = ? AND kind = 'board' ORDER BY created_at DESC, rowid DESC LIMIT 1",
+      )
+      .get(this.periodId) as { text: string } | undefined;
+    return row?.text ?? "";
+  }
+
+  setBoard(text: string): string {
+    if (this.closed) throw new Error("period has ended");
+    const t = text.trim();
+    this.saveMessage("teacher", "board", t);
+    if (t) this.transcript.push({ speaker: "Headmaster", text: `(writes on the board) ${t}` });
+    return t;
+  }
+
   get paused(): boolean {
     return this.runningSince === null;
   }
@@ -364,18 +382,20 @@ export class ClassSession {
     const { sqlite } = this.deps.handle;
     const rows = sqlite
       .prepare(
-        `SELECT speaker, text FROM messages WHERE period_id = ?
-         AND kind IN ('lecture','answer','question','objection','claim') ORDER BY created_at, rowid`,
+        `SELECT speaker, kind, text FROM messages WHERE period_id = ?
+         AND kind IN ('lecture','answer','question','objection','claim','board') ORDER BY created_at, rowid`,
       )
-      .all(this.periodId) as Array<{ speaker: string; text: string }>;
-    for (const r of rows)
+      .all(this.periodId) as Array<{ speaker: string; kind: string; text: string }>;
+    for (const r of rows) {
+      if (r.kind === "board" && !r.text) continue;
       this.transcript.push({
         speaker:
           r.speaker === "teacher"
             ? "Headmaster"
             : (roster.find((c) => c.id === r.speaker)?.name ?? r.speaker),
-        text: r.text,
+        text: r.kind === "board" ? `(writes on the board) ${r.text}` : r.text,
       });
+    }
     const ord = sqlite
       .prepare("SELECT max(ord) AS n FROM turns WHERE period_id = ?")
       .get(this.periodId) as { n: number | null };
@@ -899,7 +919,7 @@ export class ClassSession {
 
   private saveMessage(
     speaker: string,
-    kind: "lecture" | "answer" | "question" | "objection" | "claim",
+    kind: "lecture" | "answer" | "question" | "objection" | "claim" | "board",
     text: string,
     replyToId?: string,
     meta?: unknown,

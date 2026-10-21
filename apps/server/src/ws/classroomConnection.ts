@@ -116,6 +116,10 @@ export class ClassroomConnection {
             payload: { paused: session.paused, elapsedMs: session.elapsedMs() },
           });
         }
+        case "board.set": {
+          const text = this.requireSession().setBoard(msg.payload.text);
+          return this.send({ type: "board.updated", payload: { text } });
+        }
         case "period.extend": {
           const plannedMinutes = this.requireSession().extend(msg.payload.minutes);
           return this.send({ type: "period.extended", payload: { plannedMinutes } });
@@ -237,6 +241,7 @@ export class ClassroomConnection {
         elapsedMs: Math.round(session.elapsedMs()),
         resumed: session.resumed,
         paused: session.paused,
+        ...(session.resumed && session.board ? { board: session.board } : {}),
         transcript: session.resumed ? this.transcriptView(session.periodId) : [],
         xp: standing(handle, game),
       },

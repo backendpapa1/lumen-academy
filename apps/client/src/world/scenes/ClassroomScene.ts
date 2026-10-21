@@ -138,6 +138,7 @@ export class ClassroomScene implements WorldScene {
       concept: c.concept?.title ?? "",
       point: lastPoint,
       understanding: c.classAverage,
+      board: c.board,
     });
     this.speakerId = c.speech?.cadetId ?? null;
     // A cadet starting to speak sends a ripple across the floor from their seat.

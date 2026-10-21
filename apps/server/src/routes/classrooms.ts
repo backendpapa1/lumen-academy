@@ -30,6 +30,15 @@ export function registerClassroomRoutes(app: FastifyInstance, handle: DbHandle) 
     return schools.map((s) => ({ ...s, classrooms: rooms.filter((r) => r.schoolId === s.id) }));
   });
 
+  // T-8: a cadet's own notes on what was taught (misconceptions and all).
+  app.get<{ Params: { id: string } }>("/api/cadets/:id/notes", async (req, reply) => {
+    const row = sqlite
+      .prepare("SELECT id, name, archetype, notes_md AS notes FROM cadets WHERE id = ?")
+      .get(req.params.id) as
+      { id: string; name: string; archetype: string; notes: string } | undefined;
+    return row ?? reply.code(404).send({ error: "no such cadet" });
+  });
+
   app.get<{ Params: { id: string } }>("/api/classrooms/:id", async (req, reply) => {
     const room = sqlite
       .prepare(

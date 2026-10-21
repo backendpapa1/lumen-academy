@@ -91,6 +91,8 @@ export interface ClassroomState {
   /** The last XP gain, for the "+15 XP" flourish. */
   xpGain?: { delta: number; reason: string; at: number };
   ended?: Omit<ServerMessageOf<"period.ended">["payload"], "periodId">;
+  /** T-9: the chalkboard block on the holo-board. */
+  board: string;
   /** The exit-ticket minigame at the bell (M4-05). */
   exit?: ExitTicketsState;
 }
@@ -110,6 +112,7 @@ export const initialClassroom = (): ClassroomState => ({
   thinking: false,
   toasts: [],
   xp: null,
+  board: "",
 });
 
 let toastSeq = 0;
@@ -136,6 +139,7 @@ export function applyServerMessage(
         clock: { elapsedMs: m.payload.elapsedMs, at: now, paused: m.payload.paused },
         resumed: m.payload.resumed,
         xp: m.payload.xp,
+        board: m.payload.board ?? "",
         transcript: m.payload.transcript.map((t) => ({
           speaker: t.cadetId ? "cadet" : "headmaster",
           cadetId: t.cadetId,
@@ -184,6 +188,8 @@ export function applyServerMessage(
         xp: m.payload.standing,
         xpGain: { delta: m.payload.delta, reason: m.payload.reason, at: now },
       };
+    case "board.updated":
+      return { ...s, board: m.payload.text };
     case "period.extended":
       return { ...s, plannedMinutes: m.payload.plannedMinutes };
     case "period.paused":

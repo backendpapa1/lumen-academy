@@ -129,6 +129,7 @@ export const app = {
   },
   teach(text: string) {
     const t = text.trim();
+    if (t.startsWith("/")) return this.command(t);
     if (!t || store.getState().classroom.status !== "live") return;
     store.setState((s) => ({
       classroom: { ...s.classroom, lastSendAt: Date.now(), thinking: true },
@@ -146,6 +147,39 @@ export const app = {
   },
   resume() {
     if (store.getState().classroom.status === "live") ensureNet().send("period.resume", {});
+  },
+  /**
+   * Lectern quick actions (docs/02 §3.3): /board <text> (T-9, "/board clear"),
+   * /focus (Hyperfocus), /recap (last time…), /assign, /help.
+   */
+  command(text: string) {
+    const [cmd = ""] = text.slice(1).split(/\s+/);
+    const arg = text.slice(1 + cmd.length).trim();
+    const c = store.getState().classroom;
+    switch (cmd.toLowerCase()) {
+      case "board":
+        ensureNet().send("board.set", {
+          text: arg.toLowerCase() === "clear" ? "" : arg.replace(/\s*\|\s*/g, "\n"),
+        });
+        return;
+      case "focus":
+        return void import("./hyperfocus").then((m) => m.toggleHyperfocus());
+      case "recap": {
+        // The HUD shows the card when recap changes, so clear it and set it again.
+        const text = c.recap ?? "No recap from last time yet: this is the class's first period.";
+        store.setState((st) => ({ classroom: { ...st.classroom, recap: undefined } }));
+        queueMicrotask(() =>
+          store.setState((st) => ({ classroom: { ...st.classroom, recap: text } })),
+        );
+        return;
+      }
+      case "assign":
+        return this.notify("At the bell, “Set homework” takes you straight to the Class Desk.");
+      default:
+        return this.notify(
+          "Lectern commands: /board <text> (| for a new line, /board clear) · /focus · /recap · /assign",
+        );
+    }
   },
   /** T-7: more time after the bell. */
   extend(minutes = 5) {
