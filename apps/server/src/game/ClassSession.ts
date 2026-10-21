@@ -353,7 +353,7 @@ export class ClassSession {
     if (this.closed) throw new Error("period has ended");
     const t = text.trim();
     this.saveMessage("teacher", "board", t);
-    if (t) this.transcript.push({ speaker: "Headmaster", text: `(writes on the board) ${t}` });
+    if (t) this.transcript.push({ speaker: "Teacher", text: `(writes on the board) ${t}` });
     return t;
   }
 
@@ -402,7 +402,7 @@ export class ClassSession {
       this.transcript.push({
         speaker:
           r.speaker === "teacher"
-            ? "Headmaster"
+            ? "Teacher"
             : (roster.find((c) => c.id === r.speaker)?.name ?? r.speaker),
         text: r.kind === "board" ? `(writes on the board) ${r.text}` : r.text,
       });
@@ -434,7 +434,7 @@ export class ClassSession {
     // Snapshot the transcript now: "recent class" must not include this message,
     // which the prompts present separately as what the Headmaster just said.
     const before = [...this.transcript];
-    this.transcript.push({ speaker: "Headmaster", text });
+    this.transcript.push({ speaker: "Teacher", text });
     // The reactor starts at once on the ledger as it stands (at most one turn
     // stale): a gut reaction doesn't need the last analysis, and waiting for it
     // cost ~1s of first-reaction latency (D13). The Director still waits, so
@@ -554,7 +554,7 @@ export class ClassSession {
               : [],
             transcript: [...this.transcript],
             intent: hand?.intent ?? "clarify",
-            preview: hand?.preview ?? "(the Headmaster called on you)",
+            preview: hand?.preview ?? "(the teacher called on you)",
             canPeek,
             hyperfocus: this.hyperfocus,
             difficulty: this.difficulty,
@@ -614,7 +614,7 @@ export class ClassSession {
         guardUtterance(factory, {
           utteranceId: messageId,
           utterance: text,
-          taughtLines: this.transcript.filter((l) => l.speaker === "Headmaster").map((l) => l.text),
+          taughtLines: this.transcript.filter((l) => l.speaker === "Teacher").map((l) => l.text),
           flaggedTerms: terms.untaught,
           forced: terms.forceGuard,
           sampleRate: this.deps.factory.config.agents.leakGuard.sampleRate ?? 0.5,
@@ -808,7 +808,7 @@ export class ClassSession {
     return [
       new SystemMessage(system),
       new HumanMessage(
-        `Recent class:\n${recentTranscript(transcript)}\n\nThe Headmaster just said:\n"${text}"`,
+        `Recent class:\n${recentTranscript(transcript)}\n\nThe teacher just said:\n"${text}"`,
       ),
     ];
   }

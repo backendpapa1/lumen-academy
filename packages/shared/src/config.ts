@@ -241,6 +241,8 @@ export const GameConfigZ = z.strictObject({
   }),
   registration: z.strictObject({
     batchSize: z.number().int().min(1).max(15),
+    /** Generated portrait images per student. Off since students are drawn (ADR-009). */
+    portraits: z.boolean().default(false),
     guaranteed: z.array(
       z.strictObject({ archetype: z.enum(ARCHETYPE_KEYS), minSize: z.number().int().min(1) }),
     ),

@@ -240,7 +240,7 @@ describe("classroom over WebSocket", () => {
     });
     expect(again.payload.elapsedMs).toBe(row().elapsed_ms);
     const name = again.payload.cadets.find((c) => c.id === w.cadets[0]!.id)!.name;
-    expect(again.payload.transcript.map((t) => t.speaker)).toEqual(["Headmaster", name]);
+    expect(again.payload.transcript.map((t) => t.speaker)).toEqual(["Teacher", name]);
     expect(again.payload.transcript[1]).toMatchObject({
       cadetId: w.cadets[0]!.id,
       text: "Headmaster, where is the root kept?",

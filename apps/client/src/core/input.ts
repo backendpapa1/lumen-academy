@@ -1,7 +1,7 @@
-import type * as Phaser from "phaser";
 import { transcript } from "../ui/dom/transcript";
 import { lectern } from "../ui/dom/lectern";
 import { statsOverlay } from "../ui/dom/stats";
+import { classroomUi } from "../ui/room";
 import { sound } from "./audio";
 import { world } from "../world/anchors";
 import { app } from "./app";
@@ -9,25 +9,16 @@ import { cycle, routeKey } from "./keys";
 import { store } from "./store";
 
 // Input routing (docs/05 §4.4). Keys: a global handler over routeKey().
-// Pointer: Phaser sees every event first; ClassroomHud forwards the ones no
-// HUD object handled here, and we raycast them into the Three.js world.
+// Pointer: the drawn room handles its own (ui/room/Room.ts); `pointer` below
+// routes canvas events into whichever world is on screen.
 
-interface HudControls {
-  toggleRoster(): void;
-  /** Closes the concept menu or roster if open; true if it closed something. */
-  closeTop(): boolean;
-  readonly hasOpen: boolean;
-}
-
-export function installKeyboard(game: Phaser.Game): void {
+export function installKeyboard(): void {
   window.addEventListener("keydown", (e) => {
     const st = store.getState();
     const c = st.classroom;
     if (st.route.name !== "classroom" || c.status !== "live" || e.isComposing) return;
     const active = document.activeElement;
-    const hud = game.scene.isActive("classroomHud")
-      ? (game.scene.getScene("classroomHud") as unknown as HudControls)
-      : null;
+    const hud = classroomUi.hud;
     const action = routeKey({
       key: e.key,
       shift: e.shiftKey,

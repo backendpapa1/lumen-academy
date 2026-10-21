@@ -7,9 +7,9 @@ const KEY = "lumen.onboarded";
 
 const STEPS: Array<{ kicker: string; title: string; body: string }> = [
   {
-    kicker: "Welcome, Headmaster",
+    kicker: "Welcome, teacher",
     title: "You learn by teaching.",
-    body: "Lumen Academy is an orbital school where you teach a class of AI cadets. Explaining something is the fastest way to find out whether you really understand it.",
+    body: "Lumen Academy is a school where you teach a class of AI students. Explaining something is the fastest way to find out whether you really understand it.",
   },
   {
     kicker: "Schools",
@@ -18,7 +18,7 @@ const STEPS: Array<{ kicker: string; title: string; body: string }> = [
   },
   {
     kicker: "The mirror",
-    title: "Your cadets only know what you teach.",
+    title: "Your students only know what you teach.",
     body: "They react as you explain, raise their hands when you're vague, and repeat your mistakes back to you. When they're confused, that's where your own understanding is thin.",
   },
   {
@@ -29,7 +29,7 @@ const STEPS: Array<{ kicker: string; title: string; body: string }> = [
   {
     kicker: "Controls",
     title: "Mostly your keyboard.",
-    body: "Enter to teach · Tab and Space to call on a hand · Esc to pause · ` for the transcript · N for a cadet's notes · F for Hyperfocus · M for sound.",
+    body: "Enter to teach · Tab and Space to call on a hand · Esc to pause · ` for the transcript · N for a student's notes · F for Hyperfocus · M for sound.",
   },
 ];
 

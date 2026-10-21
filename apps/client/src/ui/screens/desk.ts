@@ -170,7 +170,7 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
           ...(mode === "own" ? { prompt: own.value } : {}),
         })
         .then((r) => {
-          app.notify("Homework set. Your cadets are working on it.");
+          app.notify("Homework set. Your students are working on it.");
           app.openDesk(schoolId, classroomId, "assignments", r.assignmentId);
           void load();
         })
@@ -190,7 +190,7 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
           ? h(
               "p",
               { class: "dim" },
-              "Pick what to test. Each cadet answers from what they actually understood, so their work shows how well each idea landed.",
+              "Pick what to test. Each student answers from what they actually understood, so their work shows how well each idea landed.",
             )
           : h(
               "p",
@@ -233,14 +233,14 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
                 ),
                 h("span", { class: "spacer" }),
                 job && job.status === "collecting"
-                  ? statusChip("busy", `Cadets working ${job.done}/${job.total}`)
+                  ? statusChip("busy", `Students working ${job.done}/${job.total}`)
                   : statusChip(
                       a.status === "graded" ? "ready" : a.status === "issued" ? "busy" : "",
                       a.status === "submitted"
                         ? "To grade"
                         : a.status === "graded"
                           ? "Graded"
-                          : "Cadets working",
+                          : "Students working",
                     ),
               );
             }),
@@ -282,7 +282,7 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
           statusChip(
             waiting ? "busy" : a.status === "graded" ? "ready" : "",
             waiting
-              ? `Cadets working${job ? ` ${job.done}/${job.total}` : ""}`
+              ? `Students working${job ? ` ${job.done}/${job.total}` : ""}`
               : a.status === "graded"
                 ? "All graded"
                 : `${a.submissions.filter((s) => s.myScore === null).length} to grade`,
@@ -309,7 +309,7 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
         ? h(
             "div",
             { class: "card empty", style: "margin-top:16px" },
-            "Your cadets are answering. Their work appears here as it comes in.",
+            "Your students are answering. Their work appears here as it comes in.",
           )
         : h("div", { class: "subs" }, ...a.submissions.map((s) => submissionCard(a, s))),
     );
@@ -332,7 +332,7 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
     const ret = h(
       "button",
       { class: "btn primary", disabled: !score },
-      s.gradedAt ? "Update grade" : "Return to cadet",
+      s.gradedAt ? "Update grade" : "Return to student",
     );
     const ghost = s.refScore;
     const renderScale = () => {
@@ -394,11 +394,7 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
       h(
         "div",
         { class: "row" },
-        portrait({
-          archetype: s.archetype as Archetype,
-          portraitUrl: s.portraitUrl,
-          name: s.cadetName,
-        }),
+        portrait({ id: s.cadetId, archetype: s.archetype as Archetype, name: s.cadetName }),
         h(
           "div",
           {},
@@ -460,7 +456,7 @@ export function mountDesk(root: HTMLElement, schoolId: string, classroomId: stri
       h(
         "p",
         { class: "dim", style: "margin-top:0" },
-        `A module exam unlocks once you've taught ${Math.round(d.unlock * 100)}% of its concepts. The cadets sit it in the classroom; the Grader marks it against the source.`,
+        `A module exam unlocks once you've taught ${Math.round(d.unlock * 100)}% of its concepts. The students sit it in the exam hall; the Grader marks it against the source.`,
       ),
       ...d.modules.map((m) => {
         const pct = Math.round(m.eligibility.fraction * 100);

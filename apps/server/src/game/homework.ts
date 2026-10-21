@@ -401,7 +401,7 @@ async function feedbackLearning(
         messages: [
           new SystemMessage(system),
           new HumanMessage(
-            `This is written homework feedback, one to one, to ${f.cadet.name} (${f.cadet.id}) only.\n\n${work}\n\nThe Headmaster graded it ${f.score}/5 and wrote back:\n"${f.comment}"`,
+            `This is written homework feedback, one to one, to ${f.cadet.name} (${f.cadet.id}) only.\n\n${work}\n\nThe teacher graded it ${f.score}/5 and wrote back:\n"${f.comment}"`,
           ),
         ],
       })

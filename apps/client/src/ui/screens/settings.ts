@@ -95,7 +95,7 @@ function form(s: Settings, close: () => void): HTMLElement {
       "label",
       { class: "row", style: "gap:8px;margin-top:8px;font-size:14px" },
       events,
-      "Surprises in class (pop quizzes, hologram glitches, power flickers)",
+      "Surprises in class (pop quizzes, mix-ups, flickering lights, a visit from the Dean)",
     ),
     keys,
     err,

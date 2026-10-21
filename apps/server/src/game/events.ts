@@ -96,7 +96,7 @@ async function prepare(
       id: newId("message"),
       kind,
       cadetId: c.id,
-      text: `Pop quiz, Headmaster! In a few sentences: explain "${ctx.concept.title}" so I'd get it.`,
+      text: `Pop quiz! In a few sentences: explain "${ctx.concept.title}" so I'd get it.`,
       seconds: 90,
       facts: ctx.concept.keyFacts,
     };

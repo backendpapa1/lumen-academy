@@ -26,7 +26,7 @@ export function mountRegistration(
     { class: "progress", style: "width:100%" },
     h("span", { style: "width:0%" }),
   );
-  const list = h("div", { class: "reg-list", role: "list", "aria-label": "Enrolled cadets" });
+  const list = h("div", { class: "reg-list", role: "list", "aria-label": "Enrolled students" });
   const panel = h(
     "div",
     { class: "reg-panel" },
@@ -73,7 +73,7 @@ export function mountRegistration(
   const render = (r: Registration) => {
     title.textContent = r.name;
     const visible = r.arrivals.slice(0, shown);
-    count.textContent = `${visible.length} of ${r.total} cadets arrived`;
+    count.textContent = `${visible.length} of ${r.total} students arrived`;
     (bar.firstElementChild as HTMLElement).style.width =
       `${(visible.length / Math.max(1, r.total)) * 100}%`;
     // Cards: newest at the top. Existing cards stay put (no replayed animation);
@@ -133,7 +133,7 @@ export function mountRegistration(
           h(
             "p",
             { class: "dim" },
-            r.detail ?? "Something went wrong while the cadets were registering.",
+            r.detail ?? "Something went wrong while the students were enrolling.",
           ),
           h(
             "button",
@@ -153,7 +153,7 @@ export function mountRegistration(
       h(
         "p",
         { class: "lede", style: "margin:0 auto 20px" },
-        `${r.total} cadets are in their seats, waiting for you.`,
+        `${r.total} students are in their seats, waiting for you.`,
       ),
       h(
         "button",

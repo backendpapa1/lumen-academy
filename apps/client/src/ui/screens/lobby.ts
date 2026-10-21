@@ -145,7 +145,7 @@ function heroParts(c: CampusView): HTMLElement[] {
         h(
           "div",
           { style: "flex:1;min-width:0" },
-          h("div", { class: "micro" }, "Headmaster rank"),
+          h("div", { class: "micro" }, "Teacher rank"),
           h("div", { class: "h2" }, c.xp.rank),
           h(
             "div",
@@ -175,7 +175,7 @@ function heroParts(c: CampusView): HTMLElement[] {
           { class: "dim", style: "font-size:13px;margin-top:4px" },
           // Forgiving (P-3): never a dramatic zero; the best streak is shown with pride.
           st.missedDays >= 2
-            ? "A little nebula fog drifted in. Teach once to clear it."
+            ? "A few clouds rolled in over the campus. Teach once to clear the sky."
             : st.taughtToday
               ? "You taught today."
               : st.current
@@ -282,7 +282,7 @@ function schoolCard(s: SchoolSummary, wing?: CampusView["wings"][number]): HTMLE
             ? "Add a source to get started."
             : !s.concepts
               ? "Build the curriculum next."
-              : "Open a class to meet your cadets.",
+              : "Open a class to meet your students.",
         ),
   );
 }
@@ -367,7 +367,7 @@ export function newSchoolDialog() {
     class: "field",
     id: "school-desc",
     maxlength: 400,
-    placeholder: "What should this School cover? (optional, helps the emblem and the cadets)",
+    placeholder: "What should this School cover? (optional, helps the emblem and the students)",
   });
   const err = h("p", { class: "error-text", role: "alert" });
   const create = h("button", { class: "btn primary", type: "submit" }, "Found School");
@@ -416,7 +416,7 @@ function importSchoolDialog() {
     h(
       "p",
       { class: "dim" },
-      "Choose a School exported from Lumen Academy (its .zip). Sources, curriculum, classes, cadets and history all come with it.",
+      "Choose a School exported from Lumen Academy (its .zip). Sources, curriculum, classes, students and history all come with it.",
     ),
     h("label", { class: "lbl", for: "import-zip" }, "Export file"),
     input,

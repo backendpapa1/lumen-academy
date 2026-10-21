@@ -108,7 +108,7 @@ describe("cadet turn", () => {
       .join("\n");
     expect(prompt).toContain("Root = summary hash."); // notes injected (ADR-001)
     expect(prompt).toContain('to clarify: "Where does the root live?"');
-    expect(prompt).toContain("Headmaster: The Merkle root lives in the block header.");
+    expect(prompt).toContain("Teacher: The Merkle root lives in the block header.");
     await session.close();
   });
 
@@ -166,7 +166,7 @@ describe("cadet turn", () => {
     const toolResult = calls
       .filter((b) => agentOf(b) === "cadet")[1]!
       .messages.find((m) => m.role === "tool")!.content;
-    expect(toolResult).toContain("Headmaster: The root goes in the header.");
+    expect(toolResult).toContain("Teacher: The root goes in the header.");
     expect(toolResult).not.toContain("every transaction");
     await session.close();
   });

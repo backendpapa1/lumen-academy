@@ -91,7 +91,7 @@ export function reactorMessages(input: ReactorInput): BaseMessage[] {
   return [
     new SystemMessage(system),
     new HumanMessage(
-      `Recent class:\n${recentTranscript(input.transcript)}\n\nThe Headmaster just said:\n"${input.teacherMessage}"`,
+      `Recent class:\n${recentTranscript(input.transcript)}\n\nThe teacher just said:\n"${input.teacherMessage}"`,
     ),
   ];
 }

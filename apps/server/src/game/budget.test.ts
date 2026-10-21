@@ -69,8 +69,10 @@ describe("budget guard end to end (M1-14)", () => {
       expect(meter.budgetState()).toBe(state);
     };
     const seatsIn = (b: FakeRequest) =>
-      (b.messages.find((m) => m.content.includes("Cadets (seat"))!.content.match(/^\d+ \|/gm) ?? [])
-        .length;
+      (
+        b.messages.find((m) => m.content.includes("Students (seat"))!.content.match(/^\d+ \|/gm) ??
+        []
+      ).length;
 
     // Normal: the whole class reacts.
     await session.teach("Turn one.").committed;

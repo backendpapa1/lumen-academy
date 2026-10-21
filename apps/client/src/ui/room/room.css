@@ -1,0 +1,593 @@
+/* The illustrated classroom (ADR-009). Flat fills, cobalt ink, hard shadows. */
+
+.room {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  background: var(--sky);
+  transition: filter 1.2s var(--ease);
+}
+.room > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.room svg * {
+  vector-effect: none;
+}
+
+/* --- room ------------------------------------------------------------------- */
+.room .wall {
+  fill: var(--sky-hi);
+}
+.room .wall-dots .dot,
+.room .dot {
+  fill: var(--cobalt);
+  opacity: 0.09;
+}
+.room .ceiling {
+  fill: var(--sky);
+}
+.room .trim {
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+}
+.room .trim.thick {
+  stroke-width: 3.5;
+}
+.room .wainscot {
+  fill: var(--sky);
+}
+.room .wainscot-panels rect {
+  fill: none;
+  stroke: var(--cobalt);
+  stroke-width: 1.4;
+  opacity: 0.35;
+}
+.room .floor {
+  fill: #e9efff;
+}
+.room .boards line {
+  stroke: var(--cobalt);
+  stroke-width: 1.4;
+  opacity: 0.2;
+}
+
+.room .lamp line {
+  stroke: var(--cobalt);
+  stroke-width: 2;
+}
+.room .lamp path {
+  fill: var(--paper);
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.room .lamp .glow {
+  fill: var(--marigold);
+  opacity: 0.35;
+}
+
+.room .window .win-shadow,
+.room .door .door-shadow,
+.room .corkboard .cork-shadow,
+.room .board-shadow {
+  fill: var(--cobalt);
+}
+.room .win-frame {
+  fill: var(--paper);
+  stroke: var(--cobalt);
+  stroke-width: 3;
+}
+.room .window .mullion,
+.room .door .mullion {
+  stroke: var(--cobalt);
+  stroke-width: 5;
+}
+.room .window .sill {
+  fill: var(--paper);
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+}
+.room .window .hill {
+  fill: #b8e6c9;
+  stroke: var(--cobalt);
+  stroke-width: 2;
+}
+.room .window .tree rect {
+  fill: var(--cobalt);
+}
+.room .window .tree circle {
+  fill: #7fd1a0;
+  stroke: var(--cobalt);
+  stroke-width: 2;
+}
+.room .window .cloud path {
+  fill: #fff;
+  stroke: var(--cobalt);
+  stroke-width: 2;
+  animation: drift calc(48s + var(--d) * 9s) linear infinite;
+  animation-delay: calc(var(--d) * -13s);
+}
+.room .window .stars circle {
+  fill: #fff;
+}
+@keyframes drift {
+  from {
+    transform: translateX(-110px);
+  }
+  to {
+    transform: translateX(150px);
+  }
+}
+
+.room .plant .leaf {
+  fill: #7fd1a0;
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.room .plant .pot {
+  fill: var(--coral);
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.room .clock .face {
+  fill: var(--paper);
+  stroke: var(--cobalt);
+  stroke-width: 4;
+  filter: drop-shadow(4px 4px 0 var(--cobalt));
+}
+.room .clock .tick {
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+}
+.room .clock .hand {
+  stroke: var(--cobalt);
+  stroke-linecap: round;
+}
+.room .clock .hour {
+  stroke-width: 6;
+}
+.room .clock .minute {
+  stroke-width: 4;
+}
+.room .clock .second {
+  stroke: var(--coral);
+  stroke-width: 2;
+}
+.room .clock .pin {
+  fill: var(--cobalt);
+}
+
+.room .cork {
+  fill: #f2d9a6;
+  stroke: var(--cobalt);
+  stroke-width: 3;
+}
+.room .note {
+  stroke: var(--cobalt);
+  stroke-width: 1.5;
+}
+.room .note.n1 {
+  fill: var(--marigold);
+}
+.room .note.n2 {
+  fill: #fff;
+}
+.room .note.n3 {
+  fill: var(--cobalt-wash);
+}
+.room .note.n4 {
+  fill: var(--coral-wash);
+}
+.room .pins circle {
+  fill: var(--coral);
+  stroke: var(--cobalt);
+  stroke-width: 1.2;
+}
+
+.room .door-frame {
+  fill: var(--paper);
+  stroke: var(--cobalt);
+  stroke-width: 3;
+}
+.room .door-leaf {
+  fill: var(--cobalt-wash);
+  stroke: var(--cobalt);
+  stroke-width: 3;
+}
+.room .door-glass {
+  fill: url(#sky);
+  stroke: var(--cobalt);
+  stroke-width: 3;
+}
+.room .door-panel {
+  fill: none;
+  stroke: var(--cobalt);
+  stroke-width: 2;
+}
+.room .knob {
+  fill: var(--marigold);
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+}
+
+/* --- whiteboard ---------------------------------------------------------------- */
+.room .board {
+  fill: var(--paper);
+  stroke: var(--cobalt);
+  stroke-width: 4;
+}
+.room .board-inner {
+  fill: #fff;
+  stroke: var(--cobalt);
+  stroke-width: 1.5;
+  opacity: 0.9;
+}
+.room .tray,
+.room .eraser {
+  fill: var(--paper);
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+}
+.room .eraser {
+  fill: var(--cobalt-wash);
+}
+.room .marker {
+  stroke: var(--cobalt);
+  stroke-width: 1.5;
+}
+.room .marker.m1 {
+  fill: var(--cobalt);
+}
+.room .marker.m2 {
+  fill: var(--coral);
+}
+.room .marker.m3 {
+  fill: var(--marigold);
+}
+.board-text {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--cobalt);
+  font-family: var(--font-ui);
+  overflow: hidden;
+}
+.board-text .b-label {
+  font: 700 13px var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--coral);
+}
+.board-text .b-title {
+  font: 700 34px/1.12 var(--font-ui);
+  letter-spacing: -0.01em;
+  color: var(--cobalt);
+  text-wrap: balance;
+}
+.board-text .b-last {
+  margin: 0;
+  font: 400 19px/1.4 var(--font-body);
+  color: var(--navy);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.board-text .b-notes {
+  margin: 0;
+  padding-left: 20px;
+  font: 400 19px/1.4 var(--font-body);
+  color: var(--navy);
+}
+.board-text .b-meter {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: 700 12px var(--font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.board-text .b-meter i {
+  flex: 1;
+  height: 12px;
+  border: 2px solid var(--cobalt);
+  background: #fff;
+}
+.board-text .b-meter b {
+  display: block;
+  height: 100%;
+  background: var(--cobalt);
+  transition: width 0.8s var(--ease);
+}
+.board-text .b-meter em {
+  font-style: normal;
+  font-size: 18px;
+  min-width: 48px;
+  text-align: right;
+}
+
+/* --- desks and students -------------------------------------------------------------- */
+.room .desk-top {
+  fill: #fff;
+  stroke: var(--cobalt);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.room .desk-front {
+  fill: var(--paper);
+  stroke: var(--cobalt);
+  stroke-width: 3;
+}
+.room .desk-side {
+  fill: var(--cobalt);
+}
+.room .desk-leg {
+  stroke: var(--cobalt);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.room .item {
+  stroke: var(--cobalt);
+  stroke-width: 2;
+}
+.room .item.book {
+  fill: var(--cobalt-wash);
+}
+.room .item.pencil {
+  stroke: var(--marigold);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.room .item.cup {
+  fill: var(--coral-wash);
+}
+.room .plate rect {
+  fill: #fff;
+  stroke: var(--cobalt);
+  stroke-width: 2;
+}
+.room .plate text {
+  font: 700 15px var(--font-ui);
+  fill: var(--cobalt);
+}
+.room .seat.empty {
+  opacity: 0.55;
+}
+
+.room .seat[data-id] {
+  cursor: pointer;
+}
+.room .seat .bust {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.room .seat .bust > svg {
+  overflow: visible;
+  animation: breathe 4.2s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -0.37s);
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+@keyframes breathe {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.6%);
+  }
+}
+.room .seat.raise .bust > svg {
+  animation:
+    raise 0.42s var(--ease),
+    breathe 4.2s ease-in-out 0.42s infinite;
+}
+@keyframes raise {
+  0% {
+    transform: translateY(5%);
+  }
+  60% {
+    transform: translateY(-4%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+.room .seat.speaking .bust > svg {
+  animation: talk 0.9s ease-in-out infinite;
+}
+@keyframes talk {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    transform: translateY(-1.2%) rotate(-0.8deg);
+  }
+}
+.room .seat.hovered .desk-top,
+.room .seat.hovered .desk-front {
+  fill: var(--cobalt-wash);
+}
+.room .seat.selected .desk-top,
+.room .seat.selected .desk-front {
+  fill: var(--marigold-wash);
+  stroke-width: 4.5;
+}
+.room .seat.selected .plate rect {
+  fill: var(--cobalt);
+}
+.room .seat.selected .plate text {
+  fill: #fff;
+}
+.room .seat.arriving {
+  animation: arrive 0.7s var(--ease) both;
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-36px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Emote bubbles and the hand-queue number. */
+.room .emote .bubble {
+  fill: #fff;
+  stroke: var(--cobalt);
+  stroke-width: 3;
+}
+.room .emote .bubble-shadow {
+  fill: var(--cobalt);
+}
+.room .emote .tail {
+  fill: #fff;
+  stroke: var(--cobalt);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.room .emote text {
+  font: 700 24px var(--font-ui);
+  fill: var(--cobalt);
+}
+.room .emote .coral .bubble {
+  fill: var(--coral-wash);
+}
+.room .emote .coral text {
+  fill: var(--coral);
+}
+.room .emote .marigold .bubble {
+  fill: var(--marigold-wash);
+}
+.room .emote .dim text {
+  fill: var(--ink-dim);
+}
+.room .badge circle {
+  fill: var(--coral);
+  stroke: var(--cobalt);
+  stroke-width: 3;
+}
+.room .badge text {
+  font: 700 20px var(--font-ui);
+  fill: #fff;
+}
+.room .pop {
+  animation: pop 0.38s var(--ease) both;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+@keyframes pop {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.12);
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* --- the teacher's desk in the foreground ---------------------------------------- */
+.room .td-top {
+  fill: var(--paper);
+}
+.room .book {
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+}
+.room .book.b1 {
+  fill: var(--cobalt);
+}
+.room .book.b2 {
+  fill: var(--marigold);
+}
+.room .book.b3 {
+  fill: var(--coral-wash);
+}
+.room .mug {
+  fill: #fff;
+  stroke: var(--cobalt);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.room .apple {
+  fill: var(--coral);
+  stroke: var(--cobalt);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+/* --- moods of the room --------------------------------------------------------------- */
+.room .dim {
+  fill: var(--navy);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.4s var(--ease);
+}
+/* Hyperfocus: lights down, the board stays bright. */
+.room.focus .dim {
+  opacity: 0.32;
+}
+.room.focus .board-wrap {
+  filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.85));
+}
+/* Power flicker: the lights stutter and sag, then come back. */
+.room.flicker > svg {
+  animation: brownout 5s steps(1, end) both;
+}
+@keyframes brownout {
+  0% {
+    filter: brightness(1);
+  }
+  6% {
+    filter: brightness(0.45);
+  }
+  9% {
+    filter: brightness(0.9);
+  }
+  13% {
+    filter: brightness(0.35);
+  }
+  22% {
+    filter: brightness(0.5);
+  }
+  26% {
+    filter: brightness(0.3);
+  }
+  60% {
+    filter: brightness(0.42);
+  }
+  64% {
+    filter: brightness(0.75);
+  }
+  70% {
+    filter: brightness(0.4);
+  }
+  84% {
+    filter: brightness(0.85);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room *,
+  .room .seat .bust > svg {
+    animation: none !important;
+  }
+}

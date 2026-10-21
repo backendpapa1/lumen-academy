@@ -9,7 +9,7 @@ export const anchors: { speaker: ScreenPoint | null } = { speaker: null };
 
 /** The campus, when it's the world on screen (lobby and School screens fly it). */
 export const campusView: {
-  current: import("./scenes/CampusScene").CampusScene | null;
+  current: import("../ui/campus/Campus").Campus | null;
 } = { current: null };
 
 /**

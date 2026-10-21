@@ -74,7 +74,7 @@ describe("static asset generation", () => {
 
   it("builds prompts from style + subject + constraints", () => {
     const p = promptFor(cfg.artPrompts, manifest.assets[0]!);
-    expect(p).toContain("Flat geometric emblem");
+    expect(p).toContain("A school badge");
     expect(p).toContain("#FFB547");
     expect(p).toContain("A lens");
     expect(p).toContain("No text.");

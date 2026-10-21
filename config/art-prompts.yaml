@@ -1,17 +1,21 @@
 style:
+  # ADR-009: flat, hand-drawn line art like the classroom (Open Peeps-style),
+  # cobalt ink on bright flat colour.
   global: >
-    Sleek premium science-fiction aesthetic, clean minimal surfaces, soft volumetric
-    lighting, deep navy and graphite tones with luminous cyan accents, subtle
-    holographic sheen, high detail, no text, no watermark, no logos.
+    Flat hand-drawn vector illustration, bold confident cobalt blue (#2A40FF)
+    outlines of even weight, flat fills with no gradients and no shading, a bright
+    friendly palette of white, sky blue (#C6ECFF) and marigold (#FFC23D), playful
+    and clean, editorial illustration style, no text, no watermark, no logos.
   portrait: >
     Head-and-shoulders character portrait, centered, facing camera at a slight
     three-quarter angle, neutral studio backdrop, soft rim light in {{accent}},
     sleek futuristic academy uniform with a high collar and thin light piping,
     expressive but calm face, photoreal-illustrative hybrid, cinematic.
   emblem: >
-    Flat geometric emblem, symmetrical, crisp vector-like edges, luminous lines on
-    transparent background, single accent color {{accent}} with white highlights,
-    readable at small sizes, no letters.
+    A school badge: one simple, memorable symbolic object for the subject, drawn
+    big and centered inside a round badge, accent colour {{accent}} used for one
+    or two shapes, a plain solid #E3F6FF background filling the square, readable at
+    small sizes, no letters, no numbers.
   space: >
     Deep-space backdrop in the style of long-exposure astrophotography. Only gas,
     dust and stars: no buildings, no rooms, no furniture, no spacecraft, no

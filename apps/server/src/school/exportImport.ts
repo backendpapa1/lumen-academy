@@ -141,7 +141,7 @@ export function exportSchool(
       .messages!.filter((m) => m.period_id === p.id)
       .map(
         (m) =>
-          `**${m.speaker === "teacher" ? "Headmaster" : (names.get(String(m.speaker)) ?? m.speaker)}:** ${String(m.text)}`,
+          `**${m.speaker === "teacher" ? "Teacher" : (names.get(String(m.speaker)) ?? m.speaker)}:** ${String(m.text)}`,
       );
     if (lines.length)
       files[

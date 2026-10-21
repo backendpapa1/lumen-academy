@@ -81,7 +81,7 @@ function view(d: DebriefView, classroomId: string, schoolId: string): HTMLElemen
           h(
             "p",
             { class: "dim", style: "margin:4px 0 0" },
-            "Every module passed. Your cadets are alumni now, and the School's wing grows.",
+            "Every module passed. Your students graduate, and the School's building grows.",
           ),
         )
       : h("span"),
@@ -149,7 +149,7 @@ function view(d: DebriefView, classroomId: string, schoolId: string): HTMLElemen
             h(
               "div",
               { class: "mono" },
-              `${pctOf(c.score)} on the exam · ${c.turns.toFixed(1)} teaching turns per cadet`,
+              `${pctOf(c.score)} on the exam · ${c.turns.toFixed(1)} teaching turns per student`,
             ),
             h(
               "div",
@@ -220,7 +220,7 @@ function heatmap(d: DebriefView): HTMLElement {
       h(
         "tr",
         {},
-        h("th", { scope: "col" }, "Cadet"),
+        h("th", { scope: "col" }, "Student"),
         ...d.concepts.map((c) => h("th", { scope: "col", title: c.title }, c.title)),
       ),
     ),

@@ -163,7 +163,7 @@ describe("portraitPrompt", () => {
     expect(p).toContain("Lagos Orbital");
     expect(p).toContain("Yoruba");
     expect(p).toContain("appraising gaze");
-    expect(p).toContain("#FFB547");
+    expect(p).toContain("#B86E00");
     expect(p).toContain("No text.");
     expect(p).not.toMatch(/\{\{|\}\}/);
   });

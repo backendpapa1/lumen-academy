@@ -490,7 +490,7 @@ export function mountCurriculum(root: HTMLElement, schoolId: string): () => void
       title,
       h("label", { class: "lbl", for: "c-summary" }, "Summary"),
       summary,
-      h("label", { class: "lbl" }, "Key facts (what a cadet must get right)"),
+      h("label", { class: "lbl" }, "Key facts (what a student must get right)"),
       listEditor(c.keyFacts, (xs) => ((c.keyFacts = xs), touch()), 2, "Add a fact"),
       h("label", { class: "lbl" }, "Common misconceptions"),
       listEditor(

@@ -126,7 +126,7 @@ function cadetTools(deps: CadetTurnDeps, input: CadetTurnInput, state: { peeked:
           .all(input.classroomId) as { text: string }[];
       }
       return rows.length
-        ? rows.map((r) => `Headmaster: ${r.text}`).join("\n")
+        ? rows.map((r) => `Teacher: ${r.text}`).join("\n")
         : "The Headmaster hasn't said anything about that yet.";
     },
     {

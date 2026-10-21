@@ -62,7 +62,7 @@ function render(e: ExitTicketsState | undefined) {
         { class: "dim", style: "margin:6px 0 12px" },
         done
           ? summaryLine(e, caught, falseOnes)
-          : "Is each thing your cadets took away true? ✓ or ✗. Y / N to mark, ↑ ↓ to move.",
+          : "Is each thing your students took away true? ✓ or ✗. Y / N to mark, ↑ ↓ to move.",
       ),
       h(
         "div",
@@ -89,7 +89,7 @@ function render(e: ExitTicketsState | undefined) {
                   class: "who",
                   style: `color:${c ? ARCHETYPE_INFO[c.archetype].accent : "inherit"}`,
                 },
-                c?.name ?? "Cadet",
+                c?.name ?? "Student",
               ),
               h("div", {}, `“${t.statement}”`),
               result &&

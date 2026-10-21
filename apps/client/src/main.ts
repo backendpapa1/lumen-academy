@@ -5,19 +5,18 @@ import { applyServerMessage } from "./core/classroom";
 import { loadDemoClassroom } from "./core/demo";
 import { store } from "./core/store";
 import { loadFonts } from "./ui/fonts";
-import { ClassroomHud } from "./ui/scenes/ClassroomHud";
 import { GalleryScene } from "./ui/scenes/GalleryScene";
 import { installScreens } from "./ui/screens";
-import { CampusScene } from "./world/scenes/CampusScene";
+import { Campus } from "./ui/campus/Campus";
 import { campusView, fx, setArena } from "./world/anchors";
 import { ArenaScene } from "./world/scenes/ArenaScene";
-import { ClassroomScene } from "./world/scenes/ClassroomScene";
 import { world } from "./world/anchors";
 import { WorldDirector } from "./world/WorldDirector";
 import { app } from "./core/app";
 import { installKeyboard } from "./core/input";
 import { installSound, sound } from "./core/audio";
 import { statsOverlay } from "./ui/dom/stats";
+import { hideRoom, showRoom } from "./ui/room";
 
 const worldCanvas = document.querySelector<HTMLCanvasElement>("#world");
 const uiCanvas = document.querySelector<HTMLCanvasElement>("#ui");
@@ -55,7 +54,7 @@ window.addEventListener("resize", () => director.resize());
 // Route → 3D scene + UI layer (docs/05 §4.3). The classroom uses the Phaser
 // HUD; setup screens (lobby, School Wing, registration) are DOM (D14).
 let showing: string | null = null;
-let showingWorld: "campus" | "classroom" | "arena" | null = null;
+let showingWorld: "campus" | "room" | "arena" | null = null;
 function applyRoute() {
   const route = store.getState().route;
   const key =
@@ -68,40 +67,42 @@ function applyRoute() {
   showing = key;
   if (route.name === "gallery") return;
   if (route.name !== "exam") setArena(null);
-  if (route.name === "classroom") {
-    // Registration already shows this room; keep it so the cadets stay put.
-    if (showingWorld !== "classroom") director.show(new ClassroomScene());
-    showingWorld = "classroom";
-    ui.scene.start("classroomHud");
+  if (route.name === "classroom" || route.name === "registration") {
+    // The drawn classroom (ADR-009). Registration fills the same room, so the
+    // students stay in their seats when the class starts.
+    if (showingWorld !== "room") director.clear();
+    showRoom(route.name === "classroom" ? "teaching" : "registration");
+    showingWorld = "room";
+    campusView.current?.dispose();
+    campusView.current = null;
     return;
   }
-  ui.scene.stop("classroomHud");
+  hideRoom();
   if (route.name === "exam") {
     // The exam leaves the classroom for the arena (M6-09).
     const arena = new ArenaScene();
     director.show(arena);
     setArena(arena);
     showingWorld = "arena";
-  } else if (route.name === "registration") {
-    // Registration happens in the room itself.
-    director.show(new ClassroomScene({ arrivals: true }));
-    showingWorld = "classroom";
   } else if (showingWorld !== "campus") {
-    // Lobby, School Wing, desk and debrief all sit over the campus (M5-02).
-    campusView.current = new CampusScene();
-    director.show(campusView.current);
+    // Lobby, School Wing, desk and debrief all sit over the drawn campus (M5-02, ADR-009).
+    director.clear();
+    campusView.current = new Campus(stage!);
     showingWorld = "campus";
   }
-  if (showingWorld !== "campus") campusView.current = null;
+  if (showingWorld !== "campus" && campusView.current) {
+    campusView.current.dispose();
+    campusView.current = null;
+  }
 }
 store.subscribe(applyRoute);
 
 if (view !== "gallery") installSound();
 if (view === "campus-demo") {
   // Visual check: one wing per tier, 0 Blueprint → 4 Landmark (no server).
-  const campus = new CampusScene();
-  director.show(campus);
-  const accents = ["#FFB547", "#FF6B6B", "#A78BFA", "#22D3EE", "#A3E635"];
+  director.clear();
+  const campus = new Campus(stage);
+  const accents = ["#FFC23D", "#F0442E", "#6B4EFF", "#2A40FF", "#12945C"];
   campus.setWings(
     accents.map((accent, i) => ({
       schoolId: `sch_${i}`,
@@ -125,12 +126,9 @@ if (view === "campus-demo") {
   app.rejoin(); // a reload mid-period continues it
 }
 ui.events.once(Phaser.Core.Events.READY, () => {
-  if (view !== "gallery") {
-    ui.scene.add("classroomHud", ClassroomHud, false);
-  }
   showing = null;
   applyRoute();
-  installKeyboard(ui);
+  installKeyboard();
 });
 
 // Test hooks for Playwright.

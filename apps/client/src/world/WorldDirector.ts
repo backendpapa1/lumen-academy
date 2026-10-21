@@ -43,6 +43,7 @@ export class WorldDirector {
   show(scene: WorldScene): void {
     this.active?.dispose();
     this.active = scene;
+    this.renderer.domElement.style.visibility = "";
     this.composer.removeAllPasses();
     this.composer.addPass(new RenderPass(scene.scene, scene.camera));
     this.composer.addPass(
@@ -54,6 +55,14 @@ export class WorldDirector {
       ),
     );
     this.resize();
+  }
+
+  /** No 3D world: the illustrated scenes (ADR-009) draw in the DOM instead. */
+  clear(): void {
+    this.active?.dispose();
+    this.active = null;
+    this.composer.removeAllPasses();
+    this.renderer.domElement.style.visibility = "hidden";
   }
 
   /** Hyperfocus (docs/08 §1): bloom −40%. */

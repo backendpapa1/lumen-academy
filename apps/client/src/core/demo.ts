@@ -38,7 +38,7 @@ export function loadDemoClassroom(): void {
           name,
           archetype,
           seat,
-          homeworld: "Titan Shipyards",
+          homeworld: "Lagos",
           quirk: "",
           comprehension: 0,
           state: "attentive",
@@ -49,7 +49,7 @@ export function loadDemoClassroom(): void {
         paused: false,
         xp: {
           total: 340,
-          rank: "Cadet Instructor",
+          rank: "Student Teacher",
           next: { name: "Lecturer", minXp: 500 },
           progress: 0.68,
         },
@@ -116,8 +116,7 @@ export function loadDemoClassroom(): void {
       payload: {
         cadetId: "cdt_0",
         streamId: "s1",
-        delta:
-          "Headmaster, you said neighbouring hashes are paired. What if a level has an odd number?",
+        delta: "You said neighbouring hashes are paired. What if a level has an odd number?",
       },
     },
   ];

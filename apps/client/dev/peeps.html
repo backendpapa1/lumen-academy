@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Peeps sheet</title>
+    <style>
+      body {
+        margin: 0;
+        background: #c6ecff;
+        font: 12px monospace;
+        color: #2a40ff;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 8px;
+        padding: 16px;
+      }
+      figure {
+        margin: 0;
+        background: #fff;
+        border: 1.5px solid #2a40ff;
+        box-shadow: 4px 4px 0 #2a40ff;
+        padding: 6px;
+      }
+      figure svg {
+        width: 100%;
+        height: 170px;
+      }
+      figcaption {
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="grid" id="g"></div>
+    <script type="module">
+      import { lookFor, peepSvg } from "../src/ui/peeps/peep.ts";
+      const g = document.getElementById("g");
+      const poses = ["idle", "hand", "talk", "notes", "arms"];
+      const faces = [
+        "Calm",
+        "Concerned",
+        "BigSmile",
+        "Tired",
+        "Suspicious",
+        "Driven",
+        "Explaining",
+        "Awe",
+      ];
+      for (let i = 0; i < 24; i++) {
+        const look = lookFor("cdt_" + i * 7919);
+        const pose = poses[i % poses.length];
+        const face = faces[i % faces.length];
+        const f = document.createElement("figure");
+        f.innerHTML =
+          peepSvg(look, { pose, face }) +
+          `<figcaption>${look.head} · ${pose} · ${face}</figcaption>`;
+        g.append(f);
+      }
+    </script>
+  </body>
+</html>

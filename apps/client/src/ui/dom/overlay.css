@@ -1,56 +1,27 @@
-/* DOM overlays share the HUD's art-direction tokens (docs/08 §1–3). */
-:root {
-  --void: #05070d;
-  --hull-900: #0b1020;
-  --hull-700: #141b2e;
-  --hull-500: #22304d;
-  --ink: #e6edf7;
-  --ink-dim: #8a96ad;
-  --lumen: #5be7ff;
-  --aurum: #f5c66b;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-display: "Space Grotesk", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
-}
+/* In-class overlays (ADR-009): the lectern's default state, the transcript
+   drawer, the speech bubble and the hover tag. Tokens live in ../style/tokens.css. */
 
 #lectern {
   position: absolute;
   z-index: 3;
   display: none;
-  box-sizing: border-box;
-  resize: none;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: var(--ink);
-  font: 400 16px/1.45 var(--font-body);
-  padding: 14px 18px;
-  caret-color: var(--lumen);
-}
-#lectern::placeholder {
-  color: var(--ink-dim);
-}
-#lectern:disabled {
-  opacity: 0.5;
 }
 
 #transcript {
   position: absolute;
-  z-index: 4;
-  top: 84px;
-  bottom: 140px;
+  z-index: 7;
+  top: 104px;
+  bottom: 150px;
   left: 24px;
-  width: min(460px, 40vw);
+  width: min(440px, 40vw);
   display: none;
   flex-direction: column;
   gap: 10px;
   padding: 16px;
   box-sizing: border-box;
-  background: rgba(11, 16, 32, 0.86);
-  border: 1px solid var(--hull-500);
-  border-radius: 12px;
-  /* Signature chamfered top-right corner. */
-  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  background: var(--paper);
+  border: var(--line);
+  box-shadow: var(--shadow);
   color: var(--ink);
   font: 400 14px/1.45 var(--font-body);
 }
@@ -59,21 +30,21 @@
 }
 #transcript h2 {
   margin: 0;
-  font: 500 11px var(--font-display);
-  letter-spacing: 0.08em;
+  font: 700 11px var(--font-ui);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink-dim);
+  color: var(--cobalt);
 }
 #transcript input {
-  background: var(--hull-700);
-  border: 1px solid var(--hull-500);
-  border-radius: 8px;
+  background: #fff;
+  border: var(--line);
   color: var(--ink);
   font: inherit;
   padding: 8px 10px;
+  box-shadow: inset 3px 3px 0 var(--cobalt-wash);
 }
 #transcript input:focus-visible {
-  outline: 1px solid var(--lumen);
+  outline: 3px solid var(--marigold);
 }
 #transcript ol {
   margin: 0;
@@ -84,66 +55,66 @@
   flex-direction: column;
   gap: 10px;
 }
+#transcript li {
+  padding: 8px 10px;
+  border: 1.5px solid var(--cobalt-wash);
+  background: #fff;
+}
+#transcript li.headmaster {
+  border-color: var(--cobalt);
+  background: var(--cobalt-wash);
+}
 #transcript li .who {
-  font: 600 12px var(--font-body);
+  font: 700 12px var(--font-ui);
   color: var(--ink-dim);
 }
 #transcript li.headmaster .who {
-  color: var(--lumen);
+  color: var(--cobalt);
 }
 #transcript mark {
-  background: rgba(91, 231, 255, 0.25);
+  background: var(--marigold);
   color: inherit;
 }
-
 @media (prefers-reduced-motion: no-preference) {
   #transcript.open {
-    animation: drawer-in 280ms cubic-bezier(0.33, 1, 0.68, 1);
+    animation: drawer-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 }
 @keyframes drawer-in {
   from {
     opacity: 0;
-    transform: translateX(-12px);
+    transform: translateX(-16px);
   }
 }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-/* Speech panel: floats above the speaking cadet, joined by a light line. */
+/* Speech bubble: floats above the speaking student, its tail pointing at them. */
 #speech {
-  --accent: var(--lumen);
+  --accent: var(--cobalt);
   position: absolute;
-  z-index: 2;
+  z-index: 6;
   top: 0;
   left: 0;
-  width: min(360px, 34vw);
+  width: min(380px, 34vw);
   box-sizing: border-box;
   padding: 12px 16px 14px;
-  background: rgba(11, 16, 32, 0.88);
-  border: 1px solid var(--hull-500);
-  border-left: 2px solid var(--accent);
-  border-radius: 12px;
-  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  background: #fff;
+  border: 2px solid var(--cobalt);
+  box-shadow: var(--shadow);
+  border-radius: 18px;
   color: var(--ink);
-  font: 400 15px/1.5 var(--font-body);
+  font: 400 16px/1.5 var(--font-body);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 220ms ease-out;
+  transition: opacity 200ms ease-out;
   overflow: hidden;
 }
 #speech.shown {
   opacity: 1;
 }
 #speech .who {
-  font: 600 12px var(--font-body);
+  font: 700 12px var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--accent);
   margin-bottom: 4px;
 }
@@ -154,25 +125,23 @@
 #speech.typing p::after {
   content: "";
   display: inline-block;
-  width: 7px;
+  width: 8px;
   height: 1.05em;
   margin-left: 2px;
   vertical-align: -0.15em;
-  background: var(--accent);
-  opacity: 0.8;
+  background: var(--coral);
 }
 #speech-line {
   position: absolute;
-  z-index: 2;
+  z-index: 5;
   top: 0;
   left: 0;
-  height: 1.5px;
+  height: 3px;
   transform-origin: 0 50%;
-  background: linear-gradient(90deg, rgba(91, 231, 255, 0.25), rgba(91, 231, 255, 0.9));
-  box-shadow: 0 0 6px rgba(91, 231, 255, 0.6);
+  background: var(--cobalt);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 220ms ease-out;
+  transition: opacity 200ms ease-out;
 }
 #speech-line.shown {
   opacity: 1;
@@ -180,20 +149,24 @@
 #speech-line::after {
   content: "";
   position: absolute;
-  right: -3px;
-  top: -2.25px;
-  width: 6px;
-  height: 6px;
+  right: -5px;
+  top: -3.5px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: var(--lumen);
-  box-shadow: 0 0 8px var(--lumen);
+  background: var(--coral);
+  border: 2px solid var(--cobalt);
+  box-sizing: border-box;
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  #speech.shown {
+    animation: bubble-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
   #speech.typing p::after {
     animation: caret 1s steps(2) infinite;
   }
-  /* Rephrasing: a soft band of light sweeps across while the words change. */
+  /* Rephrasing: a wash sweeps across while the words change. */
   #speech.rephrasing::before {
     content: "";
     position: absolute;
@@ -201,15 +174,20 @@
     background: linear-gradient(
       100deg,
       transparent 20%,
-      rgba(91, 231, 255, 0.28) 45%,
-      rgba(230, 237, 247, 0.4) 50%,
-      rgba(91, 231, 255, 0.28) 55%,
+      rgba(255, 194, 61, 0.45) 45%,
+      rgba(255, 255, 255, 0.6) 50%,
+      rgba(255, 194, 61, 0.45) 55%,
       transparent 80%
     );
     animation: shimmer 900ms cubic-bezier(0.33, 1, 0.68, 1);
   }
   #speech.rephrasing p {
     animation: reword 900ms ease-in-out;
+  }
+}
+@keyframes bubble-in {
+  from {
+    transform: scale(0.92);
   }
 }
 @keyframes caret {
@@ -233,21 +211,20 @@
   }
 }
 
-/* Hover tag over a cadet. */
+/* Hover tag over a student. */
 #cadet-tag {
-  --accent: var(--lumen);
+  --accent: var(--cobalt);
   position: absolute;
-  z-index: 5;
+  z-index: 7;
   top: 0;
   left: 0;
   display: none;
   flex-direction: column;
   gap: 2px;
   padding: 8px 12px;
-  background: rgba(11, 16, 32, 0.9);
-  border: 1px solid var(--hull-500);
-  border-left: 2px solid var(--accent);
-  border-radius: 8px;
+  background: var(--paper);
+  border: var(--line);
+  box-shadow: var(--shadow-sm);
   pointer-events: none;
   white-space: nowrap;
 }
@@ -255,28 +232,28 @@
   display: flex;
 }
 #cadet-tag b {
-  font: 600 13px var(--font-body);
+  font: 700 14px var(--font-ui);
   color: var(--accent);
 }
 #cadet-tag span {
-  font: 400 12px var(--font-body);
+  font: 400 12px var(--font-ui);
   color: var(--ink-dim);
 }
 
 /* Perf overlay (P). */
 #stats {
   position: absolute;
-  z-index: 6;
+  z-index: 9;
   left: 16px;
   bottom: 16px;
   display: none;
   margin: 0;
   padding: 8px 10px;
-  background: rgba(5, 7, 13, 0.8);
-  border: 1px solid var(--hull-500);
-  border-radius: 6px;
-  color: var(--lumen);
-  font: 400 11px/1.5 var(--font-mono);
+  background: var(--paper);
+  border: var(--line);
+  box-shadow: var(--shadow-sm);
+  color: var(--cobalt);
+  font: 400 11px/1.5 var(--font-ui);
   pointer-events: none;
 }
 #stats.open {

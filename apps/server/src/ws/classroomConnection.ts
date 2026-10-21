@@ -472,7 +472,7 @@ export class ClassroomConnection {
     const breakdown = periodXp(handle, session.periodId);
     const after = standing(handle, game);
     const { sqlite } = this.rt.handle;
-    const taught = session.lines.filter((l) => l.speaker === "Headmaster").map((l) => l.text);
+    const taught = session.lines.filter((l) => l.speaker === "Teacher").map((l) => l.text);
     const idx = session.concepts.findIndex((c) => c.id === session.currentConcept.id);
     const [recapOut] = await Promise.all([
       this.rt.extras?.recaps !== false && taught.length
@@ -553,8 +553,8 @@ export class ClassroomConnection {
       .all(periodId) as Array<{ id: string; speaker: string; text: string; name: string | null }>;
     return rows.map((r) =>
       r.speaker === "teacher"
-        ? { speaker: "Headmaster", messageId: r.id, text: r.text }
-        : { speaker: r.name ?? "Cadet", cadetId: r.speaker, messageId: r.id, text: r.text },
+        ? { speaker: "Teacher", messageId: r.id, text: r.text }
+        : { speaker: r.name ?? "Student", cadetId: r.speaker, messageId: r.id, text: r.text },
     );
   }
 

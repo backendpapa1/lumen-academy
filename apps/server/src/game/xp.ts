@@ -103,7 +103,7 @@ export function rankFor(total: number, ranks: GameConfig["ranks"]): XpStanding {
   const sorted = [...ranks].sort((a, b) => a.minXp - b.minXp);
   let i = 0;
   while (i + 1 < sorted.length && sorted[i + 1]!.minXp <= total) i++;
-  const here = sorted[i] ?? { name: "Headmaster", minXp: 0 };
+  const here = sorted[i] ?? { name: "Teacher", minXp: 0 };
   const next = sorted[i + 1] ?? null;
   return {
     total,

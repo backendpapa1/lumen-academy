@@ -47,7 +47,7 @@ async function run(opts: {
     const sys = body.messages.map((m) => m.content).join("\n");
     if (who === "crowdReactor") return "1 attentive\n";
     if (who === "classDirector") return DIRECTOR(w.conceptIds[0]!);
-    if (sys.includes("You check whether an AI cadet said something")) {
+    if (sys.includes("You check whether an AI student said something")) {
       guardCalls.push(body);
       return JSON.stringify({
         verdict: opts.verdict ?? "pass",

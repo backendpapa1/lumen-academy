@@ -82,7 +82,7 @@ export function mountSchool(root: HTMLElement, schoolId: string): () => void {
               onclick: async () => {
                 const ok = await confirmDialog(
                   `Archive ${s.name}?`,
-                  "It leaves the lobby and the campus, and its classes pause. Nothing is deleted: sources, curriculum, cadets and history all stay, and Restore on the lobby brings it back exactly as it was.",
+                  "It leaves the lobby and the campus, and its classes pause. Nothing is deleted: sources, curriculum, students and history all stay, and Restore on the lobby brings it back exactly as it was.",
                   "Archive School",
                 );
                 if (ok)
@@ -396,7 +396,7 @@ function mountClasses(root: HTMLElement, schoolId: string): () => void {
       h(
         "p",
         { class: "dim", style: "margin:0 0 12px;font-size:13px" },
-        "4–15 cadets register with their own personalities. Gentle ones forgive vague explanations; ruthless ones don't.",
+        "4–15 students enrol, each with their own personality. Gentle ones forgive vague explanations; ruthless ones don't.",
       ),
       seg,
       h("div", { class: "row", style: "margin-top:12px" }, openBtn),

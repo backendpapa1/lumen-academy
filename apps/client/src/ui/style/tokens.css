@@ -1,0 +1,69 @@
+/* Design tokens (ADR-009): a bright, illustrated school. Every screen and the
+   classroom read their colours, type and shadows from here. */
+:root {
+  /* colour */
+  --sky: #c6ecff;
+  --sky-hi: #e3f6ff;
+  --sky-lo: #a6dcf6;
+  --paper: #fafbff;
+  --paper-2: #eef2ff;
+  --cobalt: #2a40ff;
+  --cobalt-hi: #5a6cff;
+  --cobalt-lo: #1a2bc4;
+  --cobalt-wash: #dce4ff;
+  --navy: #0f1a66;
+  --ink: #0f1a66;
+  --ink-dim: #4a5699;
+  --coral: #f0442e;
+  --coral-wash: #ffe1dc;
+  --marigold: #ffc23d;
+  --marigold-wash: #fff1cc;
+  --leaf: #12945c;
+  --leaf-wash: #d8f5e6;
+
+  /* legacy names still read by older rules: map them onto the new palette */
+  --lumen: var(--cobalt);
+  --aurum: #b97d00;
+  --hull-500: var(--cobalt);
+
+  /* type */
+  --font-display: "Bungee", "Space Mono", system-ui, sans-serif;
+  --font-ui: "Space Mono", ui-monospace, monospace;
+  --font-body: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+
+  /* shape */
+  --line: 1.5px solid var(--cobalt);
+  --shadow: 4px 4px 0 var(--cobalt);
+  --shadow-sm: 3px 3px 0 var(--cobalt);
+  --shadow-lg: 8px 8px 0 var(--cobalt);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* The extruded, outlined display word from the reference: big moments only. */
+.extrude {
+  font-family: var(--font-display);
+  font-weight: 400;
+  color: var(--sky-hi);
+  -webkit-text-stroke: 2px var(--cobalt);
+  paint-order: stroke fill;
+  text-shadow:
+    1px 1px 0 var(--cobalt),
+    2px 2px 0 var(--cobalt),
+    3px 3px 0 var(--cobalt),
+    4px 4px 0 var(--cobalt),
+    5px 5px 0 var(--cobalt),
+    6px 6px 0 var(--cobalt);
+  letter-spacing: 0.02em;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

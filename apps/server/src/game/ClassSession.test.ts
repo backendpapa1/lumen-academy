@@ -180,9 +180,9 @@ describe("ClassSession", () => {
     const t2 = s.teach("Second idea.");
     await Promise.all([t1.committed, t2.committed]);
     const secondDirector = calls.filter((b) => agentOf(b) === "classDirector")[1]!;
-    const table = secondDirector.messages.find((m) => m.content.includes("Cadets (id"))!.content;
+    const table = secondDirector.messages.find((m) => m.content.includes("Students (id"))!.content;
     expect(table).not.toMatch(/\| 0\.00 \| -/); // turn 1's comprehension is visible to turn 2
-    expect(secondDirector.messages.at(-1)!.content).toContain("Headmaster: First idea.");
+    expect(secondDirector.messages.at(-1)!.content).toContain("Teacher: First idea.");
     await s.close();
   });
 

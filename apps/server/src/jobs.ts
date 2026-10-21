@@ -239,6 +239,7 @@ export interface CadetAppearance {
 
 /** Medium portrait price × count must fit the image budget; otherwise only the first few get one (docs/07 §6). */
 function portraitAllowance(deps: JobDeps, total: number): number {
+  if (!deps.game.registration.portraits) return 0;
   const price = deps.meter.imagePrice?.("medium") ?? 0.015;
   const left = deps.meter.imageBudgetLeft();
   return Math.min(total, Math.floor(left / Math.max(price, 0.001)), total);

@@ -8,7 +8,7 @@ import { fill, h } from "../screens/dom";
 // Peek at notes (T-8): a cadet's own summary of what you taught. It can be
 // wrong: those are your errors or their misconceptions. N toggles, Esc closes.
 
-const panel = h("aside", { class: "notes-panel", hidden: true, "aria-label": "Cadet notes" });
+const panel = h("aside", { class: "notes-panel", hidden: true, "aria-label": "Student notes" });
 document.querySelector("#stage")!.append(panel);
 let openFor: string | null = null;
 
@@ -40,7 +40,7 @@ function render(md: string): HTMLElement {
 export async function toggleNotes(cadetId?: string | null) {
   const id = cadetId ?? store.getState().selectedId ?? store.getState().hoveredId;
   if (!panel.hidden && (!id || id === openFor)) return closeNotes();
-  if (!id) return app.notify("Pick a cadet first: Tab through the hands, or click one.");
+  if (!id) return app.notify("Pick a student first: Tab through the hands, or click one.");
   openFor = id;
   const c = store.getState().classroom.cadets[id];
   panel.hidden = false;
@@ -71,7 +71,11 @@ export async function toggleNotes(cadetId?: string | null) {
       ),
       n.notes.trim()
         ? render(n.notes)
-        : h("p", { class: "dim" }, "No notes yet. Cadets write them up at the end of each class."),
+        : h(
+            "p",
+            { class: "dim" },
+            "No notes yet. Students write them up at the end of each class.",
+          ),
       h(
         "p",
         { class: "dim notes-foot" },

@@ -124,11 +124,11 @@ export const agentOf = (body: FakeRequest) => {
   if (sys.includes("You are the Examiner")) return "examiner";
   if (sys.includes("You are the Debrief Analyst")) return "debriefAnalyst";
   if (sys.includes("You grade a student's answer")) return "grader";
-  if (/You are .+, a cadet at Lumen Academy/.test(sys) && sys.includes("You are answering a"))
+  if (/You are .+, a student at Lumen Academy/.test(sys) && sys.includes("You are answering a"))
     return "cadetAnswer";
   if (
-    /You are .+, a cadet at Lumen Academy/.test(sys) &&
-    sys.includes("The Headmaster just called on you")
+    /You are .+, a student at Lumen Academy/.test(sys) &&
+    sys.includes("The teacher just called on you")
   ) {
     return "cadet";
   }

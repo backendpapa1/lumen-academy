@@ -6,9 +6,9 @@ import { portrait, rankInsignia } from "../screens/common";
 import { fill, h } from "../screens/dom";
 
 // Random events (docs/02 §6, M6-01). Pop quiz: explain the concept in a few
-// sentences, graded against the source. Glitch: a cadet repeats me slightly
-// wrong; catch it. Power flicker: a misconception whispers across the room
-// (a banner only; the lights dim in the 3D scene). Inspector: the Dean watches
+// sentences, graded against the source. Mix-up (the "glitch" kind): a student
+// repeats me slightly wrong; catch it. Power flicker: the lights stutter and a
+// misconception whispers across the room (the drawn room dims too). Inspector: the Dean watches
 // my next three explanations, then reports what worked and what to fix.
 
 const root = h("div", { class: "event-back", hidden: true });
@@ -43,7 +43,7 @@ function render(e: EventState | undefined) {
       h(
         "section",
         { class: "card event-card flicker", role: "status", "aria-live": "polite" },
-        h("div", { class: "micro" }, "Power flicker"),
+        h("div", { class: "micro" }, "The lights flickered"),
         h(
           "p",
           { style: "margin:6px 0 0" },
@@ -70,8 +70,8 @@ function render(e: EventState | undefined) {
     h(
       "div",
       { style: "flex:1;min-width:0" },
-      h("div", { class: "micro" }, e.kind === "pop_quiz" ? "Pop quiz" : "Hologram glitch"),
-      h("div", { class: "who", style: `color:${accent}` }, c?.name ?? "Cadet"),
+      h("div", { class: "micro" }, e.kind === "pop_quiz" ? "Pop quiz" : "Mix-up"),
+      h("div", { class: "who", style: `color:${accent}` }, c?.name ?? "Student"),
     ),
     h("div", { class: "mono event-clock" }, done ? "" : `${Math.ceil(secondsLeft(e))}s`),
   );
@@ -139,7 +139,7 @@ function render(e: EventState | undefined) {
       );
     }
   } else {
-    // Glitch: the line itself flickers like a torn hologram.
+    // Mix-up: the repeated line, scribbled under.
     parts.push(
       h(
         "p",
@@ -152,7 +152,7 @@ function render(e: EventState | undefined) {
         h(
           "p",
           { class: "dim", style: "margin:0 0 12px;font-size:13px" },
-          "Is that what you taught? Something may have been scrambled in transmission.",
+          "Is that what you taught? Something may have got mixed up on the way.",
         ),
         h(
           "div",
@@ -214,7 +214,7 @@ function render(e: EventState | undefined) {
         class: "card event-card",
         role: "dialog",
         "aria-modal": "false",
-        "aria-label": e.kind === "pop_quiz" ? "Pop quiz" : "Hologram glitch",
+        "aria-label": e.kind === "pop_quiz" ? "Pop quiz" : "Mix-up",
         style: `--event-accent:${accent}`,
       },
       ...parts,

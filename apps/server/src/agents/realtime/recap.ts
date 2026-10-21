@@ -15,7 +15,7 @@ export async function writeRecap(
 ): Promise<string> {
   const transcript = input.teacherLines.length
     ? input.teacherLines
-        .map((l) => `Headmaster: ${l}`)
+        .map((l) => `Teacher: ${l}`)
         .join("\n")
         .slice(-6000)
     : "(nothing taught)";

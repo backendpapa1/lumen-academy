@@ -2,14 +2,14 @@ import { assetSrc } from "../../core/api";
 import { app } from "../../core/app";
 import { store, type AppState } from "../../core/store";
 import { campusView } from "../../world/anchors";
-import type { CampusScene } from "../../world/scenes/CampusScene";
+import type { Campus } from "../campus/Campus";
 
 // Keeps the 3D campus in step with the data: wings and their tiers, streak fog,
 // and where the camera looks (the School you're in, or the one you hover).
 // A tier-up plays once: the last tier seen per School is remembered locally.
 
 const SEEN_KEY = "lumen.seenTiers";
-let synced: { scene: CampusScene | null; campus: unknown; schools: unknown } = {
+let synced: { scene: Campus | null; campus: unknown; schools: unknown } = {
   scene: null,
   campus: null,
   schools: null,
@@ -48,7 +48,7 @@ function sync(s: AppState) {
         const school = schools.find((x) => x.id === w.schoolId);
         return {
           ...w,
-          accent: school?.accent ?? "#5BE7FF",
+          accent: school?.accent ?? "#2A40FF",
           emblemUrl: assetSrc(school?.emblemUrl),
           decalUrl: assetSrc(w.decalUrl),
         };
@@ -63,7 +63,7 @@ function sync(s: AppState) {
       const w = campus.wings.find((x) => x.schoolId === id)!;
       const name = schools.find((x) => x.id === id)?.name ?? "A School";
       scene.flyTo(id);
-      app.notify(`${name} grew: its wing is now a ${w.tierName}.`);
+      app.notify(`${name} grew: its building is now a ${w.tierName}.`);
       setTimeout(() => look(store.getState()), 4500);
       return;
     }

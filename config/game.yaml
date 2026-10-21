@@ -24,7 +24,8 @@ comprehension:
 
 # Registration (docs/03 §5.2). Archetypes are drawn in code (seeded); the LLM writes flavour only.
 registration:
-  batchSize: 3 # cadets per flavour call, so the first arrivals appear fast
+  batchSize: 3 # students per flavour call, so the first arrivals appear fast
+  portraits: false # students are drawn (ADR-009); no portrait images
   guaranteed: # always present, in this order, once the cohort reaches the size
     - { archetype: skeptic, minSize: 1 }
     - { archetype: lost_signal, minSize: 1 }
@@ -63,18 +64,24 @@ registration:
         overachiever: 3,
         saboteur: 2,
       }
+  # Hometowns (the field keeps its old name; ADR-009).
   homeworlds:
     [
-      Titan Shipyards,
-      Europa Deep,
-      Ceres Exchange,
-      Lagos Orbital,
-      Mars Commons,
-      Ganymede Rings,
-      Luna Arcology,
-      Callisto Reach,
-      Vesta Foundry,
-      Io Relay,
+      Lagos,
+      Nairobi,
+      São Paulo,
+      Accra,
+      Manchester,
+      Seoul,
+      Lisbon,
+      Toronto,
+      Mumbai,
+      Cairo,
+      Mexico City,
+      Hanoi,
+      Kraków,
+      Kingston,
+      Istanbul,
     ]
   # Sampled in code so classes are diverse (docs/07 §2.1); the LLM fits names and looks to them.
   heritage:
@@ -168,12 +175,12 @@ xp: # docs/02 §7.1
   popQuizPerPoint: 6 # pop quiz: Grader score 0–5 × this
 
 ranks: # placeholder thresholds; tune after M5
-  - { name: Cadet Instructor, minXp: 0 }
-  - { name: Lecturer, minXp: 500 }
-  - { name: Professor, minXp: 2000 }
-  - { name: Dean, minXp: 6000 }
-  - { name: Chancellor, minXp: 15000 }
-  - { name: Archon, minXp: 40000 }
+  - { name: Student Teacher, minXp: 0 }
+  - { name: Teacher, minXp: 500 }
+  - { name: Senior Teacher, minXp: 2000 }
+  - { name: Head of Department, minXp: 6000 }
+  - { name: Principal, minXp: 15000 }
+  - { name: Chancellor, minXp: 40000 }
 
 events:
   enabled: true

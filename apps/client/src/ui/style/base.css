@@ -1,0 +1,226 @@
+/* Shared components (ADR-009): paper cards with a cobalt edge and a hard
+   shadow, square buttons that press into their shadow, mono labels. */
+
+.card {
+  background: var(--paper);
+  border: var(--line);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+}
+.card.pad {
+  padding: 20px 22px;
+}
+
+.micro {
+  font: 700 11px/1.3 var(--font-ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cobalt);
+}
+.h1 {
+  font: 700 26px/1.2 var(--font-ui);
+  letter-spacing: -0.01em;
+  color: var(--cobalt);
+  margin: 0;
+  text-wrap: balance;
+}
+.h2 {
+  font: 700 19px/1.3 var(--font-ui);
+  color: var(--cobalt);
+  margin: 0;
+}
+.mono {
+  font: 400 13px/1.5 var(--font-ui);
+  color: var(--ink-dim);
+}
+.dim {
+  color: var(--ink-dim);
+}
+.small {
+  font-size: 12px;
+}
+.gold {
+  color: var(--aurum);
+}
+.spacer {
+  flex: 1;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 16px;
+  border: var(--line);
+  background: var(--paper);
+  color: var(--cobalt);
+  font: 700 13px var(--font-ui);
+  letter-spacing: 0.02em;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    transform 0.08s var(--ease),
+    box-shadow 0.08s var(--ease),
+    background 0.15s;
+}
+.btn:hover {
+  background: var(--cobalt-wash);
+}
+.btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--cobalt);
+}
+.btn.primary {
+  background: var(--cobalt);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+  box-shadow: 3px 3px 0 var(--navy);
+}
+.btn.primary:hover {
+  background: var(--cobalt-lo);
+}
+.btn.quiet {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.btn.quiet:hover {
+  background: var(--cobalt-wash);
+  border-color: var(--cobalt);
+}
+.btn.small {
+  min-height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+.btn.danger {
+  color: var(--coral);
+  border-color: var(--coral);
+  box-shadow: 3px 3px 0 var(--coral);
+}
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+}
+.btn:focus-visible,
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--marigold);
+  outline-offset: 2px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px;
+  border: var(--line);
+  background: #fff;
+  color: var(--cobalt);
+  font: 700 11px var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.chip.gold {
+  background: var(--marigold);
+  color: var(--navy);
+}
+.chip.coral {
+  background: var(--coral);
+  color: #fff;
+  border-color: var(--coral);
+}
+.chip.focus {
+  background: var(--navy);
+  color: #fff;
+  border-color: var(--navy);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 5px;
+  border: 1.5px solid currentColor;
+  border-bottom-width: 3px;
+  font: 700 11px var(--font-ui);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.field {
+  width: 100%;
+  box-sizing: border-box;
+  border: var(--line);
+  background: #fff;
+  color: var(--ink);
+  font: 400 15px/1.45 var(--font-body);
+  padding: 10px 12px;
+  box-shadow: inset 3px 3px 0 var(--cobalt-wash);
+  outline: none;
+}
+.field:focus {
+  box-shadow:
+    inset 3px 3px 0 var(--cobalt-wash),
+    var(--shadow-sm);
+}
+.field::placeholder {
+  color: #8b93c2;
+}
+
+.progress {
+  height: 10px;
+  border: var(--line);
+  background: #fff;
+}
+.progress > span {
+  display: block;
+  height: 100%;
+  background: var(--cobalt);
+}
+
+/* A student's head and shoulders: cards, lists, the roster. */
+.peep-face {
+  display: inline-block;
+  flex: none;
+  width: var(--s);
+  height: var(--s);
+  border: var(--line);
+  background: var(--sky-hi);
+  overflow: hidden;
+  position: relative;
+}
+.peep-face svg {
+  position: absolute;
+  width: 210%;
+  left: -50%;
+  top: -12%;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2.5px solid var(--cobalt);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

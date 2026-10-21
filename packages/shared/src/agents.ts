@@ -203,42 +203,42 @@ export type EditableCurriculum = z.infer<typeof EditableCurriculumZ>;
 export const ARCHETYPE_INFO: Record<Archetype, { label: string; accent: string; brief: string }> = {
   skeptic: {
     label: "Skeptic",
-    accent: "#FFB547",
+    accent: "#B86E00",
     brief: "Demands the why; challenges hand-waving.",
   },
   lost_signal: {
     label: "Lost Signal",
-    accent: "#FF6B6B",
+    accent: "#D93A26",
     brief: "Has realistic misunderstandings; mixes up terms.",
   },
   overachiever: {
     label: "Overachiever",
-    accent: "#A78BFA",
+    accent: "#6B4EFF",
     brief: "Reads ahead; connects to the next concept.",
   },
   literalist: {
     label: "Literalist",
-    accent: "#22D3EE",
+    accent: "#0A7FB0",
     brief: "Wants it explained like they're 10; trips on jargon.",
   },
   pragmatist: {
     label: "Pragmatist",
-    accent: "#A3E635",
+    accent: "#2F8A2F",
     brief: "Asks where this is used in the real world.",
   },
   connector: {
     label: "Connector",
-    accent: "#2DD4BF",
+    accent: "#0E8A80",
     brief: "Draws analogies to other fields, sometimes bad ones.",
   },
   quiet: {
     label: "Quiet One",
-    accent: "#94A3B8",
+    accent: "#5B6488",
     brief: "Rarely speaks; exams reveal what they absorbed.",
   },
   saboteur: {
     label: "Saboteur",
-    accent: "#F472B6",
+    accent: "#C2338A",
     brief: "Confidently states plausible wrong claims.",
   },
 };
