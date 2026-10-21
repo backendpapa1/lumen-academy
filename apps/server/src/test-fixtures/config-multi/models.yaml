@@ -61,6 +61,7 @@ agents:
   yearbookEditor: { role: standard }
   alumniPinger: { role: fast }
   artDirector: { role: fast, maxOutputTokens: 120 } # emblem motifs (docs/07 §2.2)
+  transcriptFixer: { role: fastest, maxOutputTokens: 200, temperature: 0 }
 
 budget:
   monthlyUsdCap: 20
