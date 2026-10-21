@@ -734,3 +734,15 @@
 .parked-item:not(.open) p {
   margin: 0 0 2px;
 }
+
+/* V3-05: the break card's calm timer. */
+.dialog.break .break-timer {
+  margin: 10px 0 6px;
+  font: 400 64px var(--font-display);
+  color: var(--leaf);
+  letter-spacing: 0.02em;
+}
+.dialog.break .break-timer.done {
+  font-size: 40px;
+  color: var(--coral);
+}

@@ -711,3 +711,20 @@
   font: 400 26px var(--font-display);
   line-height: 1;
 }
+/* Break (V3-05): lights soften, the class sways and stretches. */
+.room.break .dim {
+  opacity: 0.18;
+}
+.room.break .seat .bust > svg {
+  animation: stretch 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -0.53s);
+}
+@keyframes stretch {
+  0%,
+  100% {
+    transform: rotate(-2.5deg) translateY(0);
+  }
+  50% {
+    transform: rotate(2.5deg) translateY(-2%);
+  }
+}

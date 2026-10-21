@@ -316,9 +316,19 @@ export class Room {
     if (key !== this.layoutKey) this.relayout(students, micro);
     const queue = c.hands.map((h) => h.cadetId);
     const speaking = c.speech && !c.speech.done ? c.speech.cadetId : (c.speech?.cadetId ?? null);
-    for (const st of students) {
+    // V3-05: on a break the class stretches (arms up) and chats.
+    const onBreak = !!c.breakUntil && c.clock.paused;
+    this.el.classList.toggle("break", onBreak);
+    for (const [i, st] of students.entries()) {
       const seat = this.seats.get(st.id);
       if (!seat) continue;
+      if (onBreak) {
+        this.drawStudent(seat, i % 2 ? "arms" : "hand", restingFace(st.archetype));
+        this.setEmote(seat, i % 3 === 1 ? "…" : "", "attentive");
+        this.setBadge(seat, 0);
+        seat.g.classList.remove("speaking");
+        continue;
+      }
       const pos = queue.indexOf(st.id);
       const pose: Pose =
         speaking === st.id

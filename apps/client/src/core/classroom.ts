@@ -123,6 +123,8 @@ export interface ClassroomState {
   energy: "low" | "ok" | "high" | null;
   /** V3-04: open parked thoughts in this School; this period's, at the bell. */
   parking: { open: number; items: ParkedItem[] };
+  /** V3-05: a Pomodoro break is running until this time (the period is paused). */
+  breakUntil: number | null;
   /** T-10: Hyperfocus mode for this period. */
   hyperfocus: boolean;
   /** The exit-ticket minigame at the bell (M4-05). */
@@ -150,6 +152,7 @@ export const initialClassroom = (): ClassroomState => ({
   kind: "class",
   energy: null,
   parking: { open: 0, items: [] },
+  breakUntil: null,
   hyperfocus: false,
 });
 
@@ -266,6 +269,7 @@ export function applyServerMessage(
         clock: { elapsedMs: m.payload.elapsedMs, at: now, paused: m.payload.paused },
         speech: m.payload.paused && s.speech && !s.speech.done ? null : s.speech,
         thinking: false,
+        breakUntil: m.payload.paused ? s.breakUntil : null,
       };
     case "period.recap":
       return m.payload.periodId === s.periodId ? { ...s, recap: m.payload.text } : s;

@@ -40,6 +40,24 @@ function inProgress(classroomId: string): boolean {
   );
 }
 
+const BREAK_KEY = "lumen.break";
+function saveBreak(b: { periodId: string; until: number } | null) {
+  try {
+    if (b) sessionStorage.setItem(BREAK_KEY, JSON.stringify(b));
+    else sessionStorage.removeItem(BREAK_KEY);
+  } catch {
+    /* storage blocked: a reload shows the ordinary pause card */
+  }
+}
+function loadBreak(): { periodId: string; until: number } | null {
+  try {
+    const raw = sessionStorage.getItem(BREAK_KEY);
+    return raw ? (JSON.parse(raw) as { periodId: string; until: number }) : null;
+  } catch {
+    return null;
+  }
+}
+
 function receive(m: ServerMessage) {
   const wasStarting = store.getState().classroom.status === "starting";
   store.setState((s) => ({
@@ -59,6 +77,11 @@ function receive(m: ServerMessage) {
   if (m.type === "period.started") {
     remember(m.payload.classroom.id);
     void app.loadParking(m.payload.school.id);
+    // A reload during a break comes back to the break, not a cold pause card.
+    const b = loadBreak();
+    if (b && b.periodId === m.payload.periodId && m.payload.paused)
+      store.setState((s) => ({ classroom: { ...s.classroom, breakUntil: b.until } }));
+    else saveBreak(null);
     const { kind, energy, resumed, plannedMinutes } = m.payload;
     if (!resumed && kind === "micro")
       app.notify(
@@ -221,7 +244,18 @@ export const app = {
     if (store.getState().classroom.status === "live") ensureNet().send("period.pause", {});
   },
   resume() {
-    if (store.getState().classroom.status === "live") ensureNet().send("period.resume", {});
+    if (store.getState().classroom.status !== "live") return;
+    saveBreak(null);
+    ensureNet().send("period.resume", {});
+  },
+  /** V3-05: a Pomodoro break pauses the class; nothing runs on the server meanwhile. */
+  takeBreak(minutes: number) {
+    const c = store.getState().classroom;
+    if (c.status !== "live" || c.clock.paused) return;
+    const until = Date.now() + minutes * 60_000;
+    if (c.periodId) saveBreak({ periodId: c.periodId, until });
+    store.setState((s) => ({ classroom: { ...s.classroom, breakUntil: until } }));
+    this.pause();
   },
   /**
    * Lectern quick actions (docs/02 §3.3): /board <text> (T-9, "/board clear"),

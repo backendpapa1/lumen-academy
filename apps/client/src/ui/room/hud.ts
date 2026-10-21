@@ -9,6 +9,8 @@ import "../dom/rankUp";
 import "../dom/speech";
 import { lectern, talk } from "../dom/lectern";
 import { voice } from "../../core/voice";
+import { rhythm } from "../../core/rhythm";
+import { sound } from "../../core/audio";
 import { transcript } from "../dom/transcript";
 import { lookFor, peepSvg, restingFace } from "../peeps/peep";
 import { fill, h, icon, ICONS } from "../screens/dom";
@@ -75,6 +77,9 @@ export class ClassroomHud {
   private conceptMenu: HTMLElement | null = null;
   private rosterOpen = false;
   private bellRangFor: number | null = null;
+  /** V3-05: which work block the last break followed, per period. */
+  private breakAt: { periodId: string; block: number } | null = null;
+  private breakChimed = false;
   private bellAnswered = false;
   private recapTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly unsubscribe: () => void;
@@ -133,6 +138,7 @@ export class ClassroomHud {
       c.ended !== p.ended ||
       c.clock.paused !== p.clock.paused ||
       c.resumed !== p.resumed ||
+      c.breakUntil !== p.breakUntil ||
       (c.status === "ended" && c.parking.items !== p.parking.items)
     )
       this.buildOverlay(c);
@@ -291,6 +297,41 @@ export class ClassroomHud {
       this.bellRangFor = c.plannedMinutes;
       this.bellAnswered = false;
       this.buildOverlay(c);
+    }
+    this.maybeBreak(c, total - elapsed);
+    if (c.breakUntil) this.tickBreak(c.breakUntil);
+  }
+
+  /**
+   * V3-05: after each work block, a short break, unless the bell is close
+   * anyway. A resumed period counts blocks from where it is, so a reload
+   * never springs a break on you.
+   */
+  private maybeBreak(c: ClassroomState, leftSec: number) {
+    const plan = rhythm.plan();
+    if (!plan || !c.periodId || c.status !== "live" || c.clock.paused) return;
+    const block = Math.floor(elapsedMs(c) / (plan.work * 60_000));
+    if (this.breakAt?.periodId !== c.periodId) {
+      this.breakAt = { periodId: c.periodId, block };
+      return;
+    }
+    if (block <= this.breakAt.block) return;
+    this.breakAt.block = block;
+    if (leftSec > 2 * 60) app.takeBreak(plan.rest);
+  }
+
+  private tickBreak(until: number) {
+    const el = this.overlay.querySelector<HTMLElement>("[data-break-timer]");
+    if (!el) return;
+    const left = Math.max(0, until - Date.now()) / 1000;
+    const done = left <= 0;
+    el.textContent = done
+      ? "Back to it?"
+      : `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, "0")}`;
+    el.classList.toggle("done", done);
+    if (done && !this.breakChimed) {
+      this.breakChimed = true;
+      sound.cue("bell");
     }
   }
 
@@ -462,7 +503,8 @@ export class ClassroomHud {
     let card: HTMLElement | null = null;
     if (c.status === "starting") card = this.note("Your students are taking their seats…");
     else if (c.status === "ending") card = this.note("Ringing the bell…");
-    else if (c.status === "live" && c.clock.paused) card = this.pauseCard(c);
+    else if (c.status === "live" && c.clock.paused)
+      card = c.breakUntil ? this.breakCard(c.breakUntil) : this.pauseCard(c);
     else if (this.bellDue(c) && !this.bellAnswered) card = this.bellCard(c);
     else if (c.status === "ended" && c.ended) card = this.endedCard(c);
     this.overlay.classList.toggle("shown", !!card);
@@ -499,6 +541,29 @@ export class ClassroomHud {
         h("span", { class: "dim small" }, "Esc or Space to resume"),
       ),
     );
+  }
+
+  /** V3-05: a calm timer; the class stretches and chats while I'm away. */
+  private breakCard(until: number) {
+    this.breakChimed = Date.now() >= until;
+    const card = h(
+      "section",
+      { class: "dialog card break", role: "dialog", "aria-label": "Break" },
+      h("div", { class: "micro" }, "Break"),
+      h("h2", { class: "h1" }, "Stand up. Stretch. Some water."),
+      h("div", { class: "break-timer", "data-break-timer": "", role: "timer" }, ""),
+      h("p", { class: "dim" }, "Your class is stretching too. Nothing moves on while you're away."),
+      h(
+        "div",
+        { class: "actions" },
+        h("button", { class: "btn primary", onclick: () => app.resume() }, "Back to it"),
+        h("button", { class: "btn", onclick: () => app.endClass() }, "End class"),
+        h("span", { class: "spacer" }),
+        h("span", { class: "dim small" }, "Space or Esc comes back early"),
+      ),
+    );
+    queueMicrotask(() => this.tickBreak(until));
+    return card;
   }
 
   private bellCard(c: ClassroomState) {
