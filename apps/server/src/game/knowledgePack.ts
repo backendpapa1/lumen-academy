@@ -2,11 +2,44 @@ import { rng, seedFrom } from "./rng.js";
 
 // ADR-003: a cadet answers homework/exams only from what it "retained".
 // The pack's size follows comprehension, so the mirror is mechanical.
+//
+// What a cadet retains is *what the teacher said*, not the source's sentence:
+// the Director credits a key fact as covered when the gist was taught, but the
+// key fact carries details the teacher may never have said ("two 32-byte child
+// hashes concatenated into 64 bytes"). The key fact stays the answer key; the
+// cadet only ever sees the teacher's own words for it.
 
 export interface TaughtFact {
   fact: string;
   /** How often the Director credited this fact as covered in this classroom. */
   timesCovered: number;
+  /** The teacher's lines that covered it, oldest first. */
+  asTaught?: string[];
+}
+
+const WORD = /[\p{L}\p{N}][\p{L}\p{N}'-]*/gu;
+const STOP = new Set(
+  "the a an and or of to in on is are was were be it its this that with for as at by from so then than when which who what each every one".split(
+    " ",
+  ),
+);
+const words = (s: string) =>
+  new Set((s.toLowerCase().match(WORD) ?? []).filter((w) => w.length > 2 && !STOP.has(w)));
+
+/** The teacher's sentence that best carries this fact (most recent on a tie). */
+export function asTaughtSentence(lines: string[], fact: string): string | null {
+  const target = words(fact);
+  let best: { s: string; score: number } | null = null;
+  for (const line of lines) {
+    for (const raw of line.split(/(?<=[.?!])\s+/)) {
+      const s = raw.trim();
+      if (s.length < 8) continue;
+      let score = 0;
+      for (const w of words(s)) if (target.has(w)) score++;
+      if (!best || score >= best.score) best = { s, score };
+    }
+  }
+  return best && best.score > 0 ? best.s : (lines.at(-1)?.trim() ?? null);
 }
 
 export interface PackInput {
@@ -36,7 +69,10 @@ export function knowledgePack(input: PackInput): KnowledgePack {
     let pick = r() * total;
     let i = 0;
     while (i < pool.length - 1 && (pick -= pool[i]!.timesCovered) > 0) i++;
-    retained.push(pool.splice(i, 1)[0]!.fact);
+    const t = pool.splice(i, 1)[0]!;
+    // In the teacher's words when we have them (older data may not).
+    const said = t.asTaught?.length ? asTaughtSentence(t.asTaught, t.fact) : null;
+    retained.push(said ?? t.fact);
   }
   return {
     conceptTitle: input.conceptTitle,

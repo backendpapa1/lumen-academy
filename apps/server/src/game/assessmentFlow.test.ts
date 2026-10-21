@@ -39,7 +39,7 @@ async function world() {
   per.run(w.classroomId);
   h.sqlite
     .prepare(
-      "INSERT INTO messages (id, period_id, speaker, kind, text, created_at) VALUES ('msg_1','per_1','teacher','lecture','x','2026-10-21T00:00:00Z')",
+      "INSERT INTO messages (id, period_id, speaker, kind, text, created_at) VALUES ('msg_1','per_1','teacher','lecture','Merkle Trees a: pairs are hashed up to a root.','2026-10-21T00:00:00Z')",
     )
     .run();
   const analysis = {
@@ -320,6 +320,26 @@ describe("exams (E-1..E-5)", () => {
 });
 
 describe("exit tickets (M4-05)", () => {
+  it("states what the teacher said, and skips a class that taught nothing", async () => {
+    const { w, merkle } = await world();
+    const tickets = issueExitTickets(h!, {
+      periodId: "per_1",
+      classroomId: w.classroomId,
+      conceptId: merkle,
+    });
+    const strong = tickets.find((t) => t.cadetId === w.cadets[0]!.id)!;
+    expect(strong.statement).toBe("Merkle Trees a: pairs are hashed up to a root."); // my words, not the key fact
+    // A later class with no turns covering the concept: no tickets.
+    h!.sqlite
+      .prepare(
+        "INSERT INTO periods (id, classroom_id, started_at, planned_minutes) SELECT 'per_2', classroom_id, '2026-10-22T00:00:00Z', planned_minutes FROM periods WHERE id = 'per_1'",
+      )
+      .run();
+    expect(
+      issueExitTickets(h!, { periodId: "per_2", classroomId: w.classroomId, conceptId: merkle }),
+    ).toEqual([]);
+  });
+
   it("states retained facts or held misconceptions; ✗ on a misconception corrects it; XP once", async () => {
     const { w, merkle } = await world();
     const tickets = issueExitTickets(h!, {

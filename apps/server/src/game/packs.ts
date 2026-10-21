@@ -28,19 +28,28 @@ export function taughtFacts(
 ): TaughtFact[] {
   const rows = handle.sqlite
     .prepare(
-      `SELECT t.analysis_json FROM turns t JOIN periods p ON p.id = t.period_id WHERE p.classroom_id = ?`,
+      `SELECT t.analysis_json, m.text FROM turns t JOIN periods p ON p.id = t.period_id
+       LEFT JOIN messages m ON m.id = t.teacher_message_id
+       WHERE p.classroom_id = ? ORDER BY t.created_at, t.rowid`,
     )
-    .all(classroomId) as { analysis_json: string }[];
+    .all(classroomId) as { analysis_json: string; text: string | null }[];
   const counts = new Map(keyFacts.map((f) => [f, 0]));
+  const said = new Map<string, string[]>(keyFacts.map((f) => [f, []]));
   for (const r of rows) {
     const a = JSON.parse(r.analysis_json) as TeachingAnalysis;
     if (!a.conceptIds.includes(conceptId)) continue;
     for (const covered of a.teaching.coverage) {
       const fact = keyFacts.find((f) => matchesFact(covered, f));
-      if (fact) counts.set(fact, (counts.get(fact) ?? 0) + 1);
+      if (!fact) continue;
+      counts.set(fact, (counts.get(fact) ?? 0) + 1);
+      if (r.text) said.get(fact)!.push(r.text);
     }
   }
-  return keyFacts.map((fact) => ({ fact, timesCovered: counts.get(fact) ?? 0 }));
+  return keyFacts.map((fact) => ({
+    fact,
+    timesCovered: counts.get(fact) ?? 0,
+    asTaught: said.get(fact) ?? [],
+  }));
 }
 
 export function cadetPack(

@@ -8,7 +8,8 @@ import { awardXp } from "./xp.js";
 
 // Exit tickets (docs/02 §5, M4-05): at the bell each cadet states one thing
 // about today's concept, true (a fact it retained) or false (a misconception it
-// holds, or a common one). The Headmaster has 60s to mark ✓/✗. Rejecting a
+// holds, or a common one), in the teacher's own words (ADR-003). Only after a
+// class that taught something. The teacher has 60s to mark ✓/✗. Rejecting a
 // false statement corrects that cadet; nothing here calls a model.
 
 export interface ExitTicket {
@@ -27,6 +28,19 @@ export function issueExitTickets(
     .get(input.conceptId) as
     { id: string; title: string; key_facts_json: string; misconceptions_json: string } | undefined;
   if (!concept) return [];
+  // "What did you take away today?" only makes sense if today taught something:
+  // at least one turn this period covered a key fact of this concept.
+  const turns = sqlite
+    .prepare("SELECT analysis_json FROM turns WHERE period_id = ?")
+    .all(input.periodId) as Array<{ analysis_json: string }>;
+  const taughtToday = turns.some((t) => {
+    const a = JSON.parse(t.analysis_json) as {
+      conceptIds?: string[];
+      teaching?: { coverage?: string[] };
+    };
+    return a.conceptIds?.includes(input.conceptId) && (a.teaching?.coverage?.length ?? 0) > 0;
+  });
+  if (!taughtToday) return [];
   const keyFacts = JSON.parse(concept.key_facts_json) as string[];
   const common = JSON.parse(concept.misconceptions_json) as string[];
   const cadets = sqlite

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPack, knowledgePack, type PackInput } from "./knowledgePack.js";
+import { asTaughtSentence, formatPack, knowledgePack, type PackInput } from "./knowledgePack.js";
 
 const facts = ["f1", "f2", "f3", "f4", "f5"];
 const input = (over: Partial<PackInput> = {}): PackInput => ({
@@ -65,5 +65,40 @@ describe("knowledgePack", () => {
     ]);
     expect(text).toContain("you remember nothing specific");
     expect(text).toContain("You also believe (and are sure of):\n- root is in every tx");
+  });
+});
+
+describe("retained facts are the teacher's words (knowledge gating)", () => {
+  it("never hands a cadet the source's detail for a fact the teacher only gisted", () => {
+    const fact =
+      "To build a parent node, the two 32-byte child hashes are concatenated into a 64-byte string which is then double-hashed.";
+    const pack = knowledgePack({
+      conceptTitle: "Merkle tree construction",
+      taught: [
+        {
+          fact,
+          timesCovered: 1,
+          asTaught: [
+            "Picture a tournament bracket. Each transaction is hashed. Then neighbouring hashes are paired, joined together and hashed again.",
+          ],
+        },
+      ],
+      comprehension: 1,
+      misconceptions: [],
+      seed: { cadetId: "c", conceptId: "k", purpose: "t" },
+    });
+    expect(pack.retained).toEqual([
+      "Then neighbouring hashes are paired, joined together and hashed again.",
+    ]);
+    expect(pack.retained.join(" ")).not.toMatch(/32-byte|64-byte/);
+  });
+
+  it("picks the teacher's sentence closest to the fact", () => {
+    expect(
+      asTaughtSentence(
+        ["Hi all. The root goes in the header. Change any transaction and the root changes."],
+        "The Merkle root is stored in the block header.",
+      ),
+    ).toBe("The root goes in the header.");
   });
 });
