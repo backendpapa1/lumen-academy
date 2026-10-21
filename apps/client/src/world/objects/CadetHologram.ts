@@ -264,6 +264,12 @@ export class CadetHologram {
     this.speakTarget = on ? 1 : 0;
   }
 
+  /** Top of the head in world space, where the speech panel's line attaches. */
+  headWorld(out: THREE.Vector3): THREE.Vector3 {
+    this.body.updateWorldMatrix(true, false);
+    return this.body.localToWorld(out.set(0, BILLBOARD_H * 0.92, 0));
+  }
+
   /** Keeps the billboard facing the camera (yaw only, never rolls). */
   update(dt: number, camera: THREE.Camera): void {
     this.time += dt;

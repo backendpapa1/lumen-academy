@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { ClassroomState } from "../../core/classroom";
 import { store } from "../../core/store";
 import { accentOf } from "../../ui/theme";
+import { anchors } from "../anchors";
 import { dayPhase, PHASES } from "../lighting";
 import { Amphitheater, seatPose } from "../objects/Amphitheater";
 import { CadetLayer } from "../objects/CadetLayer";
@@ -30,6 +31,9 @@ export class ClassroomScene implements WorldScene {
   private readonly unsubscribe: () => void;
   private time = 0;
   private lastSpeechId: string | null = null;
+  private speakerId: string | null = null;
+  private readonly size = { w: 1, h: 1 };
+  private readonly head = new THREE.Vector3();
 
   constructor() {
     this.scene.background = new THREE.Color(0x05070d);
@@ -125,6 +129,7 @@ export class ClassroomScene implements WorldScene {
       point: lastPoint,
       understanding: c.classAverage,
     });
+    this.speakerId = c.speech?.cadetId ?? null;
     // A cadet starting to speak sends a ripple across the floor from their seat.
     const speaking = c.speech && !c.speech.done ? c.speech : null;
     if (speaking && speaking.streamId !== this.lastSpeechId) {
@@ -146,14 +151,31 @@ export class ClassroomScene implements WorldScene {
     this.floor.update(dt);
     this.cadetLayer.update(dt, this.camera);
     this.windowView.update(dt);
+    this.projectSpeaker();
+  }
+
+  /** Where the speech panel attaches: the speaker's head, in stage pixels. */
+  private projectSpeaker(): void {
+    const h = this.speakerId ? this.cadetLayer.get(this.speakerId) : undefined;
+    if (!h) {
+      anchors.speaker = null;
+      return;
+    }
+    this.camera.updateMatrixWorld();
+    const p = h.headWorld(this.head).project(this.camera);
+    anchors.speaker =
+      p.z < 1 ? { x: ((p.x + 1) / 2) * this.size.w, y: ((1 - p.y) / 2) * this.size.h } : null;
   }
 
   resize(width: number, height: number): void {
+    this.size.w = width;
+    this.size.h = height;
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
   }
 
   dispose(): void {
+    anchors.speaker = null;
     this.unsubscribe();
     this.floor.dispose();
     this.amphitheater.dispose();

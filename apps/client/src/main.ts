@@ -1,5 +1,7 @@
 import * as Phaser from "phaser";
 import * as THREE from "three";
+import type { ServerMessage } from "@lumen/shared";
+import { applyServerMessage } from "./core/classroom";
 import { loadDemoClassroom } from "./core/demo";
 import { store } from "./core/store";
 import { loadFonts } from "./ui/fonts";
@@ -82,6 +84,8 @@ declare global {
       phaserVersion: string;
       threeRevision: string;
       stats: WorldDirector["stats"];
+      /** Feed a server message straight into the store (demo/e2e only). */
+      receive(m: ServerMessage): void;
     };
   }
 }
@@ -90,4 +94,5 @@ window.__lumen = {
   phaserVersion: Phaser.VERSION,
   threeRevision: THREE.REVISION,
   stats: director.stats,
+  receive: (m) => store.setState((s) => ({ classroom: applyServerMessage(s.classroom, m) })),
 };

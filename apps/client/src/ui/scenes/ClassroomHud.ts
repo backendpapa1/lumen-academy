@@ -9,6 +9,7 @@ import { Panel } from "../components/Panel";
 import { label } from "../components/text";
 import { TimerRing } from "../components/TimerRing";
 import { lectern } from "../dom/lectern";
+import "../dom/speech";
 import { transcript } from "../dom/transcript";
 import { accentCss, accentOf, color, css, motion, uiScale } from "../theme";
 
