@@ -10,6 +10,7 @@ export type Broadcast = Extract<
     type:
       | "source.status"
       | "curriculum.status"
+      | "curriculum.progress"
       | "registration.started"
       | "registration.arrival"
       | "registration.done"

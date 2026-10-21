@@ -29,3 +29,6 @@ note
 eval/reports/
 spikes/
 apps/client/docs/screens/
+
+# Claude Code's local agent worktrees and settings.
+.claude/

@@ -1,4 +1,4 @@
-import type { CadetView, ServerMessage } from "@lumen/shared";
+import type { CadetView, CurriculumBuild, ServerMessage } from "@lumen/shared";
 import type { ArchivedSchool, CampusView, SchoolDetail, SchoolSummary } from "./api";
 
 // State for the setup screens: lobby, School Wing and registration. Server
@@ -35,6 +35,8 @@ export interface SetupState {
     status: "building" | "ready" | "error";
     detail?: string;
   } | null;
+  /** Live curriculum builds by School: stage, fraction, heartbeat, or the failure. */
+  builds: Record<string, CurriculumBuild>;
   registration: Registration | null;
 }
 
@@ -44,6 +46,7 @@ export const initialSetup = (): SetupState => ({
   campus: null,
   school: null,
   sourceJobs: {},
+  builds: {},
   curriculumJob: null,
   registration: null,
 });
@@ -60,6 +63,8 @@ export function applySetupMessage(s: SetupState, m: ServerMessage): SetupState {
     }
     case "curriculum.status":
       return { ...s, curriculumJob: m.payload };
+    case "curriculum.progress":
+      return { ...s, builds: { ...s.builds, [m.payload.schoolId]: m.payload } };
     case "registration.started":
       return {
         ...s,

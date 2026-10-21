@@ -12,6 +12,8 @@ export default tseslint.config(
       "prd/**",
       "coverage/**",
       // The desktop app's generated bundle and Rust build output (ADR-011).
+      // Agent worktrees (each a full copy of the repo).
+      ".claude/**",
       "apps/desktop/build/**",
       "apps/desktop/src-tauri/target/**",
       "apps/desktop/src-tauri/gen/**",

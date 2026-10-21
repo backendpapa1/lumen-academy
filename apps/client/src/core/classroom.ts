@@ -513,6 +513,7 @@ export function applyServerMessage(
     case "pong":
     case "source.status":
     case "curriculum.status":
+    case "curriculum.progress":
     case "registration.started":
     case "registration.arrival":
     case "registration.done":

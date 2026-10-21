@@ -1,7 +1,14 @@
 import type { Transcriber } from "./speech/stt.js";
-import { ARCHETYPE_INFO, registerFor, type Archetype, type CadetView } from "@lumen/shared";
+import {
+  ARCHETYPE_INFO,
+  registerFor,
+  type Archetype,
+  type CadetView,
+  type CurriculumBuild,
+} from "@lumen/shared";
 import { emblemMotifs } from "./agents/artDirector.js";
 import { buildCurriculum } from "./agents/deep/curriculumArchitect.js";
+import { BuildTracker, explainBuildError } from "./agents/deep/progress.js";
 import { emblemPrompt, portraitPrompt, type PortraitSubject } from "./assets/prompts.js";
 import type { AssetService } from "./assets/service.js";
 import { saveCurriculum } from "./db/curriculum.js";
@@ -139,6 +146,128 @@ export function addSource(
 
 const building = new Set<string>();
 
+/** The latest build state per School, so a reload or a new window sees it. */
+const builds = new Map<string, CurriculumBuild>();
+const BUILD_ERROR_KEY = (schoolId: string) => `curriculumBuildError:${schoolId}`;
+
+/** What's building (or last failed) for a School, for GET …/curriculum/build. */
+export function curriculumBuildState(
+  deps: Pick<JobDeps, "handle">,
+  schoolId: string,
+): CurriculumBuild | null {
+  const live = builds.get(schoolId);
+  if (live) return live;
+  // A failure survives a restart, so the error is still there to read.
+  const row = deps.handle.sqlite
+    .prepare("SELECT value_json v FROM settings WHERE key = ?")
+    .get(BUILD_ERROR_KEY(schoolId)) as { v: string } | undefined;
+  return row ? (JSON.parse(row.v) as CurriculumBuild) : null;
+}
+
+/** Streams progress: every stage change at once, otherwise at most once a second. */
+function progressEmitter(deps: JobDeps, schoolId: string) {
+  let last = 0;
+  let lastStage = "";
+  let pending: ReturnType<typeof setTimeout> | undefined;
+  const send = (s: CurriculumBuild) => {
+    last = Date.now();
+    lastStage = s.stage;
+    builds.set(schoolId, structuredClone(s));
+    deps.bus.emit({ type: "curriculum.progress", payload: structuredClone(s) });
+  };
+  return {
+    emit(s: CurriculumBuild) {
+      builds.set(schoolId, structuredClone(s));
+      clearTimeout(pending);
+      if (s.stage !== lastStage || Date.now() - last > 1000) send(s);
+      else pending = setTimeout(() => send(s), 1000 - (Date.now() - last));
+    },
+    stop() {
+      clearTimeout(pending);
+    },
+  };
+}
+
+/** Runs one build with live progress, the end state, and a plain-language error. */
+async function runBuild(
+  deps: JobDeps,
+  schoolId: string,
+  extending: boolean,
+  work: (track: (sources: Array<{ id: string; title: string }>) => BuildTracker) => Promise<string>,
+): Promise<boolean> {
+  const out = progressEmitter(deps, schoolId);
+  let tracker: BuildTracker | null = null;
+  const track = (sources: Array<{ id: string; title: string }>) =>
+    (tracker = new BuildTracker(schoolId, sources, (s) => out.emit(s), extending));
+  // A heartbeat while it builds: one model call can take minutes and say nothing.
+  const beat = setInterval(() => {
+    const t = tracker as BuildTracker | null;
+    if (t) deps.bus.emit({ type: "curriculum.progress", payload: structuredClone(t.state) });
+  }, 10_000);
+  deps.handle.sqlite.prepare("DELETE FROM settings WHERE key = ?").run(BUILD_ERROR_KEY(schoolId));
+  try {
+    const detail = await work(track);
+    clearInterval(beat);
+    out.stop();
+    const t = tracker as BuildTracker | null;
+    const done: CurriculumBuild = {
+      ...(t?.state ?? blankBuild(schoolId)),
+      status: "ready",
+      stage: "done",
+      label: `Done: ${detail}`,
+      fraction: 1,
+      waitingSince: null,
+      detail,
+    };
+    builds.delete(schoolId);
+    deps.bus.emit({ type: "curriculum.progress", payload: done });
+    deps.bus.emit({ type: "curriculum.status", payload: { schoolId, status: "ready", detail } });
+    return true;
+  } catch (err) {
+    clearInterval(beat);
+    out.stop();
+    const reason = explainBuildError(err);
+    console.error(`curriculum build failed for ${schoolId}:`, err);
+    const t = tracker as BuildTracker | null;
+    const failed: CurriculumBuild = {
+      ...(t?.state ?? blankBuild(schoolId)),
+      status: "error",
+      stage: "failed",
+      label: "The build stopped",
+      waitingSince: null,
+      error: reason,
+    };
+    builds.delete(schoolId);
+    deps.handle.sqlite
+      .prepare(
+        "INSERT INTO settings (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
+      )
+      .run(BUILD_ERROR_KEY(schoolId), JSON.stringify(failed));
+    deps.bus.emit({ type: "curriculum.progress", payload: failed });
+    deps.bus.emit({
+      type: "curriculum.status",
+      payload: { schoolId, status: "error", detail: reason },
+    });
+    return false;
+  }
+}
+
+function blankBuild(schoolId: string): CurriculumBuild {
+  const now = new Date().toISOString();
+  return {
+    schoolId,
+    status: "building",
+    stage: "preparing",
+    label: "",
+    fraction: 0,
+    sources: [],
+    calls: 0,
+    startedAt: now,
+    lastActivityAt: now,
+    waitingSince: null,
+  };
+}
+
 /** C-1: Curriculum Architect, one run per school at a time. */
 export async function generateCurriculum(deps: JobDeps, schoolId: string): Promise<boolean> {
   if (!deps.embedder)
@@ -147,26 +276,16 @@ export async function generateCurriculum(deps: JobDeps, schoolId: string): Promi
   building.add(schoolId);
   deps.bus.emit({ type: "curriculum.status", payload: { schoolId, status: "building" } });
   try {
-    const result = await buildCurriculum(
-      { factory: deps.factory, handle: deps.handle, embedder: deps.embedder },
-      schoolId,
-    );
-    const saved = saveCurriculum(deps.handle, schoolId, result.curriculum);
-    deps.bus.emit({
-      type: "curriculum.status",
-      payload: {
+    return await runBuild(deps, schoolId, false, async (track) => {
+      const result = await buildCurriculum(
+        { factory: deps.factory, handle: deps.handle, embedder: deps.embedder! },
         schoolId,
-        status: "ready",
-        detail: `${saved.modules} modules, ${saved.concepts} concepts`,
-      },
+        undefined,
+        track,
+      );
+      const saved = saveCurriculum(deps.handle, schoolId, result.curriculum);
+      return `${saved.modules} modules, ${saved.concepts} concepts`;
     });
-    return true;
-  } catch (err) {
-    deps.bus.emit({
-      type: "curriculum.status",
-      payload: { schoolId, status: "error", detail: (err as Error).message },
-    });
-    return false;
   } finally {
     building.delete(schoolId);
   }
@@ -204,35 +323,27 @@ export async function extendCurriculum(deps: JobDeps, schoolId: string): Promise
     payload: { schoolId, status: "building", detail: "extending" },
   });
   try {
-    const current = loadEditableCurriculum(deps.handle, schoolId);
-    const existing = current.modules.flatMap((m) => m.concepts.map((c) => c.title));
-    const result = await buildCurriculum(
-      { factory: deps.factory, handle: deps.handle, embedder: deps.embedder },
-      schoolId,
-      { sourceIds: fresh.map((s) => s.id), existingConcepts: existing },
-    );
-    const taken = new Set(existing.map((t) => t.toLowerCase()));
-    const added = result.curriculum.modules
-      .map((m) => ({ ...m, concepts: m.concepts.filter((c) => !taken.has(c.title.toLowerCase())) }))
-      .filter((m) => m.concepts.length);
-    const summary = applyCurriculumEdit(deps.handle, schoolId, {
-      modules: [...current.modules, ...added],
-    });
-    deps.bus.emit({
-      type: "curriculum.status",
-      payload: {
+    return await runBuild(deps, schoolId, true, async (track) => {
+      const current = loadEditableCurriculum(deps.handle, schoolId);
+      const existing = current.modules.flatMap((m) => m.concepts.map((c) => c.title));
+      const result = await buildCurriculum(
+        { factory: deps.factory, handle: deps.handle, embedder: deps.embedder! },
         schoolId,
-        status: "ready",
-        detail: `added ${summary.added} concepts in ${added.length} modules`,
-      },
+        { sourceIds: fresh.map((s) => s.id), existingConcepts: existing },
+        track,
+      );
+      const taken = new Set(existing.map((t) => t.toLowerCase()));
+      const added = result.curriculum.modules
+        .map((m) => ({
+          ...m,
+          concepts: m.concepts.filter((c) => !taken.has(c.title.toLowerCase())),
+        }))
+        .filter((m) => m.concepts.length);
+      const summary = applyCurriculumEdit(deps.handle, schoolId, {
+        modules: [...current.modules, ...added],
+      });
+      return `added ${summary.added} concepts in ${added.length} modules`;
     });
-    return true;
-  } catch (err) {
-    deps.bus.emit({
-      type: "curriculum.status",
-      payload: { schoolId, status: "error", detail: (err as Error).message },
-    });
-    return false;
   } finally {
     building.delete(schoolId);
   }

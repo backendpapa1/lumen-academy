@@ -2427,3 +2427,125 @@ table.heat td {
 .keys-banner[hidden] {
   display: none;
 }
+
+/* Curriculum build progress (stage, bar, heartbeat, sources). */
+.build {
+  margin: 0 0 16px;
+  border-color: var(--cobalt);
+}
+.build[hidden] {
+  display: none;
+}
+.build.failed {
+  border-color: var(--coral);
+  background: var(--coral-wash);
+}
+.build-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.build .dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--coral);
+}
+.build .dot.live {
+  background: var(--leaf);
+  animation: build-beat 1.2s ease-in-out infinite;
+}
+@keyframes build-beat {
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
+}
+.build-label {
+  margin-top: 2px;
+  font: 700 15px/1.35 var(--font-ui);
+  color: var(--navy);
+}
+.build-pct {
+  font: 400 24px var(--font-display);
+  color: var(--cobalt);
+}
+.build-bar {
+  height: 12px;
+  margin-top: 12px;
+  border: var(--line);
+  background: #fff;
+  overflow: hidden;
+}
+.build-bar i {
+  display: block;
+  height: 100%;
+  background: repeating-linear-gradient(-45deg, var(--cobalt) 0 10px, #4a5fff 10px 20px);
+  background-size: 28px 100%;
+  animation: build-stripes 1s linear infinite;
+  transition: width 0.6s var(--ease);
+}
+@keyframes build-stripes {
+  to {
+    background-position: 28px 0;
+  }
+}
+.build-meta {
+  margin: 8px 0 0;
+  font: 400 13px/1.45 var(--font-body);
+}
+.build-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.build-sources li {
+  max-width: 260px;
+  padding: 3px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 12px var(--font-body);
+  border: 1.5px solid var(--cobalt-wash);
+  background: #fff;
+  color: var(--ink-dim);
+}
+.build-sources li span {
+  margin-right: 5px;
+}
+.build-sources li.reading {
+  border-color: var(--cobalt);
+  color: var(--navy);
+}
+.build-sources li.done {
+  border-color: var(--leaf);
+  color: var(--leaf);
+}
+@media (prefers-reduced-motion: reduce) {
+  .build .dot.live,
+  .build-bar i {
+    animation: none;
+  }
+}
+.card-build {
+  margin: 10px 0 6px;
+}
+.card-build .build-bar {
+  margin-top: 6px;
+  height: 8px;
+}
+.card-build-label {
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-build.failed .micro,
+.card-build.failed .card-build-label {
+  color: var(--coral);
+  white-space: normal;
+}

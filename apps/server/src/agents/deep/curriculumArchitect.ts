@@ -6,6 +6,7 @@ import type { Embedder } from "../../ingest/embed.js";
 import type { ModelFactory } from "../../models/factory.js";
 import { loadPrompt } from "../prompts/load.js";
 import { sourceTools } from "../tools/source.js";
+import type { BuildTracker } from "./progress.js";
 
 // Curriculum Architect (docs/03 §3.1–3.2): a deep agent with source-analyst and
 // curriculum-editor subagents. The server seeds input files into the agent's
@@ -128,6 +129,8 @@ export async function buildCurriculum(
   schoolId: string,
   /** S-5: only these sources, extending a curriculum that already has these concept titles. */
   extend?: { sourceIds: string[]; existingConcepts: string[] },
+  /** Live progress (stage, fraction, heartbeat), fed from the agent's callbacks. */
+  track?: (sources: Array<{ id: string; title: string }>) => BuildTracker,
 ): Promise<ArchitectResult> {
   const { handle } = deps;
   const school = handle.sqlite
@@ -151,6 +154,7 @@ export async function buildCurriculum(
     ).map((r) => r.id),
   );
 
+  const tracker = track?.(sources.map((s) => ({ id: s.id, title: s.title })));
   const { model } = deps.factory.getModel("curriculumArchitect");
   const tools = sourceTools({ handle, embedder: deps.embedder, schoolId }).all;
   const agent = createDeepAgent({
@@ -186,7 +190,10 @@ export async function buildCurriculum(
   let files: Record<string, unknown> = seedFiles(handle, sources);
   const rejections: string[][] = [];
   for (let attempt = 1; attempt <= 2; attempt++) {
-    const out = (await agent.invoke({ messages, files } as never, { recursionLimit: 150 })) as {
+    const out = (await agent.invoke({ messages, files } as never, {
+      recursionLimit: 150,
+      ...(tracker ? { callbacks: [tracker] } : {}),
+    })) as {
       messages: BaseMessage[];
       files?: Record<string, { content: string | string[] }>;
     };
@@ -196,6 +203,7 @@ export async function buildCurriculum(
         ? file.content.join("\n")
         : String(file.content)
       : undefined;
+    tracker?.stage("checking", "Checking every concept against your sources", 0.95);
     const check = checkCurriculum(raw, validChunkIds, extend?.existingConcepts);
     if (check.ok) {
       return {
@@ -208,6 +216,11 @@ export async function buildCurriculum(
     rejections.push(check.problems);
     if (attempt === 2)
       throw new Error(`curriculum invalid after re-ask: ${check.problems.join("; ")}`);
+    tracker?.stage(
+      "fixing",
+      `Fixing ${check.problems.length === 1 ? "a problem" : `${check.problems.length} problems`} the check found`,
+      0.95,
+    );
     messages = [
       ...out.messages,
       new HumanMessage(

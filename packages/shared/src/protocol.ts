@@ -17,6 +17,39 @@ export const EnvelopeZ = z.strictObject({
 });
 export type Envelope = z.infer<typeof EnvelopeZ>;
 
+/** A curriculum build as it runs (Paul: progress, stages, and errors stated plainly). */
+export const CurriculumBuildZ = z.strictObject({
+  schoolId: z.string(),
+  status: z.enum(["building", "ready", "error"]),
+  stage: z.enum([
+    "preparing",
+    "reading",
+    "ordering",
+    "checking",
+    "fixing",
+    "saving",
+    "done",
+    "failed",
+  ]),
+  label: z.string(),
+  /** 0..1 */
+  fraction: z.number(),
+  sources: z.array(
+    z.object({ id: z.string(), title: z.string(), state: z.enum(["waiting", "reading", "done"]) }),
+  ),
+  /** Model calls so far. */
+  calls: z.number().int(),
+  startedAt: z.string(),
+  lastActivityAt: z.string(),
+  /** When the oldest model call still waiting for an answer began (a long step), or null. */
+  waitingSince: z.string().nullable(),
+  /** Plain-language reason, when it failed. */
+  error: z.string().optional(),
+  /** What it made, when it finished. */
+  detail: z.string().optional(),
+});
+export type CurriculumBuild = z.infer<typeof CurriculumBuildZ>;
+
 const msg = <T extends string, P extends z.ZodType>(type: T, payload: P) =>
   z.strictObject({ type: z.literal(type), sessionId: z.string().optional(), payload });
 
@@ -235,6 +268,8 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       detail: z.string().optional(),
     }),
   ),
+  /** Live progress of a curriculum build: stage, fraction and a heartbeat. */
+  msg("curriculum.progress", CurriculumBuildZ),
   msg(
     "curriculum.status",
     z.strictObject({

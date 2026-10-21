@@ -29,6 +29,7 @@ import { loadPrompt } from "../agents/prompts/load.js";
 import {
   addSource,
   extendCurriculum,
+  curriculumBuildState,
   generateCurriculum,
   generateEmblem,
   sourcesOutsideCurriculum,
@@ -492,6 +493,12 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
       // S-5: sources added after the curriculum was built.
       newSources: sourcesOutsideCurriculum(deps.handle, s.id),
     };
+  });
+
+  /** The build as it runs (stage, fraction, heartbeat), or the last failure. */
+  app.get<{ Params: { id: string } }>("/api/schools/:id/curriculum/build", async (req, reply) => {
+    if (!school(req.params.id)) return reply.code(404).send({ error: "no such School" });
+    return { build: curriculumBuildState(deps, req.params.id) };
   });
 
   app.post<{ Params: { id: string } }>("/api/schools/:id/curriculum/extend", async (req, reply) => {

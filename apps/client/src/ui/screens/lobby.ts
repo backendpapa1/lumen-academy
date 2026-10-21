@@ -124,7 +124,8 @@ export function mountLobby(root: HTMLElement): () => void {
     if (
       s.setup.schools !== p.setup.schools ||
       s.setup.campus !== p.setup.campus ||
-      s.setup.archived !== p.setup.archived
+      s.setup.archived !== p.setup.archived ||
+      s.setup.builds !== p.setup.builds
     )
       render();
   });
@@ -416,6 +417,7 @@ function schoolCard(s: SchoolSummary, wing?: CampusView["wings"][number]): HTMLE
           ),
       ),
     ),
+    cardBuild(s.id),
     rows.length
       ? h("div", {}, ...rows)
       : h(
@@ -424,9 +426,34 @@ function schoolCard(s: SchoolSummary, wing?: CampusView["wings"][number]): HTMLE
           !s.sources
             ? "Add a source to get started."
             : !s.concepts
-              ? "Build the curriculum next."
+              ? store.getState().setup.builds[s.id]?.status === "building"
+                ? "The curriculum is on its way."
+                : "Build the curriculum next."
               : "Open a class to meet your students.",
         ),
+  );
+}
+
+/** A curriculum building (or failed) for this School: a thin bar and the stage. */
+function cardBuild(schoolId: string): HTMLElement | null {
+  const b = store.getState().setup.builds[schoolId];
+  if (!b || b.status === "ready") return null;
+  const pct = Math.round(b.fraction * 100);
+  return h(
+    "div",
+    { class: `card-build ${b.status === "error" ? "failed" : ""}` },
+    h(
+      "div",
+      { class: "micro" },
+      b.status === "error" ? "Curriculum build failed" : `Building the curriculum · ${pct}%`,
+    ),
+    b.status !== "error" &&
+      h("div", { class: "build-bar" }, h("i", { style: `width:${Math.max(2, pct)}%` })),
+    h(
+      "div",
+      { class: "dim small card-build-label" },
+      b.status === "error" ? (b.error ?? "") : b.label,
+    ),
   );
 }
 

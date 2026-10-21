@@ -1,8 +1,9 @@
-import type { EditableCurriculum } from "@lumen/shared";
+import type { CurriculumBuild, EditableCurriculum } from "@lumen/shared";
 import { api, ApiError, type ConceptStatus, type CurriculumView } from "../../core/api";
 import { app } from "../../core/app";
 import { store } from "../../core/store";
 import { fill, h, icon, ICONS } from "./dom";
+import { buildProgress } from "./buildProgress";
 import { confirmDialog } from "./modal";
 
 // Curriculum Map (C-2, C-4): modules as columns, concepts as nodes edged in
@@ -46,8 +47,22 @@ export function mountCurriculum(
   const map = h("div", { class: "map card", "aria-label": "Curriculum map" });
   const editor = h("aside", { class: "editor card pad", "aria-label": "Concept editor" });
   const savebar = h("div", { class: "savebar card", hidden: true });
+  // The build as it runs, or why it stopped; a reload or a tab switch picks it up again.
+  const progress = buildProgress(() => void build());
+  const setBuild = (b: CurriculumBuild | null) =>
+    store.setState((st) => {
+      const builds = { ...st.setup.builds };
+      if (b) builds[schoolId] = b;
+      else delete builds[schoolId];
+      return { setup: { ...st.setup, builds } };
+    });
+  void api
+    .get<{ build: CurriculumBuild | null }>(`/api/schools/${schoolId}/curriculum/build`)
+    .then((r) => setBuild(r.build))
+    .catch(() => undefined);
   root.append(
     toolbar,
+    progress.el,
     banner,
     h("div", { class: "map-shell" }, h("div", {}, map, savebar), editor),
   );
@@ -219,21 +234,27 @@ export function mountCurriculum(
 
   const render = () => {
     const job = store.getState().setup.curriculumJob;
-    const building = job?.schoolId === schoolId && job.status === "building";
+    const live = store.getState().setup.builds[schoolId] ?? null;
+    progress.update(live);
+    const building =
+      (job?.schoolId === schoolId && job.status === "building") || live?.status === "building";
     const sources = store.getState().setup.school?.sources ?? [];
     const hasReady = sources.some((s) => s.status === "ready");
     fill(
       toolbar,
       h("h2", { class: "h2" }, "Curriculum map"),
+      // Without live progress (an older server), at least say it's working.
       building &&
+        !live &&
         h(
           "span",
           { class: "chip busy" },
           h("span", { class: "dot" }),
-          "The Curriculum Architect is reading your sources (about a minute)…",
+          "The Curriculum Architect is reading your sources…",
         ),
       job?.schoolId === schoolId &&
         job.status === "error" &&
+        !live &&
         h("span", { class: "chip err" }, h("span", { class: "dot" }), job.detail ?? "Build failed"),
       h("span", { class: "spacer" }),
       legend(),
@@ -613,11 +634,13 @@ export function mountCurriculum(
       else render();
     }
     if (s.setup.school !== p.setup.school) render();
+    if (s.setup.builds[schoolId] !== p.setup.builds[schoolId]) render();
   });
   const onResize = () => render();
   window.addEventListener("resize", onResize);
   return () => {
     off();
+    progress.dispose();
     window.removeEventListener("resize", onResize);
   };
 }
