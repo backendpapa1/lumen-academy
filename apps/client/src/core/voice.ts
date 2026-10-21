@@ -515,7 +515,10 @@ export function wavOf(chunks: Float32Array[], rate: number, outRate = 16_000): B
   const total = chunks.reduce((n, c) => n + c.length, 0);
   const input = new Float32Array(total);
   let at = 0;
-  for (const c of chunks) (input.set(c, at), (at += c.length));
+  for (const c of chunks) {
+    input.set(c, at);
+    at += c.length;
+  }
   // Average each output sample's window (a plain low-pass while downsampling).
   const step = rate / outRate;
   const n = Math.floor(total / step);
