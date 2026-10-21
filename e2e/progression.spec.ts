@@ -198,6 +198,7 @@ test("campus: tier pieces, trophies, and festival day for a new Landmark", async
   await expect(page.locator(".campus .lab")).toHaveCount(2);
   await expect(page.locator(".campus .trophies .cup")).toHaveCount(3);
   await expect(page.locator(".campus .bunting")).toHaveCount(1);
+  await expect(page.locator(".campus .crowd .cheer")).toHaveCount(5);
   await page.waitForTimeout(1500);
   await page.screenshot({ path: "docs/screens/v7-campus-festival.png" });
 });

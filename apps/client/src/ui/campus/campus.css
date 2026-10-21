@@ -488,6 +488,15 @@
 }
 
 /* Festival day (a School became a Landmark) */
+.campus .crowd .cheer {
+  animation: cheer 0.9s ease-in-out infinite alternate;
+  animation-delay: calc(var(--i) * -0.3s);
+}
+@keyframes cheer {
+  to {
+    transform: translateY(-6px);
+  }
+}
 .campus .bunting .string {
   fill: none;
   stroke: var(--cobalt);

@@ -1,4 +1,5 @@
 import { dayPhase } from "../../world/lighting";
+import { lookFor, peepSvg } from "../peeps/peep";
 import "./campus.css";
 
 // The campus behind the lobby (ADR-009, docs/02 §1): a drawn school grounds.
@@ -216,6 +217,24 @@ function festivalMarkup(accent: string): string {
   return `<g class="bunting"><path class="string" d="M0 40 Q 800 90 1600 40"/>${flags}</g><g class="confetti">${confetti}</g>`;
 }
 
+/** Festival day: students out on the lawn either side of the path, behind the Schools. */
+function crowdMarkup(): string {
+  return [
+    [930, 586],
+    [1056, 596],
+    [1112, 602],
+    [1250, 602],
+    [1306, 596],
+  ]
+    .map(([x, y], i) =>
+      peepSvg(lookFor(`festival-${i}`), { pose: i % 2 ? "hand" : "talk", face: "Smile" }).replace(
+        "<svg ",
+        `<svg class="cheer" style="--i:${i}" x="${x! - 28}" y="${y}" width="56" height="67" `,
+      ),
+    )
+    .join("");
+}
+
 function grounds(): string {
   const phase = dayPhase();
   const [top, low] = SKY[phase];
@@ -262,6 +281,7 @@ function grounds(): string {
       <path class="door" d="M-38 0 v-70 q28 -26 56 0 v70z"/>
       <rect class="step" x="-70" y="-6" width="120" height="10"/>
     </g>
+    <g class="crowd"></g>
     <g class="plots"></g>
     <g class="weather"></g>
     <g class="festival"></g>`;
@@ -273,6 +293,7 @@ export class Campus {
   private readonly plots: SVGGElement;
   private readonly weather: SVGGElement;
   private readonly festival: SVGGElement;
+  private readonly crowd: SVGGElement;
   private festivalTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly wings = new Map<string, { g: SVGGElement; info: WingInfo }>();
   private focused: string | null = null;
@@ -290,6 +311,7 @@ export class Campus {
     this.plots = this.svg.querySelector(".plots")!;
     this.weather = this.svg.querySelector(".weather")!;
     this.festival = this.svg.querySelector(".festival")!;
+    this.crowd = this.svg.querySelector(".crowd")!;
   }
 
   /** Sync buildings with the campus data; returns the Schools that just tiered up. */
@@ -340,10 +362,12 @@ export class Campus {
   /** A School became a Landmark: festival day on the campus for a while. */
   celebrate(accent: string, ms = 12_000): void {
     this.festival.innerHTML = festivalMarkup(accent);
+    this.crowd.innerHTML = crowdMarkup();
     this.el.classList.add("festival-day");
     clearTimeout(this.festivalTimer);
     this.festivalTimer = setTimeout(() => {
       this.festival.innerHTML = "";
+      this.crowd.innerHTML = "";
       this.el.classList.remove("festival-day");
     }, ms);
   }

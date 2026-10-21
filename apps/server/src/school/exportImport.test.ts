@@ -30,6 +30,20 @@ describe("School export/import (O-5)", () => {
         "INSERT INTO ledger_entries (cadet_id, concept_id, comprehension, exposures, misconceptions_json) VALUES (?, ?, 0.5, 3, '[]')",
       )
       .run(w.cadets[0]!.id, w.conceptIds[0]);
+    // V7: room upgrades, the class photo and a trophy travel with the School.
+    w.handle.sqlite
+      .prepare(
+        "INSERT INTO room_upgrades (classroom_id, item, placed_at) VALUES (?, 'goldfish', ?)",
+      )
+      .run(w.classroomId, "2026-10-21T10:00:00Z");
+    w.handle.sqlite
+      .prepare("UPDATE classrooms SET photo_svg = '<svg>photo</svg>' WHERE id = ?")
+      .run(w.classroomId);
+    w.handle.sqlite
+      .prepare(
+        "INSERT INTO trophies (id, school_id, classroom_id, kind, note, created_at) VALUES ('tro_1', ?, ?, 'rival', 'Beat them', ?)",
+      )
+      .run(w.schoolId, w.classroomId, "2026-10-21T10:00:00Z");
     const dir = mkdtempSync(join(tmpdir(), "lumen-exp-"));
     const { filename, zip } = exportSchool(w.handle, cfg.game, {
       schoolId: w.schoolId,
@@ -52,8 +66,14 @@ describe("School export/import (O-5)", () => {
       "classrooms",
       "cadets",
       "ledger_entries",
+      "room_upgrades",
+      "trophies",
     ])
       expect([t, count(fresh, t)]).toEqual([t, count(w.handle, t)]);
+    expect(count(fresh, "room_upgrades")).toBe(1);
+    expect(
+      (fresh.sqlite.prepare("SELECT photo_svg p FROM classrooms").get() as { p: string }).p,
+    ).toBe("<svg>photo</svg>");
     expect(count(fresh, "chunk_vec")).toBe(count(w.handle, "chunk_vec"));
     // Search works on the imported School without re-embedding (FTS triggers + vectors).
     const hits = await hybridSearch(
