@@ -1,4 +1,5 @@
 import { parseExamDate, studyPlan } from "../game/studyPlan.js";
+import { keyPlace } from "../config/paths.js";
 import { dayIn } from "../game/campus.js";
 import { glossaryFor } from "../speech/glossary.js";
 import { captionsToSource, fetchYouTube, youtubeId } from "../ingest/sources/youtube.js";
@@ -304,7 +305,7 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
     const s = school(req.params.id);
     if (!s) return reply.code(404).send({ error: "no such School" });
     if (!deps.embedder)
-      return reply.code(503).send({ error: "Indexing needs an OpenAI key in .env." });
+      return reply.code(503).send({ error: `Indexing needs an OpenAI key ${keyPlace()}.` });
     let input: { title: string; kind: SourceKind; data: Uint8Array | string };
     if (req.isMultipart()) {
       const file = await req.file();
@@ -338,7 +339,7 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
     const s = school(req.params.id);
     if (!s) return reply.code(404).send({ error: "no such School" });
     if (!deps.embedder)
-      return reply.code(503).send({ error: "Indexing needs an OpenAI key in .env." });
+      return reply.code(503).send({ error: `Indexing needs an OpenAI key ${keyPlace()}.` });
     const body = LinkZ.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: "Paste a link." });
     try {
@@ -377,7 +378,7 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
     const s = school(req.params.id);
     if (!s) return reply.code(404).send({ error: "no such School" });
     if (!deps.embedder)
-      return reply.code(503).send({ error: "Indexing needs an OpenAI key in .env." });
+      return reply.code(503).send({ error: `Indexing needs an OpenAI key ${keyPlace()}.` });
     const stt = deps.speech?.stt;
     if (!stt?.transcribeLong || stt.status() === "missing")
       return reply.code(503).send({
@@ -499,7 +500,7 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
     if (!deps.embedder)
       return reply
         .code(503)
-        .send({ error: "The Curriculum Architect needs an OpenAI key in .env." });
+        .send({ error: `The Curriculum Architect needs an OpenAI key ${keyPlace()}.` });
     if (!sourcesOutsideCurriculum(deps.handle, s.id).length)
       return reply.code(409).send({ error: "Every source is already in the curriculum." });
     void extendCurriculum(deps, s.id).catch(() => undefined);
@@ -514,7 +515,7 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
       if (!deps.embedder)
         return reply
           .code(503)
-          .send({ error: "The Curriculum Architect needs an OpenAI key in .env." });
+          .send({ error: `The Curriculum Architect needs an OpenAI key ${keyPlace()}.` });
       const ready = sqlite
         .prepare("SELECT count(*) AS n FROM sources WHERE school_id = ? AND status = 'ready'")
         .get(s.id) as {

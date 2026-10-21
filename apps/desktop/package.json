@@ -1,0 +1,16 @@
+{
+  "name": "@lumen/desktop",
+  "version": "0.8.0",
+  "private": true,
+  "description": "Lumen Academy: learn by teaching a class of AI students.",
+  "type": "module",
+  "scripts": {
+    "server:bundle": "node scripts/bundle-server.mjs",
+    "dev": "node scripts/bundle-server.mjs && tauri dev",
+    "package": "node scripts/bundle-server.mjs && tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.1",
+    "esbuild": "0.28.2"
+  }
+}

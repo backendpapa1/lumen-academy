@@ -9,3 +9,7 @@ apps/server/drizzle/
 fixtures/
 apps/server/src/agents/prompts/**/*.md
 eval/reports/
+apps/desktop/build/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/binaries/

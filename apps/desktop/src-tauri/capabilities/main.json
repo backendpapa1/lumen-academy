@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "The game window. Its loading page is local; the game itself is served by our own server on 127.0.0.1 and may only open the configurator.",
+  "windows": ["main"],
+  "remote": { "urls": ["http://127.0.0.1:*"] },
+  "permissions": ["allow-open-configurator"]
+}

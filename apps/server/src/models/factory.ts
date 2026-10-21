@@ -1,4 +1,5 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { keyPlace } from "../config/paths.js";
 import { ChatDeepSeek } from "@langchain/deepseek";
 import { ChatOpenAI } from "@langchain/openai";
 import type { AgentName, ModelsConfig } from "@lumen/shared";
@@ -131,7 +132,10 @@ export function buildModel(
   if (!provider) throw new Error(`provider "${spec.provider}" is not configured in models.yaml`);
   // A local server takes any key; the others need theirs.
   const apiKey = deps.env[provider.apiKeyEnv] ?? (spec.provider === "local" ? "local" : undefined);
-  if (!apiKey) throw new Error(`${provider.apiKeyEnv} is not set (needed for ${specId(spec)})`);
+  if (!apiKey)
+    throw new Error(
+      `${provider.apiKeyEnv} is not set (needed for ${specId(spec)}). Add it ${keyPlace()}.`,
+    );
 
   if (spec.provider === "local") {
     // llama.cpp's llama-server speaks the OpenAI chat API; no thinking knobs.

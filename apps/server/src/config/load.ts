@@ -36,6 +36,9 @@ export class ConfigError extends Error {
 
 /** Walks up from `start` to the first directory containing config/models.yaml. */
 export function findConfigDir(start = process.cwd()): string {
+  // The desktop app points at the config it ships with (ADR-011).
+  const fixed = process.env.LUMEN_CONFIG_DIR;
+  if (fixed && existsSync(join(fixed, "models.yaml"))) return resolve(fixed);
   let dir = resolve(start);
   for (;;) {
     const candidate = join(dir, "config");

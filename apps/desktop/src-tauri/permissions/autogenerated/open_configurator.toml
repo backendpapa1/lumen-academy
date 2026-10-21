@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-configurator"
+description = "Enables the open_configurator command without any pre-configured scope."
+commands.allow = ["open_configurator"]
+
+[[permission]]
+identifier = "deny-open-configurator"
+description = "Denies the open_configurator command without any pre-configured scope."
+commands.deny = ["open_configurator"]

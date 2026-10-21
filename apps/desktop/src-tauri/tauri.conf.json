@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Lumen Academy",
+  "version": "0.8.0",
+  "identifier": "academy.lumen.app",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage"],
+    "category": "Education",
+    "shortDescription": "Learn by teaching a class of AI students",
+    "longDescription": "Lumen Academy is a local-first learning game: you found a School per topic, add your sources, and teach a class of AI students who only know what you teach them. Their confusion shows you where your own understanding is thin.",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png"],
+    "externalBin": ["binaries/lumen-node"],
+    "resources": {
+      "../build/server/": "server/"
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libayatana-appindicator3-1"]
+      },
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    }
+  },
+  "plugins": {}
+}

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lumen Academy: API keys and settings</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="configurator.css" />
+  </head>
+  <body>
+    <main class="cfg">
+      <header>
+        <div class="micro">Lumen Academy</div>
+        <h1>API keys and settings</h1>
+        <p class="dim">
+          Lumen runs on this computer. Your keys are kept in your system's keyring and are given
+          only to Lumen's own server when it starts: never to the game window, never in a file you
+          share.
+        </p>
+      </header>
+
+      <section class="card key" data-provider="deepseek">
+        <div class="head">
+          <div>
+            <h2>DeepSeek</h2>
+            <p class="dim small">Your students, their questions, homework and exams.</p>
+          </div>
+          <span class="chip" aria-live="polite"></span>
+        </div>
+        <label class="micro" for="deepseek">API key</label>
+        <div class="field-row">
+          <input
+            id="deepseek"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="sk-…"
+          />
+          <button class="btn quiet reveal" type="button" aria-label="Show the key">Show</button>
+        </div>
+        <div class="row">
+          <button class="btn test" type="button">Test the key</button>
+          <a class="link" href="https://platform.deepseek.com/api_keys">Get a DeepSeek key ↗</a>
+        </div>
+        <p class="result small" aria-live="polite"></p>
+      </section>
+
+      <section class="card key" data-provider="openai">
+        <div class="head">
+          <div>
+            <h2>OpenAI</h2>
+            <p class="dim small">
+              Reading your sources (search) and drawing the school's pictures.
+            </p>
+          </div>
+          <span class="chip" aria-live="polite"></span>
+        </div>
+        <label class="micro" for="openai">API key</label>
+        <div class="field-row">
+          <input
+            id="openai"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="sk-…"
+          />
+          <button class="btn quiet reveal" type="button" aria-label="Show the key">Show</button>
+        </div>
+        <div class="row">
+          <button class="btn test" type="button">Test the key</button>
+          <a class="link" href="https://platform.openai.com/api-keys">Get an OpenAI key ↗</a>
+        </div>
+        <p class="result small" aria-live="polite"></p>
+      </section>
+
+      <p class="warn small" id="fileWarn" hidden>
+        No system keyring answered, so your keys are saved in a private file only your user can
+        read. Installing GNOME Keyring or KWallet keeps them safer.
+      </p>
+
+      <section class="card">
+        <h2>Your data</h2>
+        <p class="dim small">
+          Schools, students, transcripts and your sources live here. Back it up like any folder.
+        </p>
+        <div class="path" id="dataDir"></div>
+        <p class="small" id="dataNote"></p>
+        <div class="row">
+          <button class="btn" id="chooseData" type="button">Choose a folder…</button>
+          <button class="btn" id="copyData" type="button">Copy data from another folder…</button>
+          <button class="btn quiet" id="openData" type="button">Open the folder</button>
+        </div>
+        <p class="dim small">
+          Copying from another Lumen? Close it first (or stop <code>pnpm dev</code>), so its
+          database isn't half-written while it's copied.
+        </p>
+      </section>
+
+      <section class="card">
+        <label class="check">
+          <input type="checkbox" id="autostart" />
+          <span>Start Lumen Academy when I log in</span>
+        </label>
+      </section>
+
+      <footer>
+        <p class="small status" id="status" aria-live="polite"></p>
+        <div class="row end">
+          <button class="btn quiet" id="close" type="button">Close</button>
+          <button class="btn primary" id="save" type="button">Save and restart Lumen</button>
+        </div>
+        <p class="dim small" id="version"></p>
+      </footer>
+    </main>
+    <script src="configurator.js"></script>
+  </body>
+</html>

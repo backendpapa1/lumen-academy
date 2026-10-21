@@ -5,8 +5,10 @@ import {
   type ArchivedSchool,
   type CampusView,
   type SchoolSummary,
+  type Settings,
 } from "../../core/api";
 import { app } from "../../core/app";
+import { desktop } from "../../core/desktop";
 import { store } from "../../core/store";
 import { hoverSchool } from "./campusSync";
 import { emblem, plural, rankInsignia } from "./common";
@@ -29,6 +31,12 @@ export function mountLobby(root: HTMLElement): () => void {
     hidden: true,
   });
   const shelf = h("div", { class: "archived-shelf" });
+  // The desktop app on a fresh install: keys first (ADR-011).
+  const keysBanner = h("section", {
+    class: "card pad keys-banner",
+    "aria-label": "API keys needed",
+    hidden: true,
+  });
   root.append(
     h(
       "div",
@@ -73,6 +81,7 @@ export function mountLobby(root: HTMLElement): () => void {
           "Tour",
         ),
       ),
+      keysBanner,
       hero,
       challenge,
       grid,
@@ -80,6 +89,7 @@ export function mountLobby(root: HTMLElement): () => void {
     ),
   );
   void loadChallenge(challenge);
+  if (desktop.present) void loadKeysBanner(keysBanner);
 
   const render = () => {
     const { schools, campus, archived } = store.getState().setup;
@@ -759,6 +769,36 @@ interface Challenge {
   accepted: boolean;
   completed: boolean;
 }
+async function loadKeysBanner(el: HTMLElement) {
+  const s = await api.get<Settings>("/api/settings").catch(() => null);
+  if (!s || (s.hasDeepSeekKey && s.hasOpenAiKey)) return;
+  const missing = [!s.hasDeepSeekKey && "DeepSeek", !s.hasOpenAiKey && "OpenAI"].filter(Boolean);
+  fill(
+    el,
+    h(
+      "div",
+      { style: "flex:1;min-width:0" },
+      h("div", { class: "micro" }, "One step before your first class"),
+      h(
+        "div",
+        { class: "h2" },
+        `Add your ${missing.join(" and ")} key${missing.length > 1 ? "s" : ""}`,
+      ),
+      h(
+        "p",
+        { class: "dim", style: "margin:4px 0 0" },
+        "Your students think with DeepSeek; OpenAI reads your sources and draws the school. The keys stay on this computer.",
+      ),
+    ),
+    h(
+      "button",
+      { class: "btn primary", onclick: () => desktop.openConfigurator() },
+      "Add API keys…",
+    ),
+  );
+  el.hidden = false;
+}
+
 async function loadChallenge(el: HTMLElement) {
   const render = (c: Challenge) => {
     el.hidden = false;

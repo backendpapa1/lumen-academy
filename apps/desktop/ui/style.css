@@ -1,0 +1,123 @@
+/* The desktop shell's own pages (loading, configurator), in the game's look:
+   cobalt lines, paper cards, a marigold accent. System fonts, so they work
+   before anything has loaded and with no network. */
+:root {
+  --cobalt: #2a40ff;
+  --navy: #0f1a66;
+  --sky: #c6ecff;
+  --sky-hi: #e3f6ff;
+  --paper: #fafbff;
+  --marigold: #ffc23d;
+  --marigold-wash: #fff1cc;
+  --coral: #f0442e;
+  --leaf: #15925a;
+  --ink: #1d2559;
+  --ink-dim: #4a5699;
+  --line: 2px solid var(--cobalt);
+  --shadow: 5px 5px 0 var(--cobalt);
+  --font: "Inter", "Cantarell", "Ubuntu", system-ui, sans-serif;
+  --mono: "Space Mono", "JetBrains Mono", "Ubuntu Mono", ui-monospace, monospace;
+  color-scheme: light;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: linear-gradient(180deg, var(--sky) 0%, var(--sky-hi) 60%, #fff 100%);
+  color: var(--ink);
+  font: 400 15px/1.5 var(--font);
+}
+.micro {
+  font: 700 11px var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cobalt);
+}
+h1 {
+  margin: 4px 0 0;
+  font: 800 30px/1.1 var(--font);
+  color: var(--navy);
+  letter-spacing: -0.01em;
+}
+h2 {
+  margin: 0;
+  font: 700 17px var(--font);
+  color: var(--navy);
+}
+p {
+  margin: 6px 0;
+}
+.dim {
+  color: var(--ink-dim);
+}
+.small {
+  font-size: 13px;
+}
+.card {
+  background: var(--paper);
+  border: var(--line);
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 16px;
+  font: 700 13px var(--mono);
+  color: var(--cobalt);
+  background: #fff;
+  border: var(--line);
+  box-shadow: 3px 3px 0 var(--cobalt);
+  cursor: pointer;
+}
+.btn:hover {
+  background: var(--sky-hi);
+}
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--cobalt);
+}
+.btn.primary {
+  color: #fff;
+  background: var(--cobalt);
+  border-color: var(--navy);
+  box-shadow: 3px 3px 0 var(--navy);
+}
+.btn.primary:hover {
+  background: #1f33e0;
+}
+.btn.quiet {
+  border-color: transparent;
+  box-shadow: none;
+  background: transparent;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.btn:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--marigold);
+  outline-offset: 2px;
+}
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  font: 400 14px var(--mono);
+  color: var(--ink);
+  background: #fff;
+  border: var(--line);
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

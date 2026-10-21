@@ -2414,3 +2414,16 @@ table.heat td {
 .archived-row .btn.danger {
   color: var(--coral);
 }
+
+/* The desktop app on a fresh install: add the API keys first. */
+.keys-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  background: var(--marigold-wash);
+  border-color: var(--navy);
+}
+.keys-banner[hidden] {
+  display: none;
+}

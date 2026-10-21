@@ -15,7 +15,9 @@ export interface DbHandle {
   close(): void;
 }
 
-export const MIGRATIONS_DIR = fileURLToPath(new URL("../../drizzle", import.meta.url));
+/** In the desktop app the migrations ship beside the bundled server (ADR-011). */
+export const MIGRATIONS_DIR =
+  process.env.LUMEN_MIGRATIONS_DIR ?? fileURLToPath(new URL("../../drizzle", import.meta.url));
 
 /** Opens (creating if needed) the database with sqlite-vec loaded. Use ":memory:" in tests. */
 export function openDb(path: string): DbHandle {

@@ -16,3 +16,7 @@ export function loadDotEnv(root: string): void {
   const path = join(root, ".env");
   if (existsSync(path)) process.loadEnvFile(path);
 }
+
+/** Where a missing API key gets added, in the words of whichever Lumen this is. */
+export const keyPlace = () =>
+  process.env.LUMEN_DESKTOP ? "in API keys and settings (Lumen's tray menu)" : "in .env";

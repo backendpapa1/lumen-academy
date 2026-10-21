@@ -6,8 +6,13 @@ import { ServerMessageZ, WS_PATH, type ClientMessage, type ServerMessage } from 
 type Status = "connecting" | "open" | "closed";
 type Payload<T extends ClientMessage["type"]> = Extract<ClientMessage, { type: T }>["payload"];
 
+/**
+ * Dev: the Vite client on 5173 talks to the server on 5174. A built client is
+ * served by the server itself (the desktop app, ADR-011), so it uses its own origin.
+ */
 export const SERVER_HTTP =
-  (import.meta.env.VITE_SERVER as string | undefined) ?? "http://127.0.0.1:5174";
+  (import.meta.env.VITE_SERVER as string | undefined) ??
+  (import.meta.env.DEV ? "http://127.0.0.1:5174" : location.origin);
 
 export class Net {
   private ws: WebSocket | null = null;

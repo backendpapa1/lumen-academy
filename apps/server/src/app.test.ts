@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { buildApp } from "./app.js";
+import { buildApp, clientOrigins } from "./app.js";
 import { loadConfig } from "./config/load.js";
 
 let app: FastifyInstance;
@@ -63,6 +63,16 @@ describe("http", () => {
       },
     });
     expect(String(pre.headers["access-control-allow-methods"])).toContain("PUT");
+  });
+
+  it("allows the desktop app's own origin only when it serves the client", () => {
+    expect(clientOrigins({ LUMEN_PORT: "37313" })).not.toContain("http://127.0.0.1:37313");
+    expect(clientOrigins({ LUMEN_PORT: "37313", LUMEN_CLIENT_DIR: "/x/client" })).toEqual(
+      expect.arrayContaining(["http://127.0.0.1:37313", "http://localhost:37313"]),
+    );
+    expect(clientOrigins({ LUMEN_EXTRA_ORIGINS: "http://evil.example:80" })).not.toContain(
+      "http://evil.example:80",
+    );
   });
 
   it("binds to loopback", () => {

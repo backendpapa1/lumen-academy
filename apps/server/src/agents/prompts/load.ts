@@ -3,7 +3,8 @@ import { fileURLToPath } from "node:url";
 import Handlebars from "handlebars";
 
 // Prompts are files (CLAUDE.md): src/agents/prompts/<name>.md with {{handlebars}} slots.
-const PROMPTS_DIR = fileURLToPath(new URL(".", import.meta.url));
+// The desktop app ships them beside its bundled server (LUMEN_PROMPTS_DIR, ADR-011).
+const PROMPTS_DIR = process.env.LUMEN_PROMPTS_DIR ?? fileURLToPath(new URL(".", import.meta.url));
 const cache = new Map<string, HandlebarsTemplateDelegate>();
 
 // Prompts are plain text, never HTML: no escaping of quotes or ampersands.

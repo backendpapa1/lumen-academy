@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-copy-data-from"
+description = "Enables the copy_data_from command without any pre-configured scope."
+commands.allow = ["copy_data_from"]
+
+[[permission]]
+identifier = "deny-copy-data-from"
+description = "Denies the copy_data_from command without any pre-configured scope."
+commands.deny = ["copy_data_from"]

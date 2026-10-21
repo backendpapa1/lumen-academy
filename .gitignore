@@ -10,3 +10,8 @@ test-results/
 playwright-report/
 *.log
 .DS_Store
+# The desktop app's generated bundle, sidecar Node and Rust build output (ADR-011).
+apps/desktop/build/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/binaries/

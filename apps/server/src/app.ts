@@ -15,6 +15,7 @@ import { registerSchoolRoutes } from "./routes/schools.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
 import { registerSpeechRoutes } from "./routes/speech.js";
 import { registerStudyRoutes } from "./routes/study.js";
+import { registerClientFiles } from "./routes/clientFiles.js";
 import { EventBus } from "./events.js";
 import { backfillEmblems } from "./jobs.js";
 import { ClassroomConnection, type Runtime } from "./ws/classroomConnection.js";
@@ -22,15 +23,24 @@ import { parseClientFrame, wsError } from "./ws/handler.js";
 
 // The Vite dev client is the only browser origin allowed to call the API.
 // LUMEN_EXTRA_ORIGINS (comma-separated, local only) adds a second dev client,
-// e.g. a preview on another port against a copy of the data.
-export const CLIENT_ORIGINS = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  ...(process.env.LUMEN_EXTRA_ORIGINS ?? "")
-    .split(",")
-    .map((o) => o.trim())
-    .filter((o) => /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(o)),
-];
+// e.g. a preview on another port against a copy of the data. When the server
+// serves the client itself (the desktop app, ADR-011), its own origin is allowed.
+export function clientOrigins(env: NodeJS.ProcessEnv = process.env): string[] {
+  const own =
+    env.LUMEN_CLIENT_DIR && env.LUMEN_PORT
+      ? [`http://127.0.0.1:${env.LUMEN_PORT}`, `http://localhost:${env.LUMEN_PORT}`]
+      : [];
+  return [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    ...own,
+    ...(env.LUMEN_EXTRA_ORIGINS ?? "")
+      .split(",")
+      .map((o) => o.trim())
+      .filter((o) => /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(o)),
+  ];
+}
+export const CLIENT_ORIGINS = clientOrigins();
 
 export interface AppDeps {
   config: AppConfig;
@@ -65,6 +75,8 @@ export async function buildApp({
     profile: config.models.profile,
     time: new Date().toISOString(),
   }));
+  // The desktop app: the server serves the built client itself (ADR-011).
+  if (process.env.LUMEN_CLIENT_DIR) registerClientFiles(app, process.env.LUMEN_CLIENT_DIR);
   if (runtime) registerClassroomRoutes(app, runtime.handle, runtime.game);
   if (runtime) registerStudyRoutes(app, runtime.handle);
   if (runtime && assetsDir) registerAssetRoutes(app, runtime.handle, assetsDir);

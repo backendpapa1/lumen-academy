@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lumen Academy</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      body {
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+      }
+      .boot {
+        width: min(460px, calc(100vw - 32px));
+        text-align: center;
+      }
+      .hall {
+        width: 180px;
+        margin: 0 auto 18px;
+        display: block;
+      }
+      .hall .flag {
+        transform-origin: 110px 12px;
+        animation: wave 1.6s ease-in-out infinite alternate;
+      }
+      @keyframes wave {
+        to {
+          transform: skewY(-8deg);
+        }
+      }
+      .bar {
+        height: 10px;
+        margin: 18px auto 0;
+        width: 220px;
+        border: var(--line);
+        background: #fff;
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        width: 40%;
+        background: var(--marigold);
+        animation: slide 1.2s ease-in-out infinite alternate;
+      }
+      @keyframes slide {
+        from {
+          transform: translateX(-10%);
+        }
+        to {
+          transform: translateX(160%);
+        }
+      }
+      .failed {
+        display: none;
+        margin-top: 18px;
+        text-align: left;
+      }
+      .failed .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      body.has-error .bar {
+        display: none;
+      }
+      body.has-error .failed {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="boot">
+      <svg class="hall" viewBox="0 0 220 140" aria-hidden="true">
+        <line x1="110" y1="12" x2="110" y2="40" stroke="#2a40ff" stroke-width="3" />
+        <path
+          class="flag"
+          d="M110 12 h34 l-8 8 l8 8 h-34z"
+          fill="#ffc23d"
+          stroke="#2a40ff"
+          stroke-width="2"
+        />
+        <path d="M14 66 L110 36 L206 66z" fill="#ffc23d" stroke="#2a40ff" stroke-width="3" />
+        <rect x="24" y="66" width="172" height="62" fill="#fff" stroke="#2a40ff" stroke-width="3" />
+        <rect
+          x="40"
+          y="76"
+          width="10"
+          height="52"
+          fill="#c6ecff"
+          stroke="#2a40ff"
+          stroke-width="2"
+        />
+        <rect
+          x="72"
+          y="76"
+          width="10"
+          height="52"
+          fill="#c6ecff"
+          stroke="#2a40ff"
+          stroke-width="2"
+        />
+        <rect
+          x="138"
+          y="76"
+          width="10"
+          height="52"
+          fill="#c6ecff"
+          stroke="#2a40ff"
+          stroke-width="2"
+        />
+        <rect
+          x="170"
+          y="76"
+          width="10"
+          height="52"
+          fill="#c6ecff"
+          stroke="#2a40ff"
+          stroke-width="2"
+        />
+        <path d="M96 128 v-30 q14 -14 28 0 v30z" fill="#2a40ff" />
+        <rect x="70" y="126" width="80" height="8" fill="#fff" stroke="#2a40ff" stroke-width="2" />
+      </svg>
+      <div class="micro">Lumen Academy</div>
+      <h1 id="title">Opening the school…</h1>
+      <p class="dim" id="lede">Unlocking the doors and waking your students.</p>
+      <div class="bar" aria-hidden="true"><i></i></div>
+      <section class="card failed" role="alert">
+        <h2>Lumen couldn't start</h2>
+        <p id="reason" class="dim"></p>
+        <div class="row">
+          <button class="btn primary" id="settings">API keys and settings…</button>
+          <button class="btn" id="logs">Open the log</button>
+        </div>
+      </section>
+    </main>
+    <script>
+      const T = window.__TAURI__;
+      window.lumenFailed = (msg) => {
+        document.body.classList.add("has-error");
+        document.getElementById("title").textContent = "Something went wrong";
+        document.getElementById("lede").textContent = "";
+        document.getElementById("reason").textContent = msg;
+      };
+      document.getElementById("settings").onclick = () => T.core.invoke("open_configurator");
+      document.getElementById("logs").onclick = async () => {
+        const s = await T.core.invoke("get_setup").catch(() => null);
+        if (s) T.core.invoke("open_path", { path: s.logPath });
+      };
+    </script>
+  </body>
+</html>

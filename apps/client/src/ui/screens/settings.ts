@@ -3,6 +3,7 @@ import { app } from "../../core/app";
 import { sound } from "../../core/audio";
 import { rhythm, type BreakPlan } from "../../core/rhythm";
 import { store } from "../../core/store";
+import { desktop } from "../../core/desktop";
 import { voice } from "../../core/voice";
 import { h } from "./dom";
 import { openModal } from "./modal";
@@ -58,11 +59,23 @@ function form(s: Settings, close: () => void): HTMLElement {
   const arcs = h("input", { type: "checkbox", checked: s.growthArcs, id: "set-arcs" });
   const err = h("p", { class: "error-text", role: "alert" });
   const save = h("button", { class: "btn primary", type: "submit" }, "Save settings");
-  const keys = h(
-    "p",
-    { class: "dim", style: "font-size:13px;margin-top:16px" },
-    `API keys (in .env on this machine): DeepSeek ${s.hasDeepSeekKey ? "set" : "missing"} · OpenAI ${s.hasOpenAiKey ? "set" : "missing"}.`,
-  );
+  const keyState = `DeepSeek ${s.hasDeepSeekKey ? "set" : "missing"} · OpenAI ${s.hasOpenAiKey ? "set" : "missing"}`;
+  const keys = desktop.present
+    ? h(
+        "div",
+        { class: "row wrap-row", style: "gap:10px;margin-top:16px;font-size:13px" },
+        h("span", { class: "dim" }, `API keys: ${keyState}.`),
+        h(
+          "button",
+          { class: "btn small", type: "button", onclick: () => desktop.openConfigurator() },
+          "API keys and data folder…",
+        ),
+      )
+    : h(
+        "p",
+        { class: "dim", style: "font-size:13px;margin-top:16px" },
+        `API keys (in .env on this machine): ${keyState}.`,
+      );
   const f = h(
     "form",
     {},

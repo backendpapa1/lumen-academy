@@ -1,4 +1,5 @@
 import { currentChallenge, undefinedTerms } from "../game/challenges.js";
+import { keyPlace } from "../config/paths.js";
 import { newSinceLastPeriod, upgradeState } from "../game/upgrades.js";
 import { schoolDecalUrl } from "../game/campus.js";
 import { diagramText, type Diagram } from "@lumen/shared";
@@ -880,7 +881,7 @@ export class ClassroomConnection {
   private async checkSource(text?: string) {
     const session = this.requireSession();
     const toast = (t: string) => this.send({ type: "toast", payload: { level: "info", text: t } });
-    if (!this.rt.embedder) return toast("Checking your sources needs an OpenAI key in .env.");
+    if (!this.rt.embedder) return toast(`Checking your sources needs an OpenAI key ${keyPlace()}.`);
     const q =
       text?.trim() || [...session.lines].reverse().find((l) => l.speaker === "Teacher")?.text;
     if (!q) return toast("Say something first (or /source <what to check>).");
@@ -906,7 +907,7 @@ export class ClassroomConnection {
       this.send({ type: "toast", payload: { level, text } });
     if (!game.modes.guest) return toast("The guest lecturer is switched off in game.yaml.");
     if (!embedder)
-      return toast("The guest lecturer needs an OpenAI key in .env to search your sources.");
+      return toast(`The guest lecturer needs an OpenAI key ${keyPlace()} to search your sources.`);
     const left = guestsLeft(handle, game);
     if (left <= 0) return toast("No guest visits left this week. They're back in a few days.");
     // The class's latest question if I didn't give one.

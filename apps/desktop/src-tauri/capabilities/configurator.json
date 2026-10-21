@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "configurator",
+  "description": "The local configurator window: keys, data folder, launch at login.",
+  "windows": ["configurator"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "allow-get-setup",
+    "allow-save-setup",
+    "allow-test-key",
+    "allow-pick-folder",
+    "allow-copy-data-from",
+    "allow-open-path",
+    "allow-set-autostart"
+  ]
+}
