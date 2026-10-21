@@ -58,7 +58,9 @@ function applyRoute() {
   const key =
     route.name === "classroom" || route.name === "registration"
       ? `${route.name}:${route.classroomId}`
-      : route.name;
+      : route.name === "exam"
+        ? `exam:${route.examId}`
+        : route.name;
   if (key === showing) return;
   showing = key;
   if (route.name === "gallery") return;
@@ -70,8 +72,9 @@ function applyRoute() {
     return;
   }
   ui.scene.stop("classroomHud");
-  if (route.name === "registration") {
-    director.show(new ClassroomScene({ arrivals: true }));
+  if (route.name === "registration" || route.name === "exam") {
+    // Registration and the exam both happen in the room itself.
+    director.show(new ClassroomScene({ arrivals: route.name === "registration" }));
     showingWorld = "classroom";
   } else if (showingWorld !== "backdrop") {
     director.show(new BackdropScene());

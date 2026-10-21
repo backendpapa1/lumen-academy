@@ -11,6 +11,7 @@ import { label } from "../components/text";
 import { TimerRing } from "../components/TimerRing";
 import { lectern } from "../dom/lectern";
 import "../dom/cadetTag";
+import "../dom/exitTickets";
 import "../dom/speech";
 import { transcript } from "../dom/transcript";
 import { accentCss, accentOf, color, css, motion, uiScale } from "../theme";
@@ -515,13 +516,24 @@ export class ClassroomHud extends Phaser.Scene {
     );
     panel.add(body);
     const btnY = 190 * s + body.height + 36 * s;
-    panel.add(
-      new Button(this, w - 120 * s, btnY, "Back to classes", {
-        primary: true,
+    const back = new Button(this, 0, btnY, "Back to classes", {
+      primary: true,
+      scale: s,
+      onClick: () => app.backToBoot(),
+    });
+    back.setX(w - 28 * s - back.width / 2);
+    panel.add(back);
+    // Straight to the Class Desk: homework on what was just taught.
+    const school = c.school?.id;
+    const room = c.classroom?.id;
+    if (school && room) {
+      const desk = new Button(this, 0, btnY, "Set homework", {
         scale: s,
-        onClick: () => app.backToBoot(),
-      }),
-    );
+        onClick: () => app.openDesk(school, room, "assignments"),
+      });
+      desk.setX(back.x - back.width / 2 - 12 * s - desk.width / 2);
+      panel.add(desk);
+    }
     panel.resize(w, btnY + 40 * s);
     this.overlay = this.add.container(0, 0, [this.backdrop(), panel]);
   }

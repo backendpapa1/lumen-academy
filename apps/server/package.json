@@ -18,7 +18,8 @@
     "eval:agents": "tsx scripts/eval-agents.ts",
     "cli:teach": "tsx scripts/cli-teach.ts",
     "images:probe": "tsx scripts/images-probe.ts",
-    "assets:gen": "tsx scripts/assets-gen.ts"
+    "assets:gen": "tsx scripts/assets-gen.ts",
+    "eval:assessment": "tsx scripts/eval-assessment.ts"
   },
   "dependencies": {
     "@fastify/cors": "11.3.1",

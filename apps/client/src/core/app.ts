@@ -1,6 +1,7 @@
 import type { ServerMessage } from "@lumen/shared";
 import { api, type SchoolDetail, type SchoolSummary } from "./api";
 import { applyServerMessage, dismissToast } from "./classroom";
+import { serverEvents } from "./bus";
 import { applySetupMessage } from "./setup";
 import { Net } from "./net";
 import { store } from "./store";
@@ -29,6 +30,7 @@ function receive(m: ServerMessage) {
     classroom: applyServerMessage(s.classroom, m),
     setup: applySetupMessage(s.setup, m),
   }));
+  serverEvents.emit("message", m);
   if (m.type === "source.status" && (m.payload.status === "ready" || m.payload.status === "error"))
     void app.refreshSchool().catch(() => undefined);
   if (m.type === "curriculum.status" && m.payload.status !== "building")
@@ -161,6 +163,47 @@ export const app = {
   endClass() {
     store.setState((s) => ({ classroom: { ...s.classroom, status: "ending" } }));
     ensureNet().send("period.end", {});
+  },
+  /** The Class Desk: assignments, grading and exams for one class. */
+  openDesk(
+    schoolId: string,
+    classroomId: string,
+    tab: "assignments" | "exams" = "assignments",
+    assignmentId?: string,
+  ) {
+    store.setState({
+      route: {
+        name: "desk",
+        schoolId,
+        classroomId,
+        tab,
+        ...(assignmentId ? { assignmentId } : {}),
+      },
+    });
+  },
+  /** Re-teach (E-5): a focused period on one concept. */
+  reteach(classroomId: string, conceptId: string) {
+    this.startClass(classroomId, { conceptId });
+  },
+  /** Exit ticket: ✓ (true) or ✗ (false) on one cadet's statement. */
+  markExitTicket(ticketId: string, verdict: boolean) {
+    store.setState((s) => ({
+      classroom: s.classroom.exit
+        ? {
+            ...s.classroom,
+            exit: {
+              ...s.classroom.exit,
+              tickets: s.classroom.exit.tickets.map((t) =>
+                t.id === ticketId ? { ...t, verdict } : t,
+              ),
+            },
+          }
+        : s.classroom,
+    }));
+    ensureNet().send("exit.mark", { ticketId, verdict });
+  },
+  finishExitTickets(periodId: string) {
+    ensureNet().send("exit.done", { periodId });
   },
   /** A client-side toast, same look and lifetime as the server's. */
   notify(text: string, level: "info" | "warn" | "error" = "info") {

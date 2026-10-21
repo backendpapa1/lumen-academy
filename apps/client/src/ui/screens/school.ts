@@ -370,10 +370,19 @@ function mountClasses(root: HTMLElement, schoolId: string): () => void {
           h("span", { class: "spacer" }),
           c.status === "active"
             ? h(
-                "button",
-                { class: "btn primary", onclick: () => app.startClass(c.id) },
-                icon(ICONS.play),
-                "Teach",
+                "div",
+                { class: "row", style: "gap:8px" },
+                h(
+                  "button",
+                  { class: "btn", onclick: () => app.openDesk(schoolId, c.id) },
+                  "Homework & exams",
+                ),
+                h(
+                  "button",
+                  { class: "btn primary", onclick: () => app.startClass(c.id) },
+                  icon(ICONS.play),
+                  "Teach",
+                ),
               )
             : statusChip(c.status),
         ),

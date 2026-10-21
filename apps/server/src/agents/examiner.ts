@@ -31,6 +31,8 @@ export interface ExaminerResult {
   /** Problems found (and fixed or dropped). */
   problems: string[];
   attempts: number;
+  /** First attempt, before any fix-up: how many questions were already valid. */
+  firstAttempt: { total: number; valid: number };
 }
 
 const PASSAGE_CHARS = 700;
@@ -149,6 +151,7 @@ export async function draftQuestions(
   const problems: string[] = [];
   let attempts = 0;
   let valid: QuestionDraft[] = [];
+  let firstAttempt = { total: 0, valid: 0 };
   for (let round = 0; round < 2; round++) {
     attempts++;
     const set = (
@@ -166,6 +169,7 @@ export async function draftQuestions(
       else valid.push(q);
     });
     problems.push(...issues);
+    if (round === 0) firstAttempt = { total: set.questions.length, valid: valid.length };
     if (!issues.length || round === 1) break;
     messages.push(
       new HumanMessage(
@@ -176,5 +180,5 @@ export async function draftQuestions(
   const min = input.kind === "exam" ? Math.min(5, input.count) : Math.min(3, input.count);
   if (valid.length < min)
     throw new Error(`the Examiner produced only ${valid.length} valid questions`);
-  return { questions: valid.slice(0, input.count), problems, attempts };
+  return { questions: valid.slice(0, input.count), problems, attempts, firstAttempt };
 }

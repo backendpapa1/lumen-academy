@@ -1,6 +1,9 @@
 import { dismissToast } from "../../core/classroom";
 import { store, type AppState } from "../../core/store";
 import { fill, h } from "./dom";
+import { mountArena } from "./arena";
+import { mountDebrief } from "./debrief";
+import { mountDesk } from "./desk";
 import { mountLobby } from "./lobby";
 import { mountRegistration } from "./registration";
 import { mountSchool } from "./school";
@@ -22,6 +25,12 @@ function keyOf(r: AppState["route"]): string | null {
       return `school:${r.schoolId}`;
     case "registration":
       return `registration:${r.classroomId}`;
+    case "desk":
+      return `desk:${r.classroomId}`;
+    case "exam":
+      return `exam:${r.examId}`;
+    case "debrief":
+      return `debrief:${r.examId}`;
     default:
       return null;
   }
@@ -43,7 +52,13 @@ function mount(r: AppState["route"]) {
         ? mountSchool(root, r.schoolId)
         : r.name === "registration"
           ? mountRegistration(root, r.classroomId, r.schoolId)
-          : () => {};
+          : r.name === "desk"
+            ? mountDesk(root, r.schoolId, r.classroomId)
+            : r.name === "exam"
+              ? mountArena(root, r.examId, r.classroomId, r.schoolId)
+              : r.name === "debrief"
+                ? mountDebrief(root, r.examId, r.classroomId, r.schoolId)
+                : () => {};
   current = { key, root, unmount };
 }
 

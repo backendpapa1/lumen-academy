@@ -8,6 +8,15 @@ export interface AppState {
     | { name: "boot" }
     | { name: "school"; schoolId: string; tab: "sources" | "curriculum" | "classes" }
     | { name: "registration"; classroomId: string; schoolId: string }
+    | {
+        name: "desk";
+        classroomId: string;
+        schoolId: string;
+        tab: "assignments" | "exams";
+        assignmentId?: string;
+      }
+    | { name: "exam"; examId: string; classroomId: string; schoolId: string }
+    | { name: "debrief"; examId: string; classroomId: string; schoolId: string }
     | { name: "classroom"; classroomId: string }
     | { name: "gallery" };
   setup: SetupState;

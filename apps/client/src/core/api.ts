@@ -110,3 +110,31 @@ export interface Settings {
 }
 
 export type { Archetype };
+
+export interface DeskView {
+  classroom: { id: string; name: string; schoolId: string; schoolName: string };
+  cadets: number;
+  modules: Array<{
+    id: string;
+    title: string;
+    concepts: Array<{ id: string; title: string; taught: boolean }>;
+    eligibility: { taught: number; total: number; fraction: number; eligible: boolean };
+  }>;
+  assignments: Array<{
+    id: string;
+    title: string;
+    status: string;
+    createdAt: string;
+    submitted: number;
+    graded: number;
+  }>;
+  exams: Array<{
+    id: string;
+    moduleId: string;
+    moduleTitle: string;
+    status: "generating" | "ready" | "running" | "done";
+    classAverage: number | null;
+    passThreshold: number;
+    createdAt: string;
+  }>;
+}

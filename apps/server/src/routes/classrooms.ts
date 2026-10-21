@@ -39,7 +39,10 @@ export function registerClassroomRoutes(app: FastifyInstance, handle: DbHandle) 
     if (!room) return reply.code(404).send({ error: "no such classroom" });
     const cadets = sqlite
       .prepare(
-        "SELECT id, name, archetype, seat, homeworld, quirk FROM cadets WHERE classroom_id = ? AND status IN ('enrolled','transferred_in') ORDER BY seat",
+        `SELECT d.id, d.name, d.archetype, d.seat, d.homeworld, d.quirk,
+           CASE WHEN (SELECT status FROM assets a WHERE a.id = d.portrait_asset_id) = 'ready'
+             THEN '/api/assets/' || d.portrait_asset_id END AS portraitUrl
+         FROM cadets d WHERE d.classroom_id = ? AND d.status IN ('enrolled','transferred_in') ORDER BY d.seat`,
       )
       .all(req.params.id);
     return { ...room, cadets };

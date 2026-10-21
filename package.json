@@ -22,7 +22,8 @@
     "eval:agents": "pnpm --filter @lumen/server eval:agents",
     "cli:teach": "pnpm --filter @lumen/server cli:teach",
     "assets:gen": "pnpm --filter @lumen/server assets:gen",
-    "assets:preview": "pnpm --filter @lumen/server assets:gen --preview"
+    "assets:preview": "pnpm --filter @lumen/server assets:gen --preview",
+    "eval:assessment": "pnpm --filter @lumen/server eval:assessment"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

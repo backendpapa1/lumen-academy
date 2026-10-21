@@ -1,8 +1,5 @@
 import mitt from "mitt";
+import type { ServerMessage } from "@lumen/shared";
 
-// Typed event bus for one-shot events (state lives in the store).
-export type BusEvents = {
-  "ui:ping": void;
-};
-
-export const bus = mitt<BusEvents>();
+/** Every server message, for screens that follow background jobs (assignments, exams). */
+export const serverEvents = mitt<{ message: ServerMessage }>();
