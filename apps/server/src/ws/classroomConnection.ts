@@ -16,6 +16,7 @@ import { rewriteNotes } from "../game/notes.js";
 import {
   INSPECTION_TURNS,
   inspect,
+  maybeRecheck,
   maybeStartEvent,
   resolveEvent,
   type PendingEvent,
@@ -386,9 +387,8 @@ export class ClassroomConnection {
 
   /** At most one random event per period, after a teaching turn commits. */
   private async startEvent(session: ClassSession) {
-    if (!this.rt.game.events.enabled) return;
     const c = session.currentConcept;
-    const ev = await maybeStartEvent({
+    const ctx = {
       handle: this.rt.handle,
       factory: this.rt.factory,
       game: this.rt.game,
@@ -397,9 +397,13 @@ export class ClassroomConnection {
       concept: { id: c.id, title: c.title, keyFacts: c.keyFacts },
       turnOrd: session.turnCount,
       cadets: session.roster.map((r) => ({ id: r.id, name: r.name, archetype: r.archetype })),
-    });
+    };
+    let ev = this.rt.game.events.enabled ? await maybeStartEvent(ctx) : null;
+    // V2-05: the mistake journal isn't a surprise, so it runs even with events off.
+    if (!ev && !this.event && !this.inspection) ev = maybeRecheck(ctx);
     if (!ev || this.session !== session) return;
-    this.event = ev.kind === "pop_quiz" || ev.kind === "glitch" ? ev : null;
+    this.event =
+      ev.kind === "pop_quiz" || ev.kind === "glitch" || ev.kind === "recheck" ? ev : null;
     if (ev.kind === "inspector") this.inspection = { ev, session, watched: [] };
     this.send({
       type: "event.start",

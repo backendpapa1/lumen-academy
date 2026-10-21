@@ -64,6 +64,20 @@
       "when": 1792591709547,
       "tag": "0008_memory_stability",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1792592050353,
+      "tag": "0009_mistake_journal",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1792592186337,
+      "tag": "0010_self_ratings",
+      "breakpoints": true
     }
   ]
 }

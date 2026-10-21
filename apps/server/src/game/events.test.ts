@@ -3,7 +3,14 @@ import { loadConfig } from "../config/load.js";
 import type { DbHandle } from "../db/client.js";
 import { agentOf, fakeDeepSeekFactory, type FakeRequest } from "../test-fixtures/fakeDeepSeek.js";
 import { smallWorld } from "../test-fixtures/world.js";
-import { eventTurn, inspect, maybeStartEvent, resolveEvent, type EventContext } from "./events.js";
+import {
+  eventTurn,
+  inspect,
+  maybeRecheck,
+  maybeStartEvent,
+  resolveEvent,
+  type EventContext,
+} from "./events.js";
 
 const cfg = loadConfig({ env: {} });
 let h: DbHandle | undefined;
@@ -181,5 +188,101 @@ describe("random events (M6-01)", () => {
     expect(r.feedback.improve).toHaveLength(2);
     expect(r.feedback.tip).toMatch(/root/);
     expect(r.xp).toBe(0);
+  });
+});
+
+describe("mistake journal (V2-05)", () => {
+  it("re-asks about my old mistake in a later class, and settles it after two right answers", async () => {
+    const { ctx, scope } = await setup([]);
+    // A mistake from an earlier class, two days ago.
+    h!.sqlite
+      .prepare(
+        "INSERT INTO periods (id, classroom_id, started_at, planned_minutes) VALUES ('per_old', ?, '2026-10-19T00:00:00Z', 15)",
+      )
+      .run(ctx.classroomId);
+    h!.sqlite
+      .prepare(
+        "INSERT INTO messages (id, period_id, speaker, kind, text, created_at) VALUES ('msg_old', 'per_old', 'teacher', 'lecture', 'The root is in every transaction.', '2026-10-19T00:01:00Z')",
+      )
+      .run();
+    h!.sqlite
+      .prepare(
+        "INSERT INTO turns (id, period_id, ord, teacher_message_id, analysis_json, reactions_json, created_at) VALUES ('trn_old', 'per_old', 1, 'msg_old', '{}', '{}', '2026-10-19T00:01:00Z')",
+      )
+      .run();
+    h!.sqlite
+      .prepare(
+        "INSERT INTO teacher_errors (id, turn_id, concept_id, claim, correction) VALUES ('ter_x', 'trn_old', ?, 'The root is in every transaction.', 'The root is stored once, in the header; it is hashed from the transactions.')",
+      )
+      .run(ctx.concept.id);
+
+    expect(maybeRecheck({ ...ctx, turnOrd: 1 })).toBeNull(); // too early in the class
+    const ev = maybeRecheck({ ...ctx, turnOrd: 2 })!;
+    expect(ev.kind).toBe("recheck");
+    expect(ev.text).toContain("The root is in every transaction");
+    expect(maybeRecheck({ ...ctx, turnOrd: 3 })).toBeNull(); // once per class
+
+    const deps = { handle: h!, factory: ctx.factory, game: ctx.game, scope };
+    const first = await resolveEvent(
+      ev,
+      { text: "It's hashed up into one root in the header." },
+      deps,
+    );
+    expect(first.score).toBe(4);
+    expect(first.explanation).toMatch(/Once more/);
+    // Not due again until the interval passes (3 days after one right answer).
+    expect(maybeRecheck({ ...ctx, periodId: "per_next", turnOrd: 2 })).toBeNull();
+    h!.sqlite
+      .prepare(
+        "UPDATE teacher_errors SET next_check_at = '2020-01-01T00:00:00Z' WHERE id = 'ter_x'",
+      )
+      .run();
+    const again = maybeRecheck({ ...ctx, periodId: "per_next", turnOrd: 2 })!;
+    const second = await resolveEvent(
+      again,
+      { text: "It's hashed together; the root is in the header." },
+      deps,
+    );
+    expect(second.explanation).toMatch(/Settled/);
+    const row = h!.sqlite
+      .prepare("SELECT resolved, recheck_right FROM teacher_errors WHERE id = 'ter_x'")
+      .get() as {
+      resolved: number;
+      recheck_right: number;
+    };
+    expect(row).toEqual({ resolved: 1, recheck_right: 2 });
+  });
+
+  it("a wrong answer shows the source and keeps it in the journal", async () => {
+    const { ctx, scope } = await setup([]);
+    h!.sqlite
+      .prepare(
+        "INSERT INTO periods (id, classroom_id, started_at, planned_minutes) VALUES ('per_old', ?, '2026-10-19T00:00:00Z', 15)",
+      )
+      .run(ctx.classroomId);
+    h!.sqlite
+      .prepare(
+        "INSERT INTO turns (id, period_id, ord, teacher_message_id, analysis_json, reactions_json, created_at) VALUES ('trn_old', 'per_old', 1, 'msg_a', '{}', '{}', '2026-10-19T00:01:00Z')",
+      )
+      .run();
+    h!.sqlite
+      .prepare(
+        "INSERT INTO teacher_errors (id, turn_id, concept_id, claim, correction) VALUES ('ter_y', 'trn_old', ?, 'Blocks copy all old transactions.', 'Each block holds only its own transactions.')",
+      )
+      .run(ctx.concept.id);
+    const ev = maybeRecheck({ ...ctx, turnOrd: 2 })!;
+    const r = await resolveEvent(
+      ev,
+      { text: "Yes, every block copies them." },
+      { handle: h!, factory: ctx.factory, game: ctx.game, scope },
+    );
+    expect(r.explanation).toContain("Each block holds only its own transactions.");
+    expect(
+      (
+        h!.sqlite.prepare("SELECT resolved FROM teacher_errors WHERE id = 'ter_y'").get() as {
+          resolved: number;
+        }
+      ).resolved,
+    ).toBe(0);
   });
 });

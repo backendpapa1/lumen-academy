@@ -98,7 +98,10 @@ export const app = {
     this.openSchool(id, "sources");
     return id;
   },
-  openSchool(schoolId: string, tab: "sources" | "curriculum" | "classes" = "sources") {
+  openSchool(
+    schoolId: string,
+    tab: "sources" | "curriculum" | "classes" | "knowledge" = "sources",
+  ) {
     store.setState((s) => ({
       route: { name: "school", schoolId, tab },
       setup:

@@ -1,3 +1,4 @@
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -64,6 +65,39 @@ describe("School export/import (O-5)", () => {
     expect(() =>
       importSchool(fresh, { zip, dataDir: dir, generatedDir: join(dir, "generated") }),
     ).toThrow(/already/);
+  });
+
+  it("still imports a version 1 export (before V2's tables and columns)", async () => {
+    const w = await smallWorld([{ attention: 0.6, skepticism: 0.4 }]);
+    handles.push(w.handle);
+    w.handle.sqlite
+      .prepare(
+        "INSERT INTO ledger_entries (cadet_id, concept_id, comprehension, exposures, misconceptions_json) VALUES (?, ?, 0.5, 3, '[]')",
+      )
+      .run(w.cadets[0]!.id, w.conceptIds[0]);
+    const dir = mkdtempSync(join(tmpdir(), "lumen-exp-"));
+    const { zip } = exportSchool(w.handle, cfg.game, {
+      schoolId: w.schoolId,
+      generatedDir: join(dir, "generated"),
+    });
+    const files = unzipSync(zip);
+    const path = Object.keys(files).find((f) => f.endsWith("school.json"))!;
+    const bundle = JSON.parse(strFromU8(files[path]!));
+    bundle.version = 1;
+    delete bundle.tables.speech_corrections;
+    delete bundle.tables.self_ratings;
+    for (const row of bundle.tables.ledger_entries ?? []) delete row.stability_days;
+    files[path] = strToU8(JSON.stringify(bundle));
+
+    const fresh = openDb(":memory:");
+    runMigrations(fresh);
+    handles.push(fresh);
+    importSchool(fresh, {
+      zip: zipSync(files),
+      dataDir: dir,
+      generatedDir: join(dir, "generated"),
+    });
+    expect(count(fresh, "ledger_entries")).toBe(1);
   });
 
   it("refuses a zip that isn't an export", () => {

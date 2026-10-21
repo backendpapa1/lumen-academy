@@ -14,6 +14,10 @@ import { ensureSchool } from "../ingest/pipeline.js";
 import { join } from "node:path";
 import { exportSchool, importSchool } from "../school/exportImport.js";
 import { yearbookMarkdown } from "../school/yearbook.js";
+import { knowledgeMarkdown, knowledgeReport } from "../school/knowledge.js";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { callStructured } from "../agents/harness.js";
+import { loadPrompt } from "../agents/prompts/load.js";
 import {
   addSource,
   extendCurriculum,
@@ -110,6 +114,65 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
       return { ok: true };
     });
   }
+
+  // V2-07/08: "What I actually know", from the evidence, with my own ratings beside it.
+  app.get<{ Params: { id: string } }>("/api/schools/:id/knowledge", async (req, reply) => {
+    const r = school(req.params.id) && knowledgeReport(deps.handle, deps.game, req.params.id);
+    return r || reply.code(404).send({ error: "no such School" });
+  });
+  app.get<{ Params: { id: string } }>("/api/schools/:id/knowledge.md", async (req, reply) => {
+    const r = school(req.params.id) && knowledgeReport(deps.handle, deps.game, req.params.id);
+    if (!r) return reply.code(404).send({ error: "no such School" });
+    const name = r.school.name.replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase();
+    return reply
+      .type("text/markdown; charset=utf-8")
+      .header("content-disposition", `attachment; filename="${name}-what-i-know.md"`)
+      .send(knowledgeMarkdown(r));
+  });
+  const SummaryZ = z.object({ summary: z.string().min(10).max(1200) });
+  app.post<{ Params: { id: string } }>("/api/schools/:id/knowledge/summary", async (req, reply) => {
+    const r = school(req.params.id) && knowledgeReport(deps.handle, deps.game, req.params.id);
+    if (!r) return reply.code(404).send({ error: "no such School" });
+    const pct = (n: number | null) => (n === null ? "–" : `${Math.round(n * 100)}%`);
+    const rows = r.concepts
+      .map(
+        (c) =>
+          `- ${c.title} | ${c.status} | ${pct(c.peak)} → ${pct(c.now)} | ${c.turns.toFixed(1)} | ${c.openMistakes.length} | ${c.selfRating ?? "–"}`,
+      )
+      .join("\n");
+    try {
+      const res = await callStructured(deps.factory, "knowledgeReporter", {
+        schema: SummaryZ,
+        name: "knowledge_summary",
+        messages: [
+          new SystemMessage(loadPrompt("knowledgeReporter", { schoolName: r.school.name, rows })),
+          new HumanMessage("Write the summary."),
+        ],
+      });
+      return { summary: res.data.summary };
+    } catch {
+      return reply
+        .code(502)
+        .send({ error: "The summary didn't come through. The evidence below still stands." });
+    }
+  });
+  const RatingZ = z.strictObject({ rating: z.number().int().min(1).max(5).nullable() });
+  app.put<{ Params: { id: string } }>("/api/concepts/:id/self-rating", async (req, reply) => {
+    const body = RatingZ.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: "A rating is 1 to 5." });
+    if (!sqlite.prepare("SELECT 1 FROM concepts WHERE id = ?").get(req.params.id))
+      return reply.code(404).send({ error: "no such concept" });
+    if (body.data.rating === null)
+      sqlite.prepare("DELETE FROM self_ratings WHERE concept_id = ?").run(req.params.id);
+    else
+      sqlite
+        .prepare(
+          `INSERT INTO self_ratings (concept_id, rating, updated_at) VALUES (?, ?, ?)
+           ON CONFLICT (concept_id) DO UPDATE SET rating = excluded.rating, updated_at = excluded.updated_at`,
+        )
+        .run(req.params.id, body.data.rating, new Date().toISOString());
+    return { ok: true };
+  });
 
   app.get<{ Params: { id: string } }>("/api/schools/:id/yearbook.md", async (req, reply) => {
     const s = school(req.params.id);

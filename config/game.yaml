@@ -32,6 +32,13 @@ memory:
   spacedAfterHours: 12
   fadingAt: 0.75 # recalled below 75% of its strength → "your class is forgetting"
 
+# V2-05 mistake journal: a student re-asks about something I got wrong, spaced out.
+mistakes:
+  intervalsDays: [1, 3, 7] # next re-check after 0, 1, 2… right answers
+  settleAfter: 2 # right twice and it's settled
+  fromTurn: 2
+  passScore: 3 # on the Grader's 1–5
+
 # Registration (docs/03 §5.2). Archetypes are drawn in code (seeded); the LLM writes flavour only.
 registration:
   batchSize: 3 # students per flavour call, so the first arrivals appear fast

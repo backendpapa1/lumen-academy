@@ -691,3 +691,25 @@
     background: var(--marigold-wash);
   }
 }
+/* V2-06: where you stopped */
+.hud-overlay .stopped {
+  padding: 12px 14px;
+  border: var(--line);
+  background: var(--marigold-wash);
+}
+.hud-overlay .stopped p {
+  margin: 0;
+}
+.hud-overlay .stopped p + p {
+  margin-top: 6px;
+  font-size: 14px;
+}
+.hud-overlay .stopped .micro {
+  display: block;
+  margin-bottom: 4px;
+}
+.hud-overlay .stopped q {
+  font: 400 17px/1.45 var(--font-body);
+  color: var(--ink);
+  quotes: "“" "”";
+}

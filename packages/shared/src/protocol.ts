@@ -273,7 +273,7 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
     "event.start",
     z.strictObject({
       eventId: z.string(),
-      kind: z.enum(["pop_quiz", "glitch", "power_flicker", "inspector"]),
+      kind: z.enum(["pop_quiz", "glitch", "power_flicker", "inspector", "recheck"]),
       /** The cadet it's about; absent for the visiting Dean. */
       cadetId: z.string().optional(),
       /** Pop quiz question; the glitch line; the misconception whispered in a flicker. */
@@ -287,7 +287,7 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
     "event.result",
     z.strictObject({
       eventId: z.string(),
-      kind: z.enum(["pop_quiz", "glitch", "power_flicker", "inspector"]),
+      kind: z.enum(["pop_quiz", "glitch", "power_flicker", "inspector", "recheck"]),
       /** Pop quiz: Grader score 0–5. */
       score: z.number().optional(),
       /** Glitch: did I catch it? and what it got wrong. */

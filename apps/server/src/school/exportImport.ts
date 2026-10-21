@@ -9,7 +9,10 @@ import { yearbookMarkdown } from "./yearbook.js";
 // its original source files, its generated images and its embeddings, in one
 // zip, so it moves to another machine (or back) with no API calls.
 
-const VERSION = 1;
+// 2 (V2): learned mishearings, self-ratings, memory half-lives and journal fields.
+// Version 1 exports still import: the new columns have defaults.
+const VERSION = 2;
+const READS = [1, 2];
 
 /** Tables in foreign-key order, each with the rows that belong to the School. */
 const TABLES: Array<[table: string, where: string]> = [
@@ -62,6 +65,10 @@ const TABLES: Array<[table: string, where: string]> = [
   ["debriefs", "classroom_id IN (SELECT id FROM classrooms WHERE school_id = :school)"],
   ["xp_events", "school_id = :school"],
   ["speech_corrections", "school_id = :school"], // my mishearings travel with the School
+  [
+    "self_ratings",
+    "concept_id IN (SELECT c.id FROM concepts c JOIN modules m ON m.id = c.module_id WHERE m.school_id = :school)",
+  ],
   [
     "assets",
     `id IN (SELECT emblem_asset_id FROM schools WHERE id = :school)
@@ -164,7 +171,8 @@ export function importSchool(
   if (!jsonPath) throw new Error("That zip isn't a Lumen School export (no school.json).");
   const root = dirname(jsonPath);
   const bundle = JSON.parse(strFromU8(files[jsonPath]!)) as Bundle;
-  if (bundle.version !== VERSION) throw new Error(`Unsupported export version ${bundle.version}.`);
+  if (!READS.includes(bundle.version))
+    throw new Error(`Unsupported export version ${bundle.version}.`);
   const school = bundle.tables.schools?.[0];
   if (!school) throw new Error("The export has no School in it.");
   const { sqlite } = handle;

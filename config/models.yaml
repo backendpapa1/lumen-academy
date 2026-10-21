@@ -80,6 +80,7 @@ agents:
   alumniPinger: { role: fast }
   artDirector: { role: fast, maxOutputTokens: 120 } # emblem motifs (docs/07 §2.2)
   transcriptFixer: { role: fastest, maxOutputTokens: 200, temperature: 0 } # V1: mishearings only
+  knowledgeReporter: { role: fast, maxOutputTokens: 400 } # V2-07: a summary of the numbers only
 
 budget:
   monthlyUsdCap: 20

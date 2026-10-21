@@ -4,17 +4,19 @@ import { app } from "../../core/app";
 import type { SourceJob } from "../../core/setup";
 import { store, type AppState } from "../../core/store";
 import { mountCurriculum } from "./curriculum";
+import { mountKnowledge } from "./knowledge";
 import { emblem, plural, statusChip } from "./common";
 import { fill, h, icon, ICONS } from "./dom";
 import { confirmDialog } from "./modal";
 
 // The School Wing (M3-05, M3-09): Sources, Curriculum and Classes for one School.
 
-type Tab = "sources" | "curriculum" | "classes";
+type Tab = "sources" | "curriculum" | "classes" | "knowledge";
 const TABS: Array<[Tab, string]> = [
   ["sources", "Sources"],
   ["curriculum", "Curriculum"],
   ["classes", "Classes"],
+  ["knowledge", "What I know"],
 ];
 const ACCEPT = ".pdf,.md,.markdown,.txt";
 
@@ -152,7 +154,9 @@ export function mountSchool(root: HTMLElement, schoolId: string): () => void {
         ? mountSources(panel, schoolId)
         : tab === "curriculum"
           ? mountCurriculum(panel, schoolId)
-          : mountClasses(panel, schoolId);
+          : tab === "knowledge"
+            ? mountKnowledge(panel, schoolId)
+            : mountClasses(panel, schoolId);
   };
 
   renderHeader(store.getState().setup.school);

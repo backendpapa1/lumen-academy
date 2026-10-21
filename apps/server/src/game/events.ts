@@ -19,7 +19,7 @@ import { awardXp, type XpScope } from "./xp.js";
 /** How many of my explanations the Dean watches. */
 export const INSPECTION_TURNS = 3;
 
-export type EventKind = "pop_quiz" | "glitch" | "power_flicker" | "inspector";
+export type EventKind = "pop_quiz" | "glitch" | "power_flicker" | "inspector" | "recheck";
 
 export interface PendingEvent {
   id: string;
@@ -32,6 +32,8 @@ export interface PendingEvent {
   /** Server-only: facts for grading, or what the glitch got wrong. */
   facts: string[];
   flaw?: string;
+  /** recheck: the journal entry (teacher_errors id). */
+  errorId?: string;
 }
 
 export interface EventContext {
@@ -193,6 +195,70 @@ async function prepare(
   };
 }
 
+/**
+ * V2-05 mistake journal: one due re-check per period, from turn `fromTurn`.
+ * Due = unresolved, never checked this period, and next_check_at passed (a new
+ * mistake waits one interval after the class it happened in). This School only;
+ * the current concept first.
+ */
+export function maybeRecheck(ctx: EventContext): PendingEvent | null {
+  const { sqlite } = ctx.handle;
+  const m = ctx.game.mistakes;
+  if (ctx.turnOrd < m.fromTurn || !ctx.cadets.length) return null;
+  const done = sqlite
+    .prepare("SELECT 1 FROM teacher_errors WHERE last_checked_period = ?")
+    .get(ctx.periodId);
+  if (done) return null;
+  const now = new Date();
+  const firstWait = m.intervalsDays[0]! * 86_400_000;
+  const rows = sqlite
+    .prepare(
+      `SELECT e.id, e.claim, e.correction, e.concept_id AS conceptId, e.next_check_at AS next,
+         t.created_at AS at, t.period_id AS periodId
+       FROM teacher_errors e JOIN turns t ON t.id = e.turn_id JOIN periods p ON p.id = t.period_id
+       JOIN classrooms r ON r.id = p.classroom_id
+       WHERE e.resolved = 0 AND r.school_id = (SELECT school_id FROM classrooms WHERE id = ?)`,
+    )
+    .all(ctx.classroomId) as Array<{
+    id: string;
+    claim: string;
+    correction: string;
+    conceptId: string | null;
+    next: string | null;
+    at: string;
+    periodId: string;
+  }>;
+  const ready = rows
+    .filter((e) => e.periodId !== ctx.periodId)
+    .filter(
+      (e) =>
+        Date.parse(e.next ?? new Date(Date.parse(e.at) + firstWait).toISOString()) <= now.getTime(),
+    )
+    .sort(
+      (a, b) => Number(b.conceptId === ctx.concept.id) - Number(a.conceptId === ctx.concept.id),
+    );
+  const e = ready[0];
+  if (!e) return null;
+  sqlite
+    .prepare("UPDATE teacher_errors SET last_checked_period = ? WHERE id = ?")
+    .run(ctx.periodId, e.id);
+  // The doubters ask: a Skeptic or a Literalist if there is one.
+  const asker =
+    ctx.cadets.find((c) => c.archetype === "skeptic") ??
+    ctx.cadets.find((c) => c.archetype === "literalist") ??
+    ctx.cadets[0]!;
+  const claim = e.claim.trim().replace(/[.!]+$/, "");
+  return {
+    id: newId("message"),
+    kind: "recheck",
+    cadetId: asker.id,
+    text: `Wait, you once said “${claim}.” Is that right? What's actually true?`,
+    seconds: 120,
+    facts: [e.correction],
+    errorId: e.id,
+  };
+}
+
 /** My answer to a pop quiz, or my verdict on a glitch. */
 export async function resolveEvent(
   ev: PendingEvent,
@@ -206,6 +272,40 @@ export async function resolveEvent(
     const xp =
       g.score > 0 ? awardXp(deps.handle, deps.game, deps.scope, "popQuizPerPoint", g.score) : 0;
     return { score: g.score, explanation: g.rationale || "Graded against the source.", xp };
+  }
+  if (ev.kind === "recheck" && ev.errorId) {
+    const text = answer.text?.trim() ?? "";
+    const m = deps.game.mistakes;
+    const row = deps.handle.sqlite
+      .prepare("SELECT recheck_right AS right FROM teacher_errors WHERE id = ?")
+      .get(ev.errorId) as { right: number } | undefined;
+    const g = text
+      ? await gradeAnswer(deps.factory, ev.text, ev.facts, text)
+      : { score: 0, rationale: "" };
+    const right = g.score >= m.passScore;
+    const count = (row?.right ?? 0) + (right ? 1 : 0);
+    const settled = count >= m.settleAfter;
+    const days = m.intervalsDays[Math.min(count, m.intervalsDays.length - 1)]!;
+    deps.handle.sqlite
+      .prepare(
+        "UPDATE teacher_errors SET recheck_right = ?, resolved = ?, next_check_at = ? WHERE id = ?",
+      )
+      .run(
+        count,
+        settled ? 1 : 0,
+        new Date(Date.now() + days * 86_400_000).toISOString(),
+        ev.errorId,
+      );
+    const xp = right ? awardXp(deps.handle, deps.game, deps.scope, "popQuizPerPoint", g.score) : 0;
+    return {
+      score: g.score,
+      explanation: right
+        ? settled
+          ? "Settled: you've got this one right twice. It's out of your mistake journal."
+          : `Right. Once more in ${days === 1 ? "a day" : `${days} days`} and it's settled.`
+        : `Not yet. The source says: ${ev.facts[0]} It'll come back in a day.`,
+      xp,
+    };
   }
   if (ev.kind === "glitch") {
     const caught = answer.wrong === true;

@@ -12,6 +12,12 @@ import { voice } from "../../core/voice";
 // misconception whispers across the room (the drawn room dims too). Inspector: the Dean watches
 // my next three explanations, then reports what worked and what to fix.
 
+const LABEL: Partial<Record<EventState["kind"], string>> = {
+  pop_quiz: "Pop quiz",
+  glitch: "Mix-up",
+  recheck: "From your mistake journal",
+};
+
 const root = h("div", { class: "event-back", hidden: true });
 document.querySelector("#stage")!.append(root);
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -71,7 +77,7 @@ function render(e: EventState | undefined) {
     h(
       "div",
       { style: "flex:1;min-width:0" },
-      h("div", { class: "micro" }, e.kind === "pop_quiz" ? "Pop quiz" : "Mix-up"),
+      h("div", { class: "micro" }, LABEL[e.kind] ?? "Mix-up"),
       h("div", { class: "who", style: `color:${accent}` }, c?.name ?? "Student"),
     ),
     h("div", { class: "mono event-clock" }, done ? "" : `${Math.ceil(secondsLeft(e))}s`),
@@ -85,7 +91,7 @@ function render(e: EventState | undefined) {
       );
   const parts: Array<HTMLElement | null | false> = [head, bar];
 
-  if (e.kind === "pop_quiz") {
+  if (e.kind === "pop_quiz" || e.kind === "recheck") {
     parts.push(h("p", { class: "event-line" }, e.text));
     if (!done) {
       const box = h("textarea", {
@@ -250,7 +256,7 @@ function render(e: EventState | undefined) {
         class: "card event-card",
         role: "dialog",
         "aria-modal": "false",
-        "aria-label": e.kind === "pop_quiz" ? "Pop quiz" : "Mix-up",
+        "aria-label": LABEL[e.kind] ?? "Mix-up",
         style: `--event-accent:${accent}`,
       },
       ...parts,
@@ -357,7 +363,10 @@ function tick() {
   if (left <= 0) {
     stopTimer();
     const text = root.querySelector<HTMLTextAreaElement>("#event-answer")?.value ?? "";
-    return app.answerEvent(e.id, e.kind === "pop_quiz" ? { text } : { wrong: false });
+    return app.answerEvent(
+      e.id,
+      e.kind === "pop_quiz" || e.kind === "recheck" ? { text } : { wrong: false },
+    );
   }
   const clock = root.querySelector(".event-clock");
   if (clock) clock.textContent = `${Math.ceil(left)}s`;

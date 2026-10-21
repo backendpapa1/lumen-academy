@@ -386,6 +386,10 @@ export const teacherErrors = sqliteTable(
     correction: text("correction").notNull(),
     citation: text("citation"),
     resolved: integer("resolved", { mode: "boolean" }).notNull().default(false),
+    /** V2-05 mistake journal: right answers on a re-check (2 settles it), and when it's next due. */
+    recheckRight: integer("recheck_right").notNull().default(0),
+    nextCheckAt: text("next_check_at"),
+    lastCheckedPeriod: text("last_checked_period"),
   },
   (t) => [index("teacher_errors_concept").on(t.conceptId)],
 );
@@ -473,3 +477,12 @@ export const speechCorrections = sqliteTable(
   },
   (t) => [uniqueIndex("speech_corrections_pair").on(t.schoolId, t.heard, t.meant)],
 );
+
+/** V2-08: how well I think I know each concept (1–5), against the class's evidence. */
+export const selfRatings = sqliteTable("self_ratings", {
+  conceptId: text("concept_id")
+    .primaryKey()
+    .references(() => concepts.id),
+  rating: integer("rating").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});

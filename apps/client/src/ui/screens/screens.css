@@ -1736,3 +1736,161 @@ table.heat td {
     animation: none;
   }
 }
+
+/* --- What I actually know (V2-07/08) ------------------------------------------- */
+.know-top {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 150px)) 1fr;
+  gap: 14px;
+  align-items: stretch;
+  margin-bottom: 18px;
+}
+@media (max-width: 860px) {
+  .know-top {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .know-actions {
+    grid-column: 1 / -1;
+  }
+}
+.know-count {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+}
+.know-count b {
+  font: 400 34px/1 var(--font-display);
+  color: var(--cobalt);
+}
+.know-count.shaky {
+  background: var(--marigold-wash);
+}
+.know-count.avoided {
+  background: var(--paper-2);
+}
+.know-count.mastered {
+  background: var(--leaf-wash);
+}
+.know-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+}
+.know-actions p {
+  margin: 0;
+}
+.know-summary {
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  background: var(--paper);
+  border: var(--line);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.know-summary p {
+  margin: 0;
+  font-size: 16px;
+}
+.know-h {
+  margin-top: 26px;
+}
+.know-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.know-card {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.know-card.shaky {
+  box-shadow:
+    inset 6px 0 0 var(--marigold),
+    var(--shadow);
+  padding-left: 24px;
+}
+.know-card.mastered {
+  box-shadow:
+    inset 6px 0 0 var(--leaf),
+    var(--shadow);
+  padding-left: 24px;
+}
+.know-card.avoided {
+  box-shadow:
+    inset 6px 0 0 var(--cobalt-wash),
+    var(--shadow);
+  padding-left: 24px;
+}
+.know-head {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.know-rating {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.know-rate button {
+  height: 30px;
+  padding: 0 11px;
+}
+.know-bar {
+  position: relative;
+  height: 18px;
+  border: var(--line);
+  background: #fff;
+}
+.know-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+}
+.know-bar .peak {
+  background: repeating-linear-gradient(-45deg, var(--cobalt-wash) 0 6px, #fff 6px 10px);
+}
+.know-bar .now {
+  background: var(--cobalt);
+}
+.know-bar span {
+  position: absolute;
+  right: 6px;
+  top: 0;
+  line-height: 15px;
+  font-size: 11px;
+  color: var(--navy);
+  background: rgba(255, 255, 255, 0.85);
+  padding: 0 4px;
+}
+.know-mismatch {
+  margin: 0;
+  font: 700 12px var(--font-ui);
+}
+.know-mismatch.over {
+  color: var(--coral);
+}
+.know-mismatch.under {
+  color: var(--leaf);
+}
+.know-mistake {
+  padding: 8px 12px;
+  background: var(--coral-wash);
+  border: 1.5px solid var(--coral);
+}
+.know-mistake p {
+  margin: 0;
+  font-size: 14px;
+}
+.know-mistake p + p {
+  margin-top: 4px;
+}
+.know-refs {
+  margin: 0;
+}

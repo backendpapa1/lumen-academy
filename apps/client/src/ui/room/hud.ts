@@ -44,6 +44,23 @@ export function face(id: string, archetype: Parameters<typeof restingFace>[0], s
   return el;
 }
 
+/** V2-06: back after a break, the thread to pick up: my last words and the open hand. */
+function whereYouStopped(c: ClassroomState): HTMLElement | null {
+  const mine = [...c.transcript].reverse().find((t) => t.speaker === "headmaster");
+  const hand = c.hands[0] ? c.cadets[c.hands[0].cadetId] : undefined;
+  if (!mine && !hand) return null;
+  const words = mine?.text.trim().split(/\s+/) ?? [];
+  const tail = words.length > 14 ? `…${words.slice(-14).join(" ")}` : words.join(" ");
+  return h(
+    "div",
+    { class: "stopped" },
+    mine ? h("p", {}, h("span", { class: "micro" }, "You stopped at"), h("q", {}, tail)) : null,
+    hand
+      ? h("p", { class: "dim" }, `${first(hand.name)}'s hand was up: “${c.hands[0]!.preview}”`)
+      : null,
+  );
+}
+
 export class ClassroomHud {
   readonly el = h("div", { class: "hud" });
   private readonly top = h("header", { class: "hud-top" });
@@ -470,6 +487,7 @@ export class ClassroomHud {
           : "The class is waiting.",
       ),
       h("p", { class: "mono gold" }, `${left} min left in this period`),
+      c.resumed ? whereYouStopped(c) : null,
       h(
         "div",
         { class: "actions" },

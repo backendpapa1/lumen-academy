@@ -59,7 +59,7 @@ export interface ExitTicketsState {
 /** A random event (M6-01): pop quiz, hologram glitch or power flicker. */
 export interface EventState {
   id: string;
-  kind: "pop_quiz" | "glitch" | "power_flicker" | "inspector";
+  kind: "pop_quiz" | "glitch" | "power_flicker" | "inspector" | "recheck";
   /** Absent for the visiting Dean. */
   cadetId?: string;
   toCadetId?: string;

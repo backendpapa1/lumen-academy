@@ -35,6 +35,7 @@ export const AGENT_NAMES = [
   "alumniPinger",
   "artDirector",
   "transcriptFixer",
+  "knowledgeReporter",
 ] as const;
 export const AgentNameZ = z.enum(AGENT_NAMES);
 export type AgentName = z.infer<typeof AgentNameZ>;
@@ -305,6 +306,19 @@ export const GameConfigZ = z.strictObject({
       spacedAfterHours: 12,
       fadingAt: 0.75,
     }),
+  /** V2-05 mistake journal: spaced re-checks of things I got wrong. */
+  mistakes: z
+    .strictObject({
+      /** Days until the next re-check after 0, 1, … right answers. */
+      intervalsDays: z.array(z.number().positive()).min(1),
+      /** Right answers that settle a mistake. */
+      settleAfter: z.number().int().min(1),
+      /** No re-check before this teaching turn (let the class warm up). */
+      fromTurn: z.number().int().min(1),
+      /** Grader score (1–5) that counts as right. */
+      passScore: z.number().min(1).max(5),
+    })
+    .default({ intervalsDays: [1, 3, 7], settleAfter: 2, fromTurn: 2, passScore: 3 }),
   registration: z.strictObject({
     batchSize: z.number().int().min(1).max(15),
     /** Generated portrait images per student. Off since students are drawn (ADR-009). */

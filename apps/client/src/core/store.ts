@@ -6,7 +6,7 @@ import { initialSetup, type SetupState } from "./setup";
 export interface AppState {
   route:
     | { name: "boot" }
-    | { name: "school"; schoolId: string; tab: "sources" | "curriculum" | "classes" }
+    | { name: "school"; schoolId: string; tab: "sources" | "curriculum" | "classes" | "knowledge" }
     | { name: "registration"; classroomId: string; schoolId: string }
     | {
         name: "desk";
