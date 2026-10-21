@@ -73,6 +73,14 @@ export interface SchoolSummary {
   classrooms: ClassroomSummary[];
 }
 
+export interface ArchivedSchool {
+  id: string;
+  name: string;
+  accent: string | null;
+  concepts: number;
+  classrooms: number;
+}
+
 export interface SourceRow {
   id: string;
   title: string;

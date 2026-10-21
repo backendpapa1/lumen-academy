@@ -62,13 +62,47 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
     if (!body.success)
       return reply.code(400).send({ error: "Give the School a name (2–60 characters)." });
     const s = ensureSchool(deps.handle, body.data.name, body.data.description);
-    if (!s.created)
-      return reply.code(409).send({ error: "A School with that name already exists.", id: s.id });
+    if (!s.created) {
+      const gone = sqlite.prepare("SELECT archived FROM schools WHERE id = ?").get(s.id) as {
+        archived: number;
+      };
+      return reply.code(409).send({
+        error: gone.archived
+          ? "An archived School has that name. Restore it from Archived on the lobby."
+          : "A School with that name already exists.",
+        id: s.id,
+      });
+    }
     void generateEmblem(deps, s.id).catch(() => undefined); // S-4: never blocks creation
     return reply.code(201).send({ id: s.id });
   });
 
   // P-6: the Yearbook, your study notes from everything you taught.
+  // Archive puts a School away (off the lobby and the campus) without deleting
+  // anything; restore brings it back exactly as it was.
+  app.get("/api/schools/archived", async () =>
+    sqlite
+      .prepare(
+        `SELECT s.id, s.name, s.accent_color AS accent,
+           (SELECT count(*) FROM concepts c JOIN modules m ON m.id = c.module_id WHERE m.school_id = s.id) AS concepts,
+           (SELECT count(*) FROM classrooms c WHERE c.school_id = s.id AND c.status != 'archived') AS classrooms
+         FROM schools s WHERE s.archived = 1 ORDER BY s.name COLLATE NOCASE`,
+      )
+      .all(),
+  );
+  for (const [verb, value] of [
+    ["archive", 1],
+    ["restore", 0],
+  ] as const) {
+    app.post<{ Params: { id: string } }>(`/api/schools/:id/${verb}`, async (req, reply) => {
+      const r = sqlite
+        .prepare("UPDATE schools SET archived = ? WHERE id = ? AND archived = ?")
+        .run(value, req.params.id, 1 - value);
+      if (!r.changes) return reply.code(404).send({ error: "no such School" });
+      return { ok: true };
+    });
+  }
+
   app.get<{ Params: { id: string } }>("/api/schools/:id/yearbook.md", async (req, reply) => {
     const s = school(req.params.id);
     if (!s) return reply.code(404).send({ error: "no such School" });

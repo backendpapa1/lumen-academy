@@ -6,6 +6,7 @@ import { store, type AppState } from "../../core/store";
 import { mountCurriculum } from "./curriculum";
 import { emblem, plural, statusChip } from "./common";
 import { fill, h, icon, ICONS } from "./dom";
+import { confirmDialog } from "./modal";
 
 // The School Wing (M3-05, M3-09): Sources, Curriculum and Classes for one School.
 
@@ -72,6 +73,26 @@ export function mountSchool(root: HTMLElement, schoolId: string): () => void {
             },
             icon(ICONS.upload),
             "Export",
+          ),
+          h(
+            "button",
+            {
+              class: "btn quiet",
+              id: "archive-school",
+              onclick: async () => {
+                const ok = await confirmDialog(
+                  `Archive ${s.name}?`,
+                  "It leaves the lobby and the campus, and its classes pause. Nothing is deleted: sources, curriculum, cadets and history all stay, and Restore on the lobby brings it back exactly as it was.",
+                  "Archive School",
+                );
+                if (ok)
+                  await app
+                    .archiveSchool(s.id, s.name)
+                    .catch((e: Error) => app.notify(e.message, "error"));
+              },
+            },
+            icon(ICONS.archive),
+            "Archive",
           ),
         ),
     );

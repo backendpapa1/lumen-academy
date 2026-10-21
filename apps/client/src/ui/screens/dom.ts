@@ -68,4 +68,6 @@ export const ICONS = {
   sparkle: ["M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"],
   close: ["M18 6L6 18", "M6 6l12 12"],
   play: ["M7 4l13 8-13 8z"],
+  archive: ["M3 4h18v4H3z", "M5 8v12h14V8", "M10 12h4"],
+  restore: ["M3 12a9 9 0 1 0 3-6.7", "M3 4v5h5"],
 };

@@ -1,5 +1,5 @@
 import type { CadetView, ServerMessage } from "@lumen/shared";
-import type { CampusView, SchoolDetail, SchoolSummary } from "./api";
+import type { ArchivedSchool, CampusView, SchoolDetail, SchoolSummary } from "./api";
 
 // State for the setup screens: lobby, School Wing and registration. Server
 // broadcasts (source.status, curriculum.status, registration.*) are reduced
@@ -24,6 +24,8 @@ export interface Registration {
 
 export interface SetupState {
   schools: SchoolSummary[] | null;
+  /** Schools put away; shown on the lobby's Archived shelf. */
+  archived: ArchivedSchool[];
   campus: CampusView | null;
   school: SchoolDetail | null;
   /** Live indexing jobs for the open School, by title. */
@@ -38,6 +40,7 @@ export interface SetupState {
 
 export const initialSetup = (): SetupState => ({
   schools: null,
+  archived: [],
   campus: null,
   school: null,
   sourceJobs: {},

@@ -1,5 +1,11 @@
 import type { ServerMessage } from "@lumen/shared";
-import { api, type CampusView, type SchoolDetail, type SchoolSummary } from "./api";
+import {
+  api,
+  type ArchivedSchool,
+  type CampusView,
+  type SchoolDetail,
+  type SchoolSummary,
+} from "./api";
 import { applyServerMessage, dismissToast } from "./classroom";
 import { serverEvents } from "./bus";
 import { applySetupMessage } from "./setup";
@@ -65,12 +71,24 @@ export const app = {
     ensureNet();
   },
   async loadSchools() {
-    const [schools, campus] = await Promise.all([
+    const [schools, campus, archived] = await Promise.all([
       api.get<SchoolSummary[]>("/api/schools"),
       api.get<CampusView>("/api/campus"),
+      api.get<ArchivedSchool[]>("/api/schools/archived"),
     ]);
-    store.setState((s) => ({ setup: { ...s.setup, schools, campus } }));
+    store.setState((s) => ({ setup: { ...s.setup, schools, campus, archived } }));
     return schools;
+  },
+  /** Puts a School away: off the lobby and campus, nothing deleted. */
+  async archiveSchool(id: string, name: string) {
+    await api.post(`/api/schools/${id}/archive`);
+    this.backToBoot();
+    this.notify(`${name} is archived. Restore it any time from Archived on the lobby.`);
+  },
+  async restoreSchool(id: string, name: string) {
+    await api.post(`/api/schools/${id}/restore`);
+    await this.loadSchools();
+    this.notify(`${name} is back on your campus.`);
   },
   async createSchool(name: string, description: string) {
     const { id } = await api.post<{ id: string }>("/api/schools", {

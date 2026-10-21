@@ -1,4 +1,10 @@
-import { api, ApiError, type CampusView, type SchoolSummary } from "../../core/api";
+import {
+  api,
+  ApiError,
+  type ArchivedSchool,
+  type CampusView,
+  type SchoolSummary,
+} from "../../core/api";
 import { app } from "../../core/app";
 import { store } from "../../core/store";
 import { hoverSchool } from "./campusSync";
@@ -16,6 +22,7 @@ export function mountLobby(root: HTMLElement): () => void {
   const grid = h("div", { class: "school-grid", role: "list" });
   const status = h("p", { class: "lede", "aria-live": "polite" });
   const hero = h("div", { class: "lobby-hero" });
+  const shelf = h("div", { class: "archived-shelf" });
   root.append(
     h(
       "div",
@@ -46,12 +53,14 @@ export function mountLobby(root: HTMLElement): () => void {
       ),
       hero,
       grid,
+      shelf,
     ),
   );
 
   const render = () => {
-    const { schools, campus } = store.getState().setup;
+    const { schools, campus, archived } = store.getState().setup;
     fill(hero, ...(campus ? heroParts(campus) : []));
+    fill(shelf, ...archivedShelf(archived));
     if (!schools) {
       status.textContent = "Loading your Schools…";
       return;
@@ -75,7 +84,12 @@ export function mountLobby(root: HTMLElement): () => void {
   render();
   const offOnboarding = maybeOnboard(root);
   const off = store.subscribe((s, p) => {
-    if (s.setup.schools !== p.setup.schools || s.setup.campus !== p.setup.campus) render();
+    if (
+      s.setup.schools !== p.setup.schools ||
+      s.setup.campus !== p.setup.campus ||
+      s.setup.archived !== p.setup.archived
+    )
+      render();
   });
   app.loadSchools().catch((e: Error) => {
     status.textContent = e.message;
@@ -271,6 +285,57 @@ function schoolCard(s: SchoolSummary, wing?: CampusView["wings"][number]): HTMLE
               : "Open a class to meet your cadets.",
         ),
   );
+}
+
+/** Schools put away: folded by default, one click to bring one back. */
+let shelfOpen = false;
+function archivedShelf(list: ArchivedSchool[]): HTMLElement[] {
+  if (!list.length) return [];
+  const details = h(
+    "details",
+    { class: "archived", ...(shelfOpen ? { open: "" } : {}) },
+    h("summary", { class: "micro" }, `Archived · ${list.length}`),
+    h(
+      "ul",
+      { class: "archived-list" },
+      ...list.map((s) =>
+        h(
+          "li",
+          { class: "archived-row" },
+          h("span", { class: "dot", style: `background:${s.accent ?? "var(--lumen)"}` }),
+          h(
+            "div",
+            { style: "flex:1;min-width:0" },
+            h("div", { class: "name" }, s.name),
+            h(
+              "div",
+              { class: "meta" },
+              `${plural(s.concepts, "concept")} · ${plural(s.classrooms, "class", "classes")}`,
+            ),
+          ),
+          h(
+            "button",
+            {
+              class: "btn small",
+              "aria-label": `Restore ${s.name}`,
+              onclick: (e: Event) => {
+                const b = e.currentTarget as HTMLButtonElement;
+                b.disabled = true;
+                app.restoreSchool(s.id, s.name).catch((err: Error) => {
+                  b.disabled = false;
+                  app.notify(err.message, "error");
+                });
+              },
+            },
+            icon(ICONS.restore),
+            "Restore",
+          ),
+        ),
+      ),
+    ),
+  );
+  details.addEventListener("toggle", () => (shelfOpen = details.open));
+  return [details];
 }
 
 function newSchoolCard(): HTMLElement {

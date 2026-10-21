@@ -97,6 +97,51 @@ describe("School setup routes", () => {
     );
   });
 
+  it("archives a School off the lobby and campus, and restores it", async () => {
+    const { app } = await boot();
+    const id = (
+      await app.inject({ method: "POST", url: "/api/schools", payload: { name: "Geology" } })
+    ).json<{ id: string }>().id;
+    const listed = async () =>
+      (await app.inject({ method: "GET", url: "/api/schools" }))
+        .json<{ id: string }[]>()
+        .some((s) => s.id === id);
+    const onCampus = async () =>
+      (await app.inject({ method: "GET", url: "/api/campus" }))
+        .json<{ wings: { schoolId: string }[] }>()
+        .wings.some((w) => w.schoolId === id);
+    expect(await listed()).toBe(true);
+
+    expect(
+      (await app.inject({ method: "POST", url: `/api/schools/${id}/archive` })).statusCode,
+    ).toBe(200);
+    expect(await listed()).toBe(false);
+    expect(await onCampus()).toBe(false);
+    expect((await app.inject({ method: "GET", url: `/api/schools/${id}` })).statusCode).toBe(404);
+    const archived = (await app.inject({ method: "GET", url: "/api/schools/archived" })).json<
+      { id: string; name: string }[]
+    >();
+    expect(archived).toEqual([expect.objectContaining({ id, name: "Geology" })]);
+    // The name stays taken, and the error says where it went.
+    const dup = await app.inject({
+      method: "POST",
+      url: "/api/schools",
+      payload: { name: "geology" },
+    });
+    expect(dup.statusCode).toBe(409);
+    expect(dup.json<{ error: string }>().error).toMatch(/archived/i);
+    expect(
+      (await app.inject({ method: "POST", url: `/api/schools/${id}/archive` })).statusCode,
+    ).toBe(404);
+
+    expect(
+      (await app.inject({ method: "POST", url: `/api/schools/${id}/restore` })).statusCode,
+    ).toBe(200);
+    expect(await listed()).toBe(true);
+    expect(await onCampus()).toBe(true);
+    expect((await app.inject({ method: "GET", url: "/api/schools/archived" })).json()).toEqual([]);
+  });
+
   it("indexes a pasted source in the background, reporting status on the bus", async () => {
     const { app, until } = await boot();
     const id = (
