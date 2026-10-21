@@ -416,3 +416,22 @@ export const CadetUtteranceZ = z.object({
   mood: z.enum(MOODS),
 });
 export type CadetUtterance = z.infer<typeof CadetUtteranceZ>;
+
+/**
+ * The study hall's Explanation Coach: how my explanation of a concept compares
+ * with its key facts, and what the student who asked says back (only from my words).
+ */
+export const ExplanationCheckZ = z.object({
+  verdict: z.enum(["clear", "partly", "unclear"]),
+  /** Key facts my explanation got across (verbatim from the list). */
+  covered: z.array(z.string()).max(12),
+  /** Key facts it left out (verbatim from the list). */
+  missed: z.array(z.string()).max(12),
+  /** Something I said that is wrong, or matches a known misconception; null if none. */
+  wrong: z.string().max(300).nullable(),
+  /** The student's reply in their own voice: a reaction, or one follow-up question. */
+  studentReply: z.string().min(1).max(280),
+  /** One short, kind tip for my next try. */
+  tip: z.string().max(200),
+});
+export type ExplanationCheck = z.infer<typeof ExplanationCheckZ>;

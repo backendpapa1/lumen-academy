@@ -26,6 +26,8 @@ export interface ConceptKnowledge {
   /** My rating vs the evidence: "over" = I think I know it better than I teach it. */
   mismatch: "over" | "under" | null;
   references: string[];
+  /** In the study hall: passages I quoted, explanations I wrote. */
+  studied: { quotes: number; explanations: number };
 }
 
 export interface KnowledgeReport {
@@ -142,6 +144,18 @@ export function knowledgeReport(
       selfRating,
       mismatch: selfRating === null ? null : gap > 0.3 ? "over" : gap < -0.3 ? "under" : null,
       references: [...new Set(where)].slice(0, 4),
+      studied: {
+        quotes: (
+          sqlite.prepare("SELECT count(*) n FROM study_quotes WHERE concept_id = ?").get(k.id) as {
+            n: number;
+          }
+        ).n,
+        explanations: (
+          sqlite
+            .prepare("SELECT count(*) n FROM study_explanations WHERE concept_id = ?")
+            .get(k.id) as { n: number }
+        ).n,
+      },
     };
   });
   const rated = out.filter((c) => c.selfRating !== null);

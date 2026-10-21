@@ -69,7 +69,7 @@ function mount(r: AppState["route"]) {
               : r.name === "debrief"
                 ? mountDebrief(root, r.examId, r.classroomId, r.schoolId)
                 : r.name === "studyhall"
-                  ? mountStudyHall(root, r.schoolId)
+                  ? mountStudyHall(root, r.schoolId, r.conceptId)
                   : r.name === "progress"
                     ? mountProgress(root)
                     : r.name === "meeting"

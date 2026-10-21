@@ -26,6 +26,9 @@ export const ID_PREFIXES = {
   term: "trm",
   challenge: "chl",
   trophy: "tro",
+  studySession: "sts",
+  studyQuote: "stq",
+  studyExplanation: "stx",
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIXES;

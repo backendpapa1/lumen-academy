@@ -47,6 +47,7 @@ export const AGENT_NAMES = [
   "voiceCaster",
   "chapterAnalyst",
   "curriculumConnector",
+  "explanationCoach",
 ] as const;
 export const AgentNameZ = z.enum(AGENT_NAMES);
 export type AgentName = z.infer<typeof AgentNameZ>;
@@ -382,6 +383,22 @@ export const GameConfigZ = z.strictObject({
     freezeEveryDays: z.number().int().positive().default(7),
     maxFreezes: z.number().int().nonnegative().default(2),
   }),
+  /** The study hall: what counts, breaks, interruptions, reading pace. */
+  study: z
+    .strictObject({
+      streakMinutes: z.number().int().positive(),
+      breakMinutes: z.number().int().positive(),
+      longStudyMinutes: z.number().int().positive(),
+      interruptEveryMinutes: z.number().positive(),
+      readingCharsPerMinute: z.number().int().positive(),
+    })
+    .default({
+      streakMinutes: 10,
+      breakMinutes: 5,
+      longStudyMinutes: 90,
+      interruptEveryMinutes: 8,
+      readingCharsPerMinute: 1100,
+    }),
   /** V5 (VD11): each teaching mode behind its own flag. */
   modes: z
     .strictObject({

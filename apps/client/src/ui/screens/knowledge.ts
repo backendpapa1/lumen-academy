@@ -2,6 +2,8 @@ import { api, ApiError } from "../../core/api";
 import { app } from "../../core/app";
 import { SERVER_HTTP } from "../../core/net";
 import { fill, h, icon, ICONS } from "./dom";
+import { store } from "../../core/store";
+import { plural } from "./common";
 import { parkingLot } from "./parkingLot";
 
 // "What I actually know" (V2-07/08, VD6): the evidence from my classes, per
@@ -22,6 +24,7 @@ interface ConceptKnowledge {
   selfRating: number | null;
   mismatch: "over" | "under" | null;
   references: string[];
+  studied?: { quotes: number; explanations: number };
 }
 interface Report {
   school: { id: string; name: string };
@@ -224,6 +227,32 @@ export function mountKnowledge(root: HTMLElement, schoolId: string): () => void 
       ),
       c.references.length > 0 &&
         h("p", { class: "dim small know-refs" }, h("b", {}, "Read: "), c.references.join(" · ")),
+      h(
+        "div",
+        { class: "row know-study" },
+        h(
+          "span",
+          { class: "dim small" },
+          c.studied && c.studied.quotes + c.studied.explanations > 0
+            ? `Studied: ${[
+                c.studied.quotes && plural(c.studied.quotes, "quote"),
+                c.studied.explanations && plural(c.studied.explanations, "explanation"),
+              ]
+                .filter(Boolean)
+                .join(", ")} in the study hall`
+            : "Not studied in the study hall yet",
+        ),
+        h("span", { class: "spacer" }),
+        h(
+          "button",
+          {
+            class: "btn small quiet",
+            onclick: () =>
+              store.setState({ route: { name: "studyhall", schoolId, conceptId: c.id } }),
+          },
+          "Study it",
+        ),
+      ),
     );
   };
 

@@ -78,7 +78,6 @@ export async function buildApp({
   // The desktop app: the server serves the built client itself (ADR-011).
   if (process.env.LUMEN_CLIENT_DIR) registerClientFiles(app, process.env.LUMEN_CLIENT_DIR);
   if (runtime) registerClassroomRoutes(app, runtime.handle, runtime.game);
-  if (runtime) registerStudyRoutes(app, runtime.handle);
   if (runtime && assetsDir) registerAssetRoutes(app, runtime.handle, assetsDir);
   if (runtime) {
     registerSettingsRoutes(app, runtime.handle, config);
@@ -88,6 +87,7 @@ export async function buildApp({
     backfillInterests(runtime.handle, runtime.game);
     registerParkingRoutes(app, runtime);
     registerInsightRoutes(app, runtime);
+    registerStudyRoutes(app, runtime);
     registerMeetingRoutes(app, runtime);
     if (dataDir) {
       const jobs = { ...runtime, bus: runtime.bus, art: config.artPrompts, dataDir };

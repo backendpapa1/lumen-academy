@@ -181,6 +181,13 @@ streak:
   freezeEveryDays: 7 # V3-07: a week of streak earns a freeze (covers one missed day)
   maxFreezes: 2
 
+study: # the study hall (V3-06 and its follow-ups)
+  streakMinutes: 10 # a study session this long keeps the streak, like a class does
+  breakMinutes: 5 # the break after a focus block
+  longStudyMinutes: 90 # focused minutes in a day before a gentle "take a real break"
+  interruptEveryMinutes: 8 # a student leans over with a question, while the timer runs
+  readingCharsPerMinute: 1100 # "Chapter 4 · about 12 min"
+
 modes: # V5 (VD11): each teaching mode behind its own flag
   socratic: true
   teach_back: true
@@ -211,6 +218,8 @@ xp: # docs/02 §7.1
   eliRound: 20 # V5-05: × fit score per round
   substituteCatch: 25 # V5-08: per planted error caught
   challengeDone: 150 # V7-04: the weekly challenge
+  studyMinute: 3 # study hall: per focused minute (teaching earns more)
+  studyAnswer: 10 # study hall: answering a student's question or rehearsing an explanation
 
 ranks: # placeholder thresholds; tune after M5
   - { name: Student Teacher, minXp: 0 }

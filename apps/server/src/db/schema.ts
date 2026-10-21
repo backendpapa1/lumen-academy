@@ -669,3 +669,75 @@ export const curriculumUnits = sqliteTable(
   },
   (t) => [uniqueIndex("curriculum_units_source").on(t.schoolId, t.sourceId)],
 );
+
+// --- Study hall -----------------------------------------------------------------
+
+/** A focus block in the study hall: what I meant to do, and whether I did. */
+export const studySessions = sqliteTable(
+  "study_sessions",
+  {
+    id: text("id").primaryKey(),
+    schoolId: text("school_id").references(() => schools.id),
+    startedAt: text("started_at").notNull(),
+    endedAt: text("ended_at"),
+    /** Focused minutes (pauses don't count). */
+    minutes: integer("minutes").notNull().default(0),
+    intention: text("intention"),
+    /** done | partly | not, once asked at the bell. */
+    outcome: text("outcome"),
+    xpAwarded: integer("xp_awarded", { mode: "boolean" }).notNull().default(false),
+  },
+  (t) => [index("study_sessions_started").on(t.startedAt)],
+);
+
+/** A passage I quoted into my notes, tied to the concept its passage teaches. */
+export const studyQuotes = sqliteTable(
+  "study_quotes",
+  {
+    id: text("id").primaryKey(),
+    schoolId: text("school_id")
+      .notNull()
+      .references(() => schools.id),
+    conceptId: text("concept_id"),
+    sourceId: text("source_id"),
+    chunkId: text("chunk_id"),
+    text: text("text").notNull(),
+    page: integer("page"),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("study_quotes_concept").on(t.conceptId)],
+);
+
+/** Chapters I've finished reading in the study hall. */
+export const studyReads = sqliteTable(
+  "study_reads",
+  {
+    schoolId: text("school_id")
+      .notNull()
+      .references(() => schools.id),
+    sourceId: text("source_id").notNull(),
+    /** The chapter's first chunk id: stable while the source isn't re-indexed. */
+    chapterKey: text("chapter_key").notNull(),
+    readAt: text("read_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.schoolId, t.sourceId, t.chapterKey] })],
+);
+
+/** An explanation I wrote in the study hall (a rehearsal, or an answer to a student). */
+export const studyExplanations = sqliteTable(
+  "study_explanations",
+  {
+    id: text("id").primaryKey(),
+    schoolId: text("school_id")
+      .notNull()
+      .references(() => schools.id),
+    conceptId: text("concept_id").notNull(),
+    kind: text("kind").notNull(), // rehearse | answer
+    cadetId: text("cadet_id"),
+    question: text("question"),
+    text: text("text").notNull(),
+    checkJson: text("check_json"),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("study_explanations_concept").on(t.conceptId)],
+);

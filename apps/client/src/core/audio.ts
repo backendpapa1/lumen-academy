@@ -13,7 +13,10 @@ import { store, type AppState } from "./store";
 // silent. Cues are rendered once and cached; pads and ambience become loops.
 
 type Bed = "campus" | "classroom" | "exam" | null;
-type Ambience = "room" | "rain" | null;
+type Ambience = "room" | "rain" | "cafe" | "library" | null;
+/** The study hall's background, my choice (kept per browser). */
+export type StudyAmbience = "rain" | "cafe" | "library" | "quiet";
+const STUDY_AMBIENCE_KEY = "lumen.studyAmbience";
 type CueName = "hand" | "bell" | "xp" | "speak" | "arrive" | "right" | "wrong" | "tick" | "pulse";
 /** Where a graph plays: the live context's master, or an offline render. */
 interface Target {
@@ -26,6 +29,12 @@ const LEVEL = 0.22;
 const RATE = 44100;
 const PAD_LOOP = 20;
 const AMBIENCE_LOOP = 8;
+const AMBIENCE_GAIN: Record<Exclude<Ambience, null>, number> = {
+  room: 0.18,
+  rain: 0.55,
+  cafe: 0.4,
+  library: 0.12,
+};
 const CUE_SECONDS: Record<CueName, number> = {
   hand: 0.6,
   bell: 2.6,
@@ -237,13 +246,15 @@ class Sound {
     if (!name) return;
     const g = ctx.createGain();
     g.gain.value = 0;
-    g.gain.setTargetAtTime(name === "room" ? 0.18 : 0.55, ctx.currentTime, 2);
+    g.gain.setTargetAtTime(AMBIENCE_GAIN[name], ctx.currentTime, 2);
     g.connect(this.master);
     const src = noiseGraph(ctx, name, g);
     const drops =
       name === "rain"
         ? setInterval(() => this.blip(2200 + Math.random() * 1800, 0.012, 0.002, "sine", 0.05), 140)
-        : null;
+        : name === "cafe"
+          ? setInterval(() => Math.random() < 0.3 && this.clink(), 900)
+          : null;
     this.ambience = {
       name,
       stop: () => {
@@ -260,17 +271,45 @@ class Sound {
     if (!name) return nativeAudio.stop("ambience");
     const build = (t: Target) => {
       const g = t.ctx.createGain();
-      g.gain.value = name === "room" ? 0.18 : 0.55;
+      g.gain.value = AMBIENCE_GAIN[name];
       g.connect(t.dest);
       noiseGraph(t.ctx, name, g);
       if (name === "rain")
         for (let at = 0.1; at < AMBIENCE_LOOP - 0.1; at += 0.14)
           this.blip(2200 + Math.random() * 1800, 0.012, 0.002, "sine", 0.05, at, t);
+      if (name === "cafe") for (const at of [1.3, 4.6, 6.2]) this.clink(at, t);
     };
     void this.render(`ambience:${name}`, AMBIENCE_LOOP, build, 0.3).then((wav) => {
       if (this.nativeAmbience !== name || !this.native) return;
       void nativeAudio.play("ambience", wav, { loop: true, volume: LEVEL });
     });
+  }
+
+  /** A cup set down on a saucer, somewhere across the café. */
+  private clink(at = 0, target: Target | null = this.live()) {
+    const f = 2600 + Math.random() * 900;
+    this.blip(f, 0.02, 0.002, "sine", 0.18, at, target);
+    this.blip(f * 1.5, 0.008, 0.002, "sine", 0.12, at + 0.01, target);
+  }
+
+  /** The study hall's background: rain, a café, a library hush, or nothing. */
+  get studyAmbience(): StudyAmbience {
+    try {
+      const v = localStorage.getItem(STUDY_AMBIENCE_KEY);
+      if (v === "rain" || v === "cafe" || v === "library" || v === "quiet") return v;
+    } catch {
+      /* per-viewer convenience */
+    }
+    return "rain";
+  }
+  setStudyAmbience(name: StudyAmbience) {
+    try {
+      localStorage.setItem(STUDY_AMBIENCE_KEY, name);
+    } catch {
+      /* fine */
+    }
+    if (store.getState().route.name === "studyhall")
+      this.setAmbience(name === "quiet" ? null : name);
   }
 
   /** A chair scraping back: someone's hand goes up. */
@@ -427,9 +466,15 @@ function noiseGraph(
   src.buffer = buf;
   src.loop = true;
   const f = ctx.createBiquadFilter();
-  if (name === "room") {
+  if (name === "room" || name === "library") {
+    // A library is the room's hush, lower and softer.
     f.type = "lowpass";
-    f.frequency.value = 420;
+    f.frequency.value = name === "room" ? 420 : 260;
+  } else if (name === "cafe") {
+    // Murmur: voices across the room are a band of low-mid noise.
+    f.type = "bandpass";
+    f.frequency.value = 520;
+    f.Q.value = 0.8;
   } else {
     // Rain: brighter, with droplets on top (added by the caller).
     f.type = "bandpass";
@@ -483,7 +528,10 @@ export function installSound() {
   const ambienceFor = (s: AppState): Ambience => {
     const bed = bedFor(s);
     if (bed === "classroom") return "room";
-    if (s.route.name === "studyhall") return "rain"; // V3-06: a soft bed, nothing more
+    if (s.route.name === "studyhall") {
+      const a = sound.studyAmbience; // V3-06: a soft bed, my choice of which
+      return a === "quiet" ? null : a;
+    }
     if (bed === "campus" && (s.setup.campus?.streak.missedDays ?? 0) >= 3) return "rain";
     return null;
   };

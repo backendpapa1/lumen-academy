@@ -17,6 +17,7 @@ import { lookFor, peepSvg, restingFace } from "../peeps/peep";
 import { fill, h, icon, ICONS } from "../screens/dom";
 import "./hud.css";
 import { BoardDrawing } from "./drawing";
+import { studyNotesChip } from "./studyNotes";
 
 // The classroom HUD (docs/02 §3.3, ADR-009), in the DOM over the drawn room.
 // At most three regions show at once: top bar, hands up, lectern. Roster and
@@ -77,6 +78,7 @@ export class ClassroomHud {
   readonly drawing: BoardDrawing;
   private readonly recap = h("aside", { class: "hud-recap card" });
   private readonly timer = h("div", { class: "timer mono" });
+  private readonly notesChip = studyNotesChip();
   private readonly xpFloat = h("div", { class: "xp-float", "aria-hidden": "true" });
   private conceptMenu: HTMLElement | null = null;
   private rosterOpen = false;
@@ -180,8 +182,9 @@ export class ClassroomHud {
         [c.school?.name, c.classroom?.name].filter(Boolean).join(" · ") || "Lumen Academy",
         c.hyperfocus ? h("span", { class: "chip focus" }, "Hyperfocus") : null,
       ),
-      concept,
+      h("div", { class: "hud-concept-row" }, concept, this.notesChip.el),
     );
+    this.notesChip.show(c.school?.id, c.concept?.id);
     const xp = c.xp;
     const rank = xp
       ? h(

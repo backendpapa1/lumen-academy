@@ -1,6 +1,7 @@
 import type { GameConfig } from "@lumen/shared";
 import type { AssetService } from "../assets/service.js";
 import type { DbHandle } from "../db/client.js";
+import { studyStreakTimes } from "./studyHall.js";
 import { schoolConceptStatuses } from "./schoolStatus.js";
 
 // Campus progression (docs/02 §7.2–7.4, PRD P-2, P-3, P-4): building tiers from
@@ -128,16 +129,21 @@ const dayNumber = (d: string) => Math.round(Date.parse(`${d}T00:00:00Z`) / 86_40
 
 /**
  * The forgiving streak (P-3, V3-07). Any completed period counts, a 3-minute
- * micro-lesson too. Every `freezeEveryDays` taught days in a run earn a
+ * micro-lesson too, and a study-hall session of `study.streakMinutes`. Every
+ * `freezeEveryDays` days in a run earn a
  * freeze (up to `maxFreezes`); a gap is bridged if there are freezes to
  * cover each missed day, so one bad day doesn't undo a good week.
  */
 export function streak(handle: DbHandle, game: GameConfig, now = new Date()): Streak {
   const { timezone: tz, freezeEveryDays: every, maxFreezes } = game.streak;
-  const ended = handle.sqlite
-    .prepare("SELECT ended_at FROM periods WHERE ended_at IS NOT NULL")
-    .all() as Array<{ ended_at: string }>;
-  const days = [...new Set(ended.map((r) => dayNumber(dayIn(tz, new Date(r.ended_at)))))].sort(
+  const ended = (
+    handle.sqlite
+      .prepare("SELECT ended_at FROM periods WHERE ended_at IS NOT NULL")
+      .all() as Array<{ ended_at: string }>
+  ).map((r) => r.ended_at);
+  // A study-hall session long enough counts too: a reading day keeps the streak.
+  ended.push(...studyStreakTimes(handle, game));
+  const days = [...new Set(ended.map((t) => dayNumber(dayIn(tz, new Date(t)))))].sort(
     (a, b) => a - b,
   );
   const today = dayNumber(dayIn(tz, now));

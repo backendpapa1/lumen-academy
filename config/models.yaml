@@ -92,6 +92,7 @@ agents:
   voiceCaster: { role: fast, maxOutputTokens: 400, temperature: 0 } # a voice that fits each older student's name
   chapterAnalyst: { role: fast, maxOutputTokens: 6000, temperature: 0.2 } # one chapter's concepts (book-by-book curriculum)
   curriculumConnector: { role: standard, maxOutputTokens: 8000, temperature: 0 } # prerequisites across books, duplicates
+  explanationCoach: { role: fast, maxOutputTokens: 700, temperature: 0.3 } # study hall: checks my explanation, the student's reply
 
 budget:
   monthlyUsdCap: 20

@@ -1,18 +1,24 @@
 import { api, ApiError } from "../../core/api";
 import { app } from "../../core/app";
-import { sound } from "../../core/audio";
-import { SERVER_HTTP } from "../../core/net";
+import { sound, type StudyAmbience } from "../../core/audio";
 import { store } from "../../core/store";
 import { lookFor, peepSvg, type Pose } from "../peeps/peep";
 import { fill, h, icon, ICONS } from "./dom";
 import { parkingLot } from "./parkingLot";
+import { studyBuddy } from "./studyBuddy";
+import { prepPanel } from "./studyPrep";
+import { mountReader, type Reader } from "./studyReader";
+import { studyTimer } from "./studyTimer";
+import type { Classmate, StudyData } from "./studyTypes";
 import "./studyhall.css";
 
-// Study hall (V3-06, and Paul's note): a study session with company. A quiet
-// drawn person works at the next desk (body doubling: no AI, just presence)
-// while I read my own sources right here, the PDF itself or the text the
-// School indexed, and write study notes beside them. A calm timer, and my
-// parking lot for stray thoughts.
+// Study hall (V3-06, Paul's notes): a study session with company, that gets me
+// ready to teach. A quiet drawn person works at the next desk, and students
+// from my own class do their homework at the desks behind (body doubling: no
+// AI, just presence). I read my sources a chapter at a time, prepare the
+// concept each class meets next, look up what I couldn't answer, and now and
+// then a student leans over with a question. A focus timer with an intention,
+// a real break, and minutes that keep the streak.
 
 const COMPANION = lookFor("cdt_study_companion", "short", "male");
 /** What the companion is doing, and roughly for how long (seconds). */
@@ -23,40 +29,35 @@ const ACTS: Array<{ act: "write" | "read" | "sip" | "page"; pose: Pose; secs: [n
     { act: "sip", pose: "idle", secs: [5, 7] },
     { act: "page", pose: "idle", secs: [3, 4] },
   ];
-const PRESETS = [15, 25, 45];
-const LAST_SOURCE = "lumen.studySource";
+const AMBIENCES: Array<[StudyAmbience, string]> = [
+  ["rain", "Rain"],
+  ["cafe", "Café"],
+  ["library", "Library"],
+  ["quiet", "Quiet"],
+];
+const TAB_KEY = "lumen.studyTab";
+type Tab = "prep" | "notes" | "lot";
 
-interface StudySource {
-  id: string;
-  title: string;
-  kind: string;
-  url: string | null;
-  pages: number | null;
-  original: boolean;
-}
-interface StudyData {
-  school: { id: string; name: string };
-  sources: StudySource[];
-  notes: { body: string; updatedAt: string | null };
-}
-interface SourceText {
-  title: string;
-  url: string | null;
-  sections: Array<{ heading: string | null; page: number | null; text: string }>;
-}
-
-export function mountStudyHall(root: HTMLElement, schoolId?: string): () => void {
+export function mountStudyHall(
+  root: HTMLElement,
+  schoolId?: string,
+  conceptId?: string,
+): () => void {
   root.classList.add("studyhall");
   const schools = store.getState().setup.schools ?? [];
   let school = schoolId ?? schools[0]?.id;
+  let data: StudyData | null = null;
+  let resting = false;
 
-  // --- the companion: a lamp-lit desk by a rainy window ------------------------
+  // --- the scene: a lamp-lit desk by a window; my class at the desks behind --------
   const person = h("div", { class: "sh-person", "aria-hidden": "true" });
+  const mates = h("div", { class: "sh-mates", "aria-hidden": "true" });
   const scene = h(
     "div",
     { class: "sh-scene", role: "img", "aria-label": "A study companion working at the next desk" },
     h("div", { class: "sh-window" }, h("div", { class: "sh-rain" })),
     h("div", { class: "sh-shelf" }, h("i"), h("i")),
+    mates,
     h("div", { class: "sh-lamp" }, h("i", { class: "shade" }), h("i", { class: "glow" })),
     person,
     h(
@@ -69,85 +70,128 @@ export function mountStudyHall(root: HTMLElement, schoolId?: string): () => void
   );
   let act = ACTS[1]!;
   let actTimer: ReturnType<typeof setTimeout> | undefined;
+  const draw = () => {
+    person.innerHTML = peepSvg(COMPANION, {
+      pose: resting ? "arms" : act.pose,
+      face: resting || act.act === "sip" ? "Smile" : "Calm",
+    });
+    scene.dataset.act = resting ? "stretch" : act.act;
+  };
   const nextAct = () => {
     // Mostly writing and reading; a sip or a page turn now and then.
     const r = Math.random();
     const prev = act.act;
     act = r < 0.42 ? ACTS[0]! : r < 0.8 ? ACTS[1]! : r < 0.9 ? ACTS[2]! : ACTS[3]!;
     if (act.act === prev && act.act !== "write" && act.act !== "read") act = ACTS[1]!;
-    person.innerHTML = peepSvg(COMPANION, {
-      pose: act.pose,
-      face: act.act === "sip" ? "Smile" : "Calm",
-    });
-    scene.dataset.act = act.act;
+    draw();
     const [lo, hi] = act.secs;
     actTimer = setTimeout(nextAct, (lo + Math.random() * (hi - lo)) * 1000);
   };
   nextAct();
-
-  // --- the calm timer -----------------------------------------------------------
-  let minutes = 25;
-  let endsAt: number | null = null;
-  let leftMs = minutes * 60_000;
-  const digits = h("div", { class: "sh-digits", role: "timer", "aria-live": "off" });
-  const startBtn = h("button", { class: "btn primary" });
-  const presetRow = h("div", { class: "seg", role: "group", "aria-label": "Minutes" });
-  const show = () => {
-    const ms = endsAt ? Math.max(0, endsAt - Date.now()) : leftMs;
-    const s = Math.ceil(ms / 1000);
-    digits.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const drawMates = (list: Classmate[]) => {
     fill(
-      startBtn,
-      icon(ICONS.play),
-      endsAt ? "Pause" : leftMs < minutes * 60_000 ? "Carry on" : "Start",
+      mates,
+      ...list.map((m, i) => {
+        const el = h(
+          "div",
+          { class: `sh-mate m${i}` },
+          h("span", { class: "sh-mate-name" }, m.name),
+        );
+        el.insertAdjacentHTML(
+          "afterbegin",
+          peepSvg(lookFor(m.id, m.hair, m.register as never), {
+            pose: resting ? "arms" : "notes",
+            face: resting ? "Smile" : "Calm",
+          }),
+        );
+        return el;
+      }),
     );
-    for (const b of presetRow.querySelectorAll("button"))
-      b.setAttribute("aria-pressed", String(Number(b.dataset.min) === minutes));
-    if (endsAt && ms <= 0) {
-      endsAt = null;
-      leftMs = minutes * 60_000;
-      sound.cue("bell");
-      app.notify(`That's ${minutes} minutes. Nicely done. Stretch, then go again or teach it.`);
-      show();
-    }
+    scene.setAttribute(
+      "aria-label",
+      list.length
+        ? `A study companion at the next desk, and ${list.map((m) => m.name).join(" and ")} from your class doing homework behind`
+        : "A study companion working at the next desk",
+    );
   };
-  startBtn.addEventListener("click", () => {
-    if (endsAt) {
-      leftMs = Math.max(0, endsAt - Date.now());
-      endsAt = null;
-    } else endsAt = Date.now() + leftMs;
-    show();
+
+  // --- the reader, the student who leans over, the side panel -------------------------
+  const readerEl = h("section", { class: "card sh-reader", "aria-label": "Your sources" });
+  let reader: Reader | null = null;
+  const buddy = studyBuddy(() => school ?? null);
+  let sinceAsk = 0;
+  let lastTick = Date.now();
+
+  const timer = studyTimer({
+    schoolId: () => school ?? null,
+    suggestions: () => {
+      const out: string[] = [];
+      const p = data?.prep[0];
+      if (p) out.push(`Prep ${p.concept.title} for ${p.classroomName}`);
+      const ch = reader?.chapterTitle();
+      if (ch) out.push(`Read ${ch}`);
+      if (data?.lookups.length) out.push("Look up what my class asked");
+      return out;
+    },
+    onFocusTick: (running) => {
+      const now = Date.now();
+      if (running && !buddy.isOpen()) sinceAsk += now - lastTick;
+      lastTick = now;
+      const every = (data?.settings.interruptEveryMinutes ?? 8) * 60_000;
+      if (running && sinceAsk >= every && reader) {
+        sinceAsk = 0;
+        void buddy.ask(reader.around());
+      }
+    },
+    onBreak: (on) => {
+      resting = on;
+      draw();
+      if (data) drawMates(data.classmates);
+    },
+    todayMinutes: () => data?.todayMinutes ?? 0,
+    settings: () => data?.settings ?? { breakMinutes: 5, longStudyMinutes: 90 },
   });
-  for (const m of PRESETS)
-    presetRow.append(
-      h(
-        "button",
-        {
-          "data-min": m,
-          onclick: () => {
-            minutes = m;
-            leftMs = m * 60_000;
-            endsAt = null;
-            show();
-          },
-        },
-        `${m} min`,
-      ),
-    );
-  const tick = setInterval(show, 250);
-  show();
 
-  // --- the reader, the notebook and the parking lot, per School ----------------
-  const reader = h("section", { class: "card sh-reader", "aria-label": "Your sources" });
-  const notesSlot = h("div");
-  const lotSlot = h("div");
+  let tab: Tab = "prep";
+  try {
+    const t = localStorage.getItem(TAB_KEY);
+    if (!conceptId && (t === "prep" || t === "notes" || t === "lot")) tab = t;
+  } catch {
+    /* fine */
+  }
+  const tabs = h("div", { class: "seg sh-tabs", role: "tablist", "aria-label": "Study tools" });
+  const panes: Record<Tab, HTMLElement> = {
+    prep: h("div", { role: "tabpanel" }),
+    notes: h("div", { role: "tabpanel" }),
+    lot: h("div", { role: "tabpanel" }),
+  };
+  const showTab = (t: Tab) => {
+    tab = t;
+    try {
+      localStorage.setItem(TAB_KEY, t);
+    } catch {
+      /* fine */
+    }
+    for (const b of tabs.querySelectorAll<HTMLButtonElement>("button"))
+      b.setAttribute("aria-selected", String(b.dataset.tab === t));
+    for (const [k, p] of Object.entries(panes)) p.hidden = k !== t;
+  };
+  for (const [t, label] of [
+    ["prep", "Prep for class"],
+    ["notes", "Notes"],
+    ["lot", "Parking lot"],
+  ] as const)
+    tabs.append(h("button", { role: "tab", "data-tab": t, onclick: () => showTab(t) }, label));
+
   let flushNotes: () => void = () => {};
-
   const loadSchool = () => {
     flushNotes();
+    reader?.dispose();
+    reader = null;
+    buddy.close();
     if (!school) {
       fill(
-        reader,
+        readerEl,
         h(
           "div",
           { class: "sh-empty" },
@@ -159,23 +203,32 @@ export function mountStudyHall(root: HTMLElement, schoolId?: string): () => void
           ),
         ),
       );
-      fill(notesSlot);
-      fill(lotSlot);
+      Object.values(panes).forEach((p) => fill(p));
       return;
     }
     const id = school;
-    fill(reader, h("p", { class: "dim pad" }, "Opening your sources…"));
-    fill(lotSlot, parkingLot(id, { add: true, title: "Parking lot" }));
+    fill(readerEl, h("p", { class: "dim pad" }, "Opening your sources…"));
+    fill(panes.lot, parkingLot(id, { add: true, title: "Parking lot" }));
     api
       .get<StudyData>(`/api/schools/${id}/study`)
       .then((d) => {
         if (school !== id) return;
-        mountReader(reader, d);
+        // An older server (or a test double) may leave the newer parts out.
+        d.prep ??= [];
+        d.lookups ??= [];
+        d.classmates ??= [];
+        d.todayMinutes ??= 0;
+        d.settings ??= { breakMinutes: 5, longStudyMinutes: 90, interruptEveryMinutes: 8 };
+        data = d;
+        reader = mountReader(readerEl, d);
+        readerEl.append(buddy.el);
+        drawMates(d.classmates);
+        fill(panes.prep, prepPanel(d, id === schoolId ? conceptId : undefined));
         const n = notebook(d);
         flushNotes = n.flush;
-        fill(notesSlot, n.el);
+        fill(panes.notes, n.el);
       })
-      .catch((e: Error) => fill(reader, h("p", { class: "error-text pad" }, e.message)));
+      .catch((e: Error) => fill(readerEl, h("p", { class: "error-text pad" }, e.message)));
   };
 
   const picker =
@@ -193,7 +246,20 @@ export function mountStudyHall(root: HTMLElement, schoolId?: string): () => void
           ...schools.map((s) => h("option", { value: s.id, selected: s.id === school }, s.name)),
         )
       : null;
+  const ambience = h(
+    "select",
+    {
+      class: "field sh-ambience",
+      "aria-label": "Background sound",
+      onchange: (e: Event) =>
+        sound.setStudyAmbience((e.target as HTMLSelectElement).value as StudyAmbience),
+    },
+    ...AMBIENCES.map(([v, label]) =>
+      h("option", { value: v, selected: sound.studyAmbience === v }, label),
+    ),
+  );
   loadSchool();
+  showTab(tab);
 
   root.append(
     h(
@@ -216,12 +282,14 @@ export function mountStudyHall(root: HTMLElement, schoolId?: string): () => void
         ),
         picker,
         h("span", { class: "spacer" }),
-        h("section", { class: "sh-timer", "aria-label": "Timer" }, digits, presetRow, startBtn),
+        h("label", { class: "sh-sound" }, icon(ICONS.speaker), ambience),
+        timer.el,
       ),
+      timer.strip,
       h(
         "div",
         { class: "sh-grid" },
-        reader,
+        readerEl,
         h(
           "aside",
           { class: "sh-side" },
@@ -229,194 +297,26 @@ export function mountStudyHall(root: HTMLElement, schoolId?: string): () => void
           h(
             "p",
             { class: "dim small sh-company" },
-            "Someone's working beside you. Read a source, write notes, sketch tomorrow's lesson.",
+            "Someone's working beside you. Read a chapter, prep tomorrow's class, write notes.",
           ),
-          notesSlot,
-          lotSlot,
+          tabs,
+          panes.prep,
+          panes.notes,
+          panes.lot,
         ),
       ),
     ),
+    timer.breakCard,
   );
-  queueMicrotask(() => startBtn.focus({ preventScroll: true }));
+  queueMicrotask(() => timer.startBtn.focus({ preventScroll: true }));
 
   return () => {
     flushNotes();
-    clearInterval(tick);
+    timer.dispose();
+    reader?.dispose();
     clearTimeout(actTimer);
     root.classList.remove("studyhall");
   };
-}
-
-/** The School's sources: the PDF in the browser's own viewer, everything else as text. */
-function mountReader(el: HTMLElement, d: StudyData) {
-  if (!d.sources.length) {
-    fill(
-      el,
-      h(
-        "div",
-        { class: "sh-empty" },
-        h("div", { class: "h2" }, "No sources ready yet"),
-        h(
-          "p",
-          { class: "dim" },
-          `Add a PDF, notes or a link on ${d.school.name}'s Sources tab, and it opens here.`,
-        ),
-        h(
-          "button",
-          { class: "btn", onclick: () => app.openSchool(d.school.id, "sources") },
-          "Open Sources",
-        ),
-      ),
-    );
-    return;
-  }
-  let remembered: string | null = null;
-  try {
-    remembered = localStorage.getItem(`${LAST_SOURCE}.${d.school.id}`);
-  } catch {
-    /* fine */
-  }
-  let current = d.sources.find((s) => s.id === remembered) ?? d.sources[0]!;
-  let mode: "original" | "text" = current.original ? "original" : "text";
-  const body = h("div", { class: "sh-page" });
-  const bar = h("div", { class: "sh-bar" });
-
-  const fileUrl = () => `${SERVER_HTTP}/api/schools/${d.school.id}/sources/${current.id}/file`;
-  const render = () => {
-    try {
-      localStorage.setItem(`${LAST_SOURCE}.${d.school.id}`, current.id);
-    } catch {
-      /* fine */
-    }
-    fill(
-      bar,
-      d.sources.length > 1
-        ? h(
-            "select",
-            {
-              class: "field",
-              "aria-label": "Source",
-              onchange: (e: Event) => {
-                current = d.sources.find((s) => s.id === (e.target as HTMLSelectElement).value)!;
-                mode = current.original ? "original" : "text";
-                render();
-              },
-            },
-            ...d.sources.map((s) =>
-              h("option", { value: s.id, selected: s.id === current.id }, s.title),
-            ),
-          )
-        : h("b", { class: "sh-title" }, current.title),
-      h("span", { class: "spacer" }),
-      current.original &&
-        h(
-          "div",
-          { class: "seg", role: "group", "aria-label": "View" },
-          ...(["original", "text"] as const).map((m) =>
-            h(
-              "button",
-              {
-                "aria-pressed": String(mode === m),
-                onclick: () => {
-                  mode = m;
-                  render();
-                },
-              },
-              m === "original" ? "PDF" : "Text",
-            ),
-          ),
-        ),
-      mode === "text" &&
-        h(
-          "button",
-          {
-            class: "btn small",
-            title: "Select some text first",
-            onclick: () => quoteSelection(body, current.title),
-          },
-          icon(ICONS.pencil),
-          "Add selection to notes",
-        ),
-      current.url &&
-        h(
-          "a",
-          { class: "btn small quiet", href: current.url, target: "_blank", rel: "noreferrer" },
-          "Open the link",
-        ),
-      mode === "original" &&
-        h(
-          "a",
-          { class: "btn small quiet", href: fileUrl(), target: "_blank", rel: "noreferrer" },
-          "Open in a new tab",
-        ),
-    );
-    if (mode === "original") {
-      fill(
-        body,
-        h("iframe", {
-          class: "sh-pdf",
-          title: current.title,
-          src: `${fileUrl()}#view=FitH`,
-        }),
-      );
-      return;
-    }
-    fill(body, h("p", { class: "dim pad" }, "Opening…"));
-    const id = current.id;
-    api
-      .get<SourceText>(`/api/schools/${d.school.id}/sources/${id}/text`)
-      .then((t) => current.id === id && fill(body, article(t)))
-      .catch((e: Error) => fill(body, h("p", { class: "error-text pad" }, e.message)));
-  };
-  fill(el, bar, body);
-  render();
-}
-
-/** The indexed text, with headings and page marks; text nodes only, never HTML. */
-function article(t: SourceText): HTMLElement {
-  const out = h("article", { class: "sh-text" }, h("h2", { class: "h2" }, t.title));
-  let lastHeading: string | null = null;
-  let lastPage: number | null = null;
-  for (const s of t.sections) {
-    if (s.page !== null && s.page !== lastPage) {
-      out.append(h("div", { class: "sh-pagemark mono small" }, `p. ${s.page}`));
-      lastPage = s.page;
-    }
-    const heading = s.heading?.split(" > ").at(-1) ?? null;
-    if (heading && heading !== lastHeading) {
-      out.append(h("h3", {}, heading));
-      lastHeading = heading;
-    }
-    for (const para of s.text.split(/\n{2,}/)) {
-      const line = para.trim();
-      if (!line) continue;
-      const md = /^(#{1,6})\s+(.*)$/.exec(line);
-      out.append(md ? h("h4", {}, md[2]!) : h("p", {}, line));
-    }
-  }
-  return out;
-}
-
-/** "Add selection to notes": the quote, and where it came from. */
-function quoteSelection(scope: HTMLElement, title: string) {
-  const sel = getSelection();
-  const text = sel?.toString().trim() ?? "";
-  if (!text || !sel?.anchorNode || !scope.contains(sel.anchorNode)) {
-    app.notify("Select a passage in the text first.");
-    return;
-  }
-  const page = sel.anchorNode.parentElement?.closest(".sh-text")?.querySelectorAll(".sh-pagemark");
-  let mark = "";
-  // The last page mark before the selection.
-  page?.forEach((m) => {
-    if (m.compareDocumentPosition(sel.anchorNode!) & Node.DOCUMENT_POSITION_FOLLOWING)
-      mark = m.textContent ?? "";
-  });
-  document.dispatchEvent(
-    new CustomEvent("study:quote", {
-      detail: `> ${text.replace(/\n+/g, " ")}\n> (${title}${mark ? `, ${mark}` : ""})\n\n`,
-    }),
-  );
 }
 
 /** One notebook per School, saved as I type. */

@@ -134,6 +134,13 @@
       "when": 1792621384800,
       "tag": "0018_curriculum_units",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1792623850255,
+      "tag": "0019_hard_stick",
+      "breakpoints": true
     }
   ]
 }

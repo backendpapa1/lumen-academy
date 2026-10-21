@@ -29,7 +29,7 @@ export interface AppState {
     /** V7-06/07: charts and the teaching-style profile. */
     | { name: "progress" }
     /** V3-06: body doubling, a calm timer and the parking lot. */
-    | { name: "studyhall"; schoolId?: string }
+    | { name: "studyhall"; schoolId?: string; conceptId?: string }
     | { name: "gallery" };
   setup: SetupState;
   /** idle = never connected (e.g. demo mode). */

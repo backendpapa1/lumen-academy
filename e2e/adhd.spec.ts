@@ -236,9 +236,11 @@ test("study hall: a quiet companion, a calm timer and the parking lot", async ({
   await page.getByRole("button", { name: "15 min" }).click();
   await expect(timer).toHaveText("15:00");
   await page.getByRole("button", { name: "Start" }).click();
+  await page.getByRole("button", { name: "Just start" }).click();
   await expect(timer).toHaveText(/^14:5\d$/);
   await page.getByRole("button", { name: "Pause" }).click();
   await expect(page.getByRole("button", { name: "Carry on" })).toBeVisible();
+  await page.getByRole("tab", { name: "Parking lot" }).click();
   const add = page.getByRole("textbox", { name: "Park a thought" });
   await add.fill("Why is SHA-256 used twice in Bitcoin?");
   await add.press("Enter");

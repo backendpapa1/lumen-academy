@@ -17,7 +17,8 @@ export interface XpStanding {
 
 export interface XpScope {
   schoolId: string;
-  classroomId: string;
+  /** Null outside a class (the study hall). */
+  classroomId: string | null;
   /** Null for XP earned outside a class period (grading, exams). */
   periodId: string | null;
 }
