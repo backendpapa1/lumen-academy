@@ -271,8 +271,9 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
     "event.start",
     z.strictObject({
       eventId: z.string(),
-      kind: z.enum(["pop_quiz", "glitch", "power_flicker"]),
-      cadetId: z.string(),
+      kind: z.enum(["pop_quiz", "glitch", "power_flicker", "inspector"]),
+      /** The cadet it's about; absent for the visiting Dean. */
+      cadetId: z.string().optional(),
       /** Pop quiz question; the glitch line; the misconception whispered in a flicker. */
       text: z.string(),
       /** Flicker: who it spread to. */
@@ -284,13 +285,21 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
     "event.result",
     z.strictObject({
       eventId: z.string(),
-      kind: z.enum(["pop_quiz", "glitch", "power_flicker"]),
+      kind: z.enum(["pop_quiz", "glitch", "power_flicker", "inspector"]),
       /** Pop quiz: Grader score 0–5. */
       score: z.number().optional(),
       /** Glitch: did I catch it? and what it got wrong. */
       caught: z.boolean().optional(),
       explanation: z.string(),
       xp: z.number(),
+      /** Inspector: the Dean's feedback on my last few explanations. */
+      feedback: z
+        .strictObject({
+          strengths: z.array(z.string()),
+          improve: z.array(z.string()),
+          tip: z.string(),
+        })
+        .optional(),
     }),
   ),
   /** "Last time…" arrives after period.started so starting a class never waits on it. */

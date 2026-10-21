@@ -13,14 +13,19 @@ import { awardXp, type XpScope } from "./xp.js";
 
 // Random events (docs/02 §6): at most one per period, on a random teaching
 // turn. Pop quiz (the Grader scores me), hologram glitch (catch the subtly
-// wrong repeat), power flicker (a misconception whispers to a neighbour).
+// wrong repeat), power flicker (a misconception whispers to a neighbour),
+// visiting inspector (the Dean watches my next explanations, then gives feedback).
 
-export type EventKind = "pop_quiz" | "glitch" | "power_flicker";
+/** How many of my explanations the Dean watches. */
+export const INSPECTION_TURNS = 3;
+
+export type EventKind = "pop_quiz" | "glitch" | "power_flicker" | "inspector";
 
 export interface PendingEvent {
   id: string;
   kind: EventKind;
-  cadetId: string;
+  /** Absent for the inspector (the Dean isn't a cadet). */
+  cadetId?: string;
   text: string;
   toCadetId?: string;
   seconds: number;
@@ -39,6 +44,13 @@ export interface EventContext {
   turnOrd: number;
   cadets: Array<{ id: string; name: string; archetype: Archetype }>;
 }
+
+const DeanZ = z.object({
+  verdict: z.string().min(2).max(300),
+  strengths: z.array(z.string().max(300)).min(1).max(3),
+  improve: z.array(z.string().max(300)).min(1).max(3),
+  tip: z.string().min(2).max(300),
+});
 
 const GlitchZ = z.object({ line: z.string().min(8).max(400), flaw: z.string().min(4).max(300) });
 
@@ -86,6 +98,15 @@ async function prepare(
       cadetId: c.id,
       text: `Pop quiz, Headmaster! In a few sentences: explain "${ctx.concept.title}" so I'd get it.`,
       seconds: 90,
+      facts: ctx.concept.keyFacts,
+    };
+  }
+  if (kind === "inspector") {
+    return {
+      id: newId("message"),
+      kind,
+      text: `The Dean is observing your next ${INSPECTION_TURNS} explanations.`,
+      seconds: 0,
       facts: ctx.concept.keyFacts,
     };
   }
@@ -192,4 +213,44 @@ export async function resolveEvent(
     return { caught, explanation: ev.flaw ?? "", xp };
   }
   return { explanation: "Correct the whispered idea in your next explanation.", xp: 0 };
+}
+
+/** The Dean's report on the explanations it watched (the dean agent, docs/03). */
+export async function inspect(
+  ev: PendingEvent,
+  watched: Array<{ text: string; accuracy: number; clarity: number }>,
+  conceptTitle: string,
+  factory: ModelFactory,
+): Promise<{
+  explanation: string;
+  xp: 0;
+  feedback: { strengths: string[]; improve: string[]; tip: string };
+}> {
+  const d = (
+    await callStructured(factory, "dean", {
+      schema: DeanZ,
+      name: "dean_report",
+      messages: [
+        new SystemMessage(
+          loadPrompt("dean", {
+            conceptTitle,
+            facts: ev.facts.map((f) => `- ${f}`).join("\n"),
+            lines: watched.map((w, i) => `${i + 1}. "${w.text}"`).join("\n"),
+            measures: watched
+              .map(
+                (w, i) =>
+                  `${i + 1}: accuracy ${w.accuracy.toFixed(2)}, clarity ${w.clarity.toFixed(2)}`,
+              )
+              .join("; "),
+          }),
+        ),
+        new HumanMessage("Write your inspection report."),
+      ],
+    })
+  ).data;
+  return {
+    explanation: d.verdict,
+    xp: 0,
+    feedback: { strengths: d.strengths.slice(0, 2), improve: d.improve.slice(0, 2), tip: d.tip },
+  };
 }

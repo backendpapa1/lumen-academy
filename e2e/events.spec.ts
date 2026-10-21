@@ -148,3 +148,56 @@ test("a power flicker shows who whispered what, then clears itself", async ({ pa
     .poll(() => page.evaluate(() => document.querySelector<HTMLElement>("#world")!.style.filter))
     .toBe("");
 });
+
+test("the visiting Dean tallies three explanations, then reports", async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() =>
+    window.__lumen!.receive({
+      type: "event.start",
+      payload: {
+        eventId: "msg_d",
+        kind: "inspector",
+        text: "The Dean is observing your next 3 explanations.",
+        seconds: 0,
+      },
+    }),
+  );
+  const watching = page.getByRole("status").filter({ hasText: "Visiting inspector" });
+  await expect(watching).toContainText("0 / 3");
+  for (const [i, text] of [
+    "Pairs are hashed.",
+    "Up to one root.",
+    "It lives in the header.",
+  ].entries()) {
+    await page.evaluate(
+      ([turnId, t]) =>
+        window.__lumen!.receive({ type: "turn.started", payload: { turnId: turnId!, text: t! } }),
+      [`trn_${i}`, text],
+    );
+  }
+  await expect(watching).toContainText("Writing the report");
+  await page.evaluate(() =>
+    window.__lumen!.receive({
+      type: "event.result",
+      payload: {
+        eventId: "msg_d",
+        kind: "inspector",
+        explanation:
+          "You kept it concrete, but you never said why one changed leaf changes the root.",
+        xp: 0,
+        feedback: {
+          strengths: ["The tournament-bracket picture of pairing was clear."],
+          improve: ["You skipped why tampering is detectable.", "“Leaf” was never defined."],
+          tip: "Change one transaction on the board and walk the new hash up to the root.",
+        },
+      },
+    }),
+  );
+  const report = page.getByRole("dialog", { name: "The Dean's report" });
+  await expect(report.getByText("Fix next")).toBeVisible();
+  await expect(report.getByText("“Leaf” was never defined.")).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: "docs/screens/m6-dean.png" });
+  await report.getByRole("button", { name: "Back to class" }).click();
+  await expect(report).toBeHidden();
+});

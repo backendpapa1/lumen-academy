@@ -2,13 +2,14 @@ import { ARCHETYPE_INFO } from "@lumen/shared";
 import { app } from "../../core/app";
 import type { EventState } from "../../core/classroom";
 import { store } from "../../core/store";
-import { portrait } from "../screens/common";
+import { portrait, rankInsignia } from "../screens/common";
 import { fill, h } from "../screens/dom";
 
 // Random events (docs/02 §6, M6-01). Pop quiz: explain the concept in a few
 // sentences, graded against the source. Glitch: a cadet repeats me slightly
 // wrong; catch it. Power flicker: a misconception whispers across the room
-// (a banner only; the lights dim in the 3D scene).
+// (a banner only; the lights dim in the 3D scene). Inspector: the Dean watches
+// my next three explanations, then reports what worked and what to fix.
 
 const root = h("div", { class: "event-back", hidden: true });
 document.querySelector("#stage")!.append(root);
@@ -32,8 +33,8 @@ function render(e: EventState | undefined) {
   root.hidden = false;
   root.className = `event-back ${e.kind}`;
   const cadets = store.getState().classroom.cadets;
-  const c = cadets[e.cadetId];
-  const who = (id: string) => cadets[id]?.name ?? "A cadet";
+  const c = e.cadetId ? cadets[e.cadetId] : undefined;
+  const who = (id?: string) => (id && cadets[id]?.name) || "A cadet";
   const accent = c ? ARCHETYPE_INFO[c.archetype].accent : "var(--lumen)";
 
   if (e.kind === "power_flicker") {
@@ -59,6 +60,7 @@ function render(e: EventState | undefined) {
     autoClose = setTimeout(() => app.dismissEvent(), 9000);
     return;
   }
+  if (e.kind === "inspector") return renderInspector(e);
 
   const done = !!e.result;
   const head = h(
@@ -226,6 +228,91 @@ function render(e: EventState | undefined) {
     );
 }
 
+/** The Dean at the back of the room: a quiet tally while watching, then the report. */
+function renderInspector(e: EventState) {
+  const seal = rankInsignia("Dean");
+  const watched = e.watched ?? 0;
+  const head = h(
+    "div",
+    { class: "row" },
+    seal ? h("img", { class: "dean-seal", src: seal, alt: "" }) : null,
+    h(
+      "div",
+      { style: "flex:1;min-width:0" },
+      h("div", { class: "micro" }, "Visiting inspector"),
+      h("div", { class: "who", style: "color:var(--aurum)" }, "The Dean"),
+    ),
+    !e.result && h("div", { class: "mono event-clock" }, `${watched} / 3`),
+  );
+  if (!e.result) {
+    fill(
+      root,
+      h(
+        "section",
+        {
+          class: "card event-card inspector watching",
+          role: "status",
+          "aria-live": "polite",
+          style: "--event-accent:var(--aurum)",
+        },
+        head,
+        h(
+          "p",
+          { class: "dim", style: "margin:8px 0 0;font-size:13px" },
+          watched >= 3
+            ? "Writing the report…"
+            : "Observing your next explanations. Teach as you normally would.",
+        ),
+        h(
+          "div",
+          { class: "dean-ticks", "aria-hidden": "true" },
+          ...[0, 1, 2].map((i) => h("i", { class: i < watched ? "on" : "" })),
+        ),
+      ),
+    );
+    return;
+  }
+  const r = e.result;
+  const list = (title: string, cls: string, items: string[]) =>
+    items.length
+      ? h(
+          "div",
+          { class: `dean-list ${cls}` },
+          h("div", { class: "micro" }, title),
+          h("ul", {}, ...items.map((t) => h("li", {}, t))),
+        )
+      : null;
+  fill(
+    root,
+    h(
+      "section",
+      {
+        class: "card event-card inspector",
+        role: "dialog",
+        "aria-modal": "false",
+        "aria-label": "The Dean's report",
+        style: "--event-accent:var(--aurum)",
+      },
+      head,
+      h("p", { class: "event-line dean-verdict" }, `“${r.explanation}”`),
+      list("Worked", "good", r.feedback?.strengths ?? []),
+      list("Fix next", "bad", r.feedback?.improve ?? []),
+      r.feedback?.tip &&
+        h("p", { class: "dean-tip" }, h("b", {}, "Next explanation: "), r.feedback.tip),
+      h(
+        "div",
+        { class: "actions" },
+        h("span", { class: "spacer" }),
+        h(
+          "button",
+          { class: "btn primary", id: "event-continue", onclick: () => app.dismissEvent() },
+          "Back to class",
+        ),
+      ),
+    ),
+  );
+}
+
 /** Only the clock moves each second; at zero my answer so far is sent. */
 function tick() {
   const e = store.getState().classroom.event;
@@ -266,7 +353,15 @@ store.subscribe((s, p) => {
     const e = s.route.name === "classroom" ? s.classroom.event : undefined;
     // Re-render only when what's shown changes, not while the clock runs.
     const prev = p.classroom.event;
-    if (e && prev && e.id === prev.id && e.sent === prev.sent && e.result === prev.result) return;
+    if (
+      e &&
+      prev &&
+      e.id === prev.id &&
+      e.sent === prev.sent &&
+      e.result === prev.result &&
+      e.watched === prev.watched
+    )
+      return;
     render(e);
   }
 });

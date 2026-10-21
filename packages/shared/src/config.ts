@@ -288,7 +288,7 @@ export const GameConfigZ = z.strictObject({
     maxPerPeriod: z.number().int().nonnegative(),
     earliestTurn: z.number().int().positive(),
     latestTurn: z.number().int().positive(),
-    kinds: z.array(z.enum(["pop_quiz", "glitch", "power_flicker"])),
+    kinds: z.array(z.enum(["pop_quiz", "glitch", "power_flicker", "inspector"])),
   }),
   leakGuard: z.strictObject({ enabled: z.boolean(), untaughtTermThreshold: z.number().int() }),
   hands: z.strictObject({

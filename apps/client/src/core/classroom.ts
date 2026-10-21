@@ -59,14 +59,17 @@ export interface ExitTicketsState {
 /** A random event (M6-01): pop quiz, hologram glitch or power flicker. */
 export interface EventState {
   id: string;
-  kind: "pop_quiz" | "glitch" | "power_flicker";
-  cadetId: string;
+  kind: "pop_quiz" | "glitch" | "power_flicker" | "inspector";
+  /** Absent for the visiting Dean. */
+  cadetId?: string;
   toCadetId?: string;
   text: string;
   seconds: number;
   /** Client time it started. */
   at: number;
   sent?: boolean;
+  /** Inspector: explanations the Dean has watched so far. */
+  watched?: number;
   result?: Omit<ServerMessageOf<"event.result">["payload"], "eventId" | "kind">;
 }
 
@@ -212,7 +215,7 @@ export function applyServerMessage(
         event: {
           id: m.payload.eventId,
           kind: m.payload.kind,
-          cadetId: m.payload.cadetId,
+          ...(m.payload.cadetId ? { cadetId: m.payload.cadetId } : {}),
           text: m.payload.text,
           seconds: m.payload.seconds,
           at: now,
@@ -221,10 +224,11 @@ export function applyServerMessage(
       };
     case "event.result": {
       if (s.event?.id !== m.payload.eventId) return s;
-      const { score, caught, explanation, xp } = m.payload;
+      const { score, caught, explanation, xp, feedback } = m.payload;
       const result = {
         explanation,
         xp,
+        ...(feedback ? { feedback } : {}),
         ...(score !== undefined ? { score } : {}),
         ...(caught !== undefined ? { caught } : {}),
       };
@@ -248,6 +252,10 @@ export function applyServerMessage(
     case "turn.started":
       return {
         ...s,
+        // The Dean counts my explanations while observing.
+        ...(s.event?.kind === "inspector" && !s.event.result
+          ? { event: { ...s.event, watched: Math.min(3, (s.event.watched ?? 0) + 1) } }
+          : {}),
         thinking: true,
         speech: s.speech?.done ? null : s.speech,
         transcript: [...s.transcript, { speaker: "headmaster", text: m.payload.text }],

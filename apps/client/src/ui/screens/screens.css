@@ -1572,3 +1572,57 @@ table.heat td {
     animation-delay: 0s;
   }
 }
+
+/* The visiting Dean (M6-01): a quiet gold tally while watching, then the report. */
+.dean-seal {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(245, 198, 107, 0.45));
+}
+.event-card.inspector.watching {
+  padding: 14px 18px;
+}
+.dean-ticks {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+.dean-ticks i {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--hull-500);
+  transition: background 400ms ease-out;
+}
+.dean-ticks i.on {
+  background: var(--aurum);
+  box-shadow: 0 0 8px rgba(245, 198, 107, 0.6);
+}
+.dean-verdict {
+  font-family: var(--font-display);
+  font-size: 17px;
+  margin: 12px 0;
+}
+.dean-list {
+  margin-top: 10px;
+}
+.dean-list ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+.dean-list.good .micro {
+  color: #4ade80;
+}
+.dean-list.bad .micro {
+  color: #ff5c7a;
+}
+.dean-tip {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(245, 198, 107, 0.08);
+  border-left: 2px solid var(--aurum);
+  font-size: 14px;
+}

@@ -12,7 +12,13 @@ import type { DbHandle } from "../db/client.js";
 import { cadets, classrooms, ledgerEntries, schools } from "../db/schema.js";
 import { ClassSession } from "../game/ClassSession.js";
 import { rewriteNotes } from "../game/notes.js";
-import { maybeStartEvent, resolveEvent, type PendingEvent } from "../game/events.js";
+import {
+  INSPECTION_TURNS,
+  inspect,
+  maybeStartEvent,
+  resolveEvent,
+  type PendingEvent,
+} from "../game/events.js";
 import { finishExitTickets, issueExitTickets, markExitTicket } from "../game/exitTickets.js";
 import { awardXp, periodXp, settleTeachingMinutes, standing, type XpScope } from "../game/xp.js";
 import type { AssetService } from "../assets/service.js";
@@ -51,6 +57,12 @@ export class ClassroomConnection {
   private streamSeq = 0;
   /** The random event waiting for my answer (M6-01). */
   private event: PendingEvent | null = null;
+  /** The Dean's visit: the explanations watched so far. */
+  private inspection: {
+    ev: PendingEvent;
+    session: ClassSession;
+    watched: Array<{ text: string; accuracy: number; clarity: number }>;
+  } | null = null;
   private readonly unsubscribe: () => void;
 
   private readonly offAssets: () => void;
@@ -335,7 +347,37 @@ export class ClassroomConnection {
       });
     }
     this.sendCost();
-    if (!this.event) void this.startEvent(session).catch(() => {});
+    if (this.inspection?.session === session) {
+      const t = done.analysis.teaching;
+      this.inspection.watched.push({ text, accuracy: t.accuracy, clarity: t.clarity });
+      if (this.inspection.watched.length >= INSPECTION_TURNS) void this.finishInspection();
+    } else if (!this.event) void this.startEvent(session).catch(() => {});
+  }
+
+  private async finishInspection() {
+    const insp = this.inspection;
+    if (!insp) return;
+    this.inspection = null;
+    try {
+      const r = await inspect(
+        insp.ev,
+        insp.watched,
+        insp.session.currentConcept.title,
+        this.rt.factory,
+      );
+      this.send({
+        type: "event.result",
+        payload: { eventId: insp.ev.id, kind: "inspector", ...r },
+      });
+    } catch (err) {
+      if (err instanceof BudgetPausedError)
+        return void this.send(wsError("budget_paused", err.message));
+      this.send({
+        type: "toast",
+        payload: { level: "warn", text: "The Dean left without a report this time." },
+      });
+    }
+    this.sendCost();
   }
 
   /** At most one random event per period, after a teaching turn commits. */
@@ -353,13 +395,14 @@ export class ClassroomConnection {
       cadets: session.roster.map((r) => ({ id: r.id, name: r.name, archetype: r.archetype })),
     });
     if (!ev || this.session !== session) return;
-    this.event = ev.kind === "power_flicker" ? null : ev;
+    this.event = ev.kind === "pop_quiz" || ev.kind === "glitch" ? ev : null;
+    if (ev.kind === "inspector") this.inspection = { ev, session, watched: [] };
     this.send({
       type: "event.start",
       payload: {
         eventId: ev.id,
         kind: ev.kind,
-        cadetId: ev.cadetId,
+        ...(ev.cadetId ? { cadetId: ev.cadetId } : {}),
         text: ev.text,
         seconds: ev.seconds,
         ...(ev.toCadetId ? { toCadetId: ev.toCadetId } : {}),

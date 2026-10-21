@@ -3,7 +3,7 @@ import { loadConfig } from "../config/load.js";
 import type { DbHandle } from "../db/client.js";
 import { agentOf, fakeDeepSeekFactory, type FakeRequest } from "../test-fixtures/fakeDeepSeek.js";
 import { smallWorld } from "../test-fixtures/world.js";
-import { eventTurn, maybeStartEvent, resolveEvent, type EventContext } from "./events.js";
+import { eventTurn, inspect, maybeStartEvent, resolveEvent, type EventContext } from "./events.js";
 
 const cfg = loadConfig({ env: {} });
 let h: DbHandle | undefined;
@@ -11,6 +11,13 @@ afterEach(() => h?.close());
 
 const models = (body: FakeRequest) => {
   const who = agentOf(body);
+  if (body.messages.some((m) => m.content.includes("You are the Dean of Lumen Academy")))
+    return JSON.stringify({
+      verdict: "Solid, but you skipped why the root changes.",
+      strengths: ["Clear pairing example"],
+      improve: ["Never said the root sits in the header", "Undefined: leaf"],
+      tip: "Say where the root lives before you say why it matters.",
+    });
   if (who === "grader")
     return JSON.stringify({
       score: body.messages.at(-1)!.content.includes("hashed") ? 4 : 1,
@@ -25,7 +32,7 @@ const models = (body: FakeRequest) => {
   });
 };
 
-async function setup(kinds: Array<"pop_quiz" | "glitch" | "power_flicker">) {
+async function setup(kinds: Array<"pop_quiz" | "glitch" | "power_flicker" | "inspector">) {
   const w = await smallWorld([
     { attention: 0.9, skepticism: 0.5 },
     { attention: 0.4, skepticism: 0.2 },
@@ -153,5 +160,26 @@ describe("random events (M6-01)", () => {
     expect(JSON.parse(row.misconceptions_json)).toEqual([
       expect.objectContaining({ text: "Roots are random.", source: "spread" }),
     ]);
+  });
+
+  it("the visiting Dean watches my explanations, then reports against the source", async () => {
+    const { ctx } = await setup(["inspector"]);
+    const ev = (await maybeStartEvent(ctx))!;
+    expect(ev).toMatchObject({ kind: "inspector", seconds: 0 });
+    expect(ev.cadetId).toBeUndefined();
+    const r = await inspect(
+      ev,
+      [
+        { text: "Pairs are hashed together.", accuracy: 0.9, clarity: 0.8 },
+        { text: "Up to one root.", accuracy: 0.8, clarity: 0.7 },
+        { text: "That's the Merkle root.", accuracy: 0.7, clarity: 0.6 },
+      ],
+      "Merkle Trees",
+      ctx.factory,
+    );
+    expect(r.explanation).toMatch(/root/);
+    expect(r.feedback.improve).toHaveLength(2);
+    expect(r.feedback.tip).toMatch(/root/);
+    expect(r.xp).toBe(0);
   });
 });
