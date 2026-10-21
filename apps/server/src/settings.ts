@@ -11,6 +11,8 @@ export const UserSettingsZ = z.strictObject({
   monthlyUsdCap: z.number().min(1).max(500),
   imagesUsdCap: z.number().min(0).max(500),
   periodMinutes: z.number().int(),
+  /** M6-01: pop quizzes, glitches and flickers in class. */
+  randomEvents: z.boolean().default(true),
 });
 export type UserSettings = z.infer<typeof UserSettingsZ>;
 
@@ -22,6 +24,7 @@ export function currentSettings(cfg: AppConfig): UserSettings {
     monthlyUsdCap: cfg.models.budget.monthlyUsdCap,
     imagesUsdCap: cfg.models.budget.imagesUsdCap,
     periodMinutes: cfg.game.period.defaultMinutes,
+    randomEvents: cfg.game.events.enabled,
   };
 }
 
@@ -43,6 +46,7 @@ export function applySettings(cfg: AppConfig, s: UserSettings): void {
   cfg.models.budget.monthlyUsdCap = s.monthlyUsdCap;
   cfg.models.budget.imagesUsdCap = s.imagesUsdCap;
   cfg.game.period.defaultMinutes = s.periodMinutes;
+  cfg.game.events.enabled = s.randomEvents;
 }
 
 /** At startup: saved settings win over the YAML defaults (LUMEN_PROFILE still wins for the profile). */

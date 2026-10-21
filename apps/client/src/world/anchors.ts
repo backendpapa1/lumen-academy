@@ -12,8 +12,11 @@ export const campusView: {
   current: import("./scenes/CampusScene").CampusScene | null;
 } = { current: null };
 
-/** Post-processing controls the scenes may use (Hyperfocus dims the bloom). */
-export const fx: { setBloom: ((intensity: number) => void) | null } = { setBloom: null };
+/** Post-processing controls the scenes may use (Hyperfocus dims the bloom, a power flicker the exposure). */
+export const fx: {
+  setBloom: ((intensity: number) => void) | null;
+  setExposure: ((exposure: number) => void) | null;
+} = { setBloom: null, setExposure: null };
 
 /** The active 3D scene's hooks for pointer routing (core/input.ts). */
 export const world: {

@@ -49,6 +49,7 @@ function form(s: Settings, close: () => void): HTMLElement {
     step: 1,
     value: s.periodMinutes,
   });
+  const events = h("input", { type: "checkbox", checked: s.randomEvents, id: "set-events" });
   const err = h("p", { class: "error-text", role: "alert" });
   const save = h("button", { class: "btn primary", type: "submit" }, "Save settings");
   const keys = h(
@@ -90,6 +91,12 @@ function form(s: Settings, close: () => void): HTMLElement {
       })(),
       "Sound (ambient pads and cues; M toggles anywhere)",
     ),
+    h(
+      "label",
+      { class: "row", style: "gap:8px;margin-top:8px;font-size:14px" },
+      events,
+      "Surprises in class (pop quizzes, hologram glitches, power flickers)",
+    ),
     keys,
     err,
     h(
@@ -108,6 +115,7 @@ function form(s: Settings, close: () => void): HTMLElement {
         monthlyUsdCap: Number(cap.value),
         imagesUsdCap: Number(images.value),
         periodMinutes: Number(minutes.value),
+        randomEvents: events.checked,
       })
       .then(() => {
         close();

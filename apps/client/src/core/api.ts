@@ -108,6 +108,7 @@ export interface Settings {
   monthlyUsdCap: number;
   imagesUsdCap: number;
   periodMinutes: number;
+  randomEvents: boolean;
   minMinutes: number;
   maxMinutes: number;
   hasOpenAiKey: boolean;

@@ -1,3 +1,4 @@
+import { reducedMotion } from "../../ui/theme";
 import * as THREE from "three";
 import type { ClassroomState } from "../../core/classroom";
 import { store } from "../../core/store";
@@ -38,6 +39,10 @@ export class ClassroomScene implements WorldScene {
   private key!: THREE.DirectionalLight;
   private fill!: THREE.HemisphereLight;
   private hyperfocus = false;
+  /** Power flicker (M6-01): when the stuttering light ends (performance.now ms). */
+  private flickerUntil = 0;
+  private readonly still = reducedMotion();
+  private lastEventId: string | null = null;
   /** 0..1 ease toward Hyperfocus lighting. */
   private focusMix = 0;
   private readonly day = PHASES[dayPhase()];
@@ -137,6 +142,10 @@ export class ClassroomScene implements WorldScene {
 
   private sync(c: ClassroomState, prev: ClassroomState | null): void {
     this.hyperfocus = c.hyperfocus;
+    if (c.event && c.event.id !== this.lastEventId) {
+      this.lastEventId = c.event.id;
+      if (c.event.kind === "power_flicker") this.flickerUntil = performance.now() + 5000;
+    }
     if (!prev || c.cadets !== prev.cadets) {
       this.amphitheater.setOccupancy(
         new Map(Object.values(c.cadets).map((x) => [x.seat, accentOf(x.archetype)])),
@@ -172,7 +181,11 @@ export class ClassroomScene implements WorldScene {
     this.camera.lookAt(LOOK_AT);
     // Hyperfocus (docs/08 §1): ease to Night lighting, bloom −40%, slower motion.
     const target = this.hyperfocus ? 1 : 0;
-    if (Math.abs(this.focusMix - target) > 0.001) {
+    // Wall-clock, so a slow frame never stretches the brownout.
+    const flickerLeft = Math.max(0, (this.flickerUntil - performance.now()) / 1000);
+    const flickering = this.flickerUntil > 0;
+    if (flickering && flickerLeft === 0) this.flickerUntil = 0;
+    if (Math.abs(this.focusMix - target) > 0.001 || flickering) {
       this.focusMix += (target - this.focusMix) * Math.min(1, dt * 1.5);
       const night = PHASES.night;
       this.key.color.set(this.day.key).lerp(new THREE.Color(night.key), this.focusMix);
@@ -187,6 +200,18 @@ export class ClassroomScene implements WorldScene {
         this.focusMix,
       );
       fx.setBloom?.(THREE.MathUtils.lerp(0.9, 0.55, this.focusMix));
+      if (flickerLeft > 0) {
+        // Brownout: lights sag to a quarter and stutter, then come back over the last second.
+        const stutter =
+          !this.still && Math.sin(this.time * 37) * Math.sin(this.time * 13.7) > 0.55 ? 0.35 : 1;
+        const dim = THREE.MathUtils.lerp(1, 0.22 * stutter, Math.min(1, flickerLeft));
+        this.key.intensity *= dim;
+        this.fill.intensity *= dim;
+        // The glowing holograms and strips dim too: the whole frame browns out.
+        fx.setExposure?.(
+          THREE.MathUtils.lerp(1, 0.35 * (stutter < 1 ? 0.6 : 1), Math.min(1, flickerLeft)),
+        );
+      } else if (flickering) fx.setExposure?.(1);
     }
     this.floor.update(dt * (1 - this.focusMix * 0.5));
     this.cadetLayer.update(dt, this.camera);
@@ -226,6 +251,7 @@ export class ClassroomScene implements WorldScene {
   dispose(): void {
     anchors.speaker = null;
     fx.setBloom?.(0.9);
+    fx.setExposure?.(1);
     if (world.pick === this.pick) world.pick = null; // a newer scene may already own it
     this.unsubscribe();
     this.floor.dispose();

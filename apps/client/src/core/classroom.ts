@@ -56,6 +56,20 @@ export interface ExitTicketsState {
   summary?: { marked: number; total: number; right: number; xp: number };
 }
 
+/** A random event (M6-01): pop quiz, hologram glitch or power flicker. */
+export interface EventState {
+  id: string;
+  kind: "pop_quiz" | "glitch" | "power_flicker";
+  cadetId: string;
+  toCadetId?: string;
+  text: string;
+  seconds: number;
+  /** Client time it started. */
+  at: number;
+  sent?: boolean;
+  result?: Omit<ServerMessageOf<"event.result">["payload"], "eventId" | "kind">;
+}
+
 export interface ClassroomState {
   status: "idle" | "starting" | "live" | "ending" | "ended";
   periodId?: string;
@@ -97,6 +111,7 @@ export interface ClassroomState {
   hyperfocus: boolean;
   /** The exit-ticket minigame at the bell (M4-05). */
   exit?: ExitTicketsState;
+  event?: EventState;
 }
 
 export const initialClassroom = (): ClassroomState => ({
@@ -191,6 +206,30 @@ export function applyServerMessage(
         xp: m.payload.standing,
         xpGain: { delta: m.payload.delta, reason: m.payload.reason, at: now },
       };
+    case "event.start":
+      return {
+        ...s,
+        event: {
+          id: m.payload.eventId,
+          kind: m.payload.kind,
+          cadetId: m.payload.cadetId,
+          text: m.payload.text,
+          seconds: m.payload.seconds,
+          at: now,
+          ...(m.payload.toCadetId ? { toCadetId: m.payload.toCadetId } : {}),
+        },
+      };
+    case "event.result": {
+      if (s.event?.id !== m.payload.eventId) return s;
+      const { score, caught, explanation, xp } = m.payload;
+      const result = {
+        explanation,
+        xp,
+        ...(score !== undefined ? { score } : {}),
+        ...(caught !== undefined ? { caught } : {}),
+      };
+      return { ...s, event: { ...s.event, sent: true, result } };
+    }
     case "focus.changed":
       return { ...s, hyperfocus: m.payload.on };
     case "board.updated":

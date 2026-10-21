@@ -143,6 +143,7 @@ declare global {
 }
 statsOverlay.attach(director.stats);
 fx.setBloom = (i) => director.setBloomIntensity(i);
+fx.setExposure = (e) => director.setExposure(e);
 window.__lumen = {
   store,
   phaserVersion: Phaser.VERSION,

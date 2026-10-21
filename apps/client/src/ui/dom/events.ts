@@ -1,0 +1,272 @@
+import { ARCHETYPE_INFO } from "@lumen/shared";
+import { app } from "../../core/app";
+import type { EventState } from "../../core/classroom";
+import { store } from "../../core/store";
+import { portrait } from "../screens/common";
+import { fill, h } from "../screens/dom";
+
+// Random events (docs/02 §6, M6-01). Pop quiz: explain the concept in a few
+// sentences, graded against the source. Glitch: a cadet repeats me slightly
+// wrong; catch it. Power flicker: a misconception whispers across the room
+// (a banner only; the lights dim in the 3D scene).
+
+const root = h("div", { class: "event-back", hidden: true });
+document.querySelector("#stage")!.append(root);
+let timer: ReturnType<typeof setInterval> | null = null;
+let shownId: string | null = null;
+let autoClose: ReturnType<typeof setTimeout> | null = null;
+
+const secondsLeft = (e: EventState) => Math.max(0, e.seconds - (Date.now() - e.at) / 1000);
+
+function render(e: EventState | undefined) {
+  stopTimer();
+  if (autoClose) clearTimeout(autoClose);
+  autoClose = null;
+  if (!e) {
+    root.hidden = true;
+    shownId = null;
+    return fill(root);
+  }
+  const fresh = shownId !== e.id;
+  shownId = e.id;
+  root.hidden = false;
+  root.className = `event-back ${e.kind}`;
+  const cadets = store.getState().classroom.cadets;
+  const c = cadets[e.cadetId];
+  const who = (id: string) => cadets[id]?.name ?? "A cadet";
+  const accent = c ? ARCHETYPE_INFO[c.archetype].accent : "var(--lumen)";
+
+  if (e.kind === "power_flicker") {
+    fill(
+      root,
+      h(
+        "section",
+        { class: "card event-card flicker", role: "status", "aria-live": "polite" },
+        h("div", { class: "micro" }, "Power flicker"),
+        h(
+          "p",
+          { style: "margin:6px 0 0" },
+          `In the dark, ${who(e.cadetId)} whispered to ${e.toCadetId ? who(e.toCadetId) : "a neighbour"}: `,
+          h("em", {}, `“${e.text}”`),
+        ),
+        h(
+          "p",
+          { class: "dim", style: "margin:6px 0 0;font-size:13px" },
+          "Now two of them believe it. Clear it up in your next explanation.",
+        ),
+      ),
+    );
+    autoClose = setTimeout(() => app.dismissEvent(), 9000);
+    return;
+  }
+
+  const done = !!e.result;
+  const head = h(
+    "div",
+    { class: "row" },
+    c ? portrait(c) : h("span"),
+    h(
+      "div",
+      { style: "flex:1;min-width:0" },
+      h("div", { class: "micro" }, e.kind === "pop_quiz" ? "Pop quiz" : "Hologram glitch"),
+      h("div", { class: "who", style: `color:${accent}` }, c?.name ?? "Cadet"),
+    ),
+    h("div", { class: "mono event-clock" }, done ? "" : `${Math.ceil(secondsLeft(e))}s`),
+  );
+  const bar = done
+    ? null
+    : h(
+        "div",
+        { class: "progress event-bar", style: "width:100%;margin:12px 0" },
+        h("span", { style: `width:${(secondsLeft(e) / e.seconds) * 100}%;background:${accent}` }),
+      );
+  const parts: Array<HTMLElement | null | false> = [head, bar];
+
+  if (e.kind === "pop_quiz") {
+    parts.push(h("p", { class: "event-line" }, e.text));
+    if (!done) {
+      const box = h("textarea", {
+        class: "field",
+        id: "event-answer",
+        rows: 4,
+        maxlength: 1200,
+        placeholder: "Explain it in your own words…",
+        disabled: !!e.sent,
+        "aria-label": "Your answer",
+      });
+      const send = () => !e.sent && app.answerEvent(e.id, { text: box.value });
+      box.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) {
+          ev.preventDefault();
+          send();
+        }
+      });
+      parts.push(
+        box,
+        h(
+          "div",
+          { class: "actions" },
+          h(
+            "span",
+            { class: "dim", style: "font-size:12px" },
+            e.sent ? "Grading…" : "Ctrl+Enter to send",
+          ),
+          h("span", { class: "spacer" }),
+          h(
+            "button",
+            {
+              class: "btn quiet",
+              disabled: !!e.sent,
+              onclick: () => app.answerEvent(e.id, { text: "" }),
+            },
+            "Skip",
+          ),
+          h("button", { class: "btn primary", disabled: !!e.sent, onclick: send }, "Answer"),
+        ),
+      );
+      if (fresh) queueMicrotask(() => box.focus({ preventScroll: true }));
+    } else {
+      const r = e.result!;
+      parts.push(
+        h(
+          "div",
+          { class: "event-outcome" },
+          h("div", { class: "h2" }, `${r.score ?? 0} / 5`),
+          h("p", { class: "dim", style: "margin:4px 0 0" }, r.explanation),
+        ),
+      );
+    }
+  } else {
+    // Glitch: the line itself flickers like a torn hologram.
+    parts.push(
+      h(
+        "p",
+        { class: `event-line glitch-text${done ? " settled" : ""}`, "data-text": e.text },
+        e.text,
+      ),
+    );
+    if (!done) {
+      parts.push(
+        h(
+          "p",
+          { class: "dim", style: "margin:0 0 12px;font-size:13px" },
+          "Is that what you taught? Something may have been scrambled in transmission.",
+        ),
+        h(
+          "div",
+          { class: "actions" },
+          h("span", { class: "dim", style: "font-size:12px" }, "Y right · N wrong"),
+          h("span", { class: "spacer" }),
+          h(
+            "button",
+            {
+              class: "btn",
+              disabled: !!e.sent,
+              onclick: () => app.answerEvent(e.id, { wrong: false }),
+            },
+            "That's right",
+          ),
+          h(
+            "button",
+            {
+              class: "btn",
+              disabled: !!e.sent,
+              onclick: () => app.answerEvent(e.id, { wrong: true }),
+            },
+            "That's wrong",
+          ),
+        ),
+      );
+    } else {
+      const r = e.result!;
+      parts.push(
+        h(
+          "div",
+          { class: `event-outcome ${r.caught ? "good" : "bad"}` },
+          h("div", { class: "h2" }, r.caught ? "Caught it." : "It slipped past."),
+          h("p", { class: "dim", style: "margin:4px 0 0" }, r.explanation),
+        ),
+      );
+    }
+  }
+  if (done)
+    parts.push(
+      h(
+        "div",
+        { class: "actions" },
+        e.result!.xp ? h("span", { class: "chip gold" }, `+${e.result!.xp} XP`) : null,
+        h("span", { class: "spacer" }),
+        h(
+          "button",
+          { class: "btn primary", id: "event-continue", onclick: () => app.dismissEvent() },
+          "Back to class",
+        ),
+      ),
+    );
+
+  fill(
+    root,
+    h(
+      "section",
+      {
+        class: "card event-card",
+        role: "dialog",
+        "aria-modal": "false",
+        "aria-label": e.kind === "pop_quiz" ? "Pop quiz" : "Hologram glitch",
+        style: `--event-accent:${accent}`,
+      },
+      ...parts,
+    ),
+  );
+  if (done) queueMicrotask(() => root.querySelector<HTMLElement>("#event-continue")?.focus());
+  else if (!e.sent) startTimer();
+  if (fresh && e.kind === "glitch" && !done)
+    queueMicrotask(() =>
+      root.querySelector<HTMLElement>(".actions .btn")?.focus({ preventScroll: true }),
+    );
+}
+
+/** Only the clock moves each second; at zero my answer so far is sent. */
+function tick() {
+  const e = store.getState().classroom.event;
+  if (!e || e.sent || e.result) return stopTimer();
+  const left = secondsLeft(e);
+  if (left <= 0) {
+    stopTimer();
+    const text = root.querySelector<HTMLTextAreaElement>("#event-answer")?.value ?? "";
+    return app.answerEvent(e.id, e.kind === "pop_quiz" ? { text } : { wrong: false });
+  }
+  const clock = root.querySelector(".event-clock");
+  if (clock) clock.textContent = `${Math.ceil(left)}s`;
+  const bar = root.querySelector<HTMLElement>(".event-bar > span");
+  if (bar) bar.style.width = `${(left / e.seconds) * 100}%`;
+}
+const startTimer = () => (timer ??= setInterval(tick, 1000));
+function stopTimer() {
+  if (timer) clearInterval(timer);
+  timer = null;
+}
+
+// The card owns its keys: typing an answer never calls a cadet or pauses the class.
+root.addEventListener("keydown", (ev) => {
+  const e = store.getState().classroom.event;
+  if (!e) return;
+  const inField = ev.target instanceof HTMLTextAreaElement;
+  if (e.kind === "glitch" && !e.result && !e.sent && !inField) {
+    const k = ev.key.toLowerCase();
+    if (k === "y") app.answerEvent(e.id, { wrong: false });
+    else if (k === "n") app.answerEvent(e.id, { wrong: true });
+  }
+  if (ev.key === "Escape" && e.result) app.dismissEvent();
+  ev.stopPropagation();
+});
+
+store.subscribe((s, p) => {
+  if (s.classroom.event !== p.classroom.event || s.route !== p.route) {
+    const e = s.route.name === "classroom" ? s.classroom.event : undefined;
+    // Re-render only when what's shown changes, not while the clock runs.
+    const prev = p.classroom.event;
+    if (e && prev && e.id === prev.id && e.sent === prev.sent && e.result === prev.result) return;
+    render(e);
+  }
+});

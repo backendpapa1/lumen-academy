@@ -281,6 +281,11 @@ export class ClassSession {
     return session;
   }
 
+  /** Teaching turns so far this period. */
+  get turnCount(): number {
+    return this.turnOrd;
+  }
+
   get currentConcept(): ConceptInfo {
     return this.curriculum.find((c) => c.id === this.conceptId)!;
   }

@@ -12,6 +12,7 @@ import type { DbHandle } from "../db/client.js";
 import { cadets, classrooms, ledgerEntries, schools } from "../db/schema.js";
 import { ClassSession } from "../game/ClassSession.js";
 import { rewriteNotes } from "../game/notes.js";
+import { maybeStartEvent, resolveEvent, type PendingEvent } from "../game/events.js";
 import { finishExitTickets, issueExitTickets, markExitTicket } from "../game/exitTickets.js";
 import { awardXp, periodXp, settleTeachingMinutes, standing, type XpScope } from "../game/xp.js";
 import type { AssetService } from "../assets/service.js";
@@ -48,6 +49,8 @@ export class ClassroomConnection {
   /** The period that just ended, for its exit tickets. */
   private ended: { periodId: string; classroomId: string; schoolId: string } | null = null;
   private streamSeq = 0;
+  /** The random event waiting for my answer (M6-01). */
+  private event: PendingEvent | null = null;
   private readonly unsubscribe: () => void;
 
   private readonly offAssets: () => void;
@@ -130,6 +133,8 @@ export class ClassroomConnection {
         }
         case "period.end":
           return await this.end();
+        case "event.answer":
+          return await this.answerEvent(msg.payload);
         case "exit.mark": {
           const r = markExitTicket(this.rt.handle, msg.payload);
           if (r)
@@ -329,6 +334,60 @@ export class ClassroomConnection {
         },
       });
     }
+    this.sendCost();
+    if (!this.event) void this.startEvent(session).catch(() => {});
+  }
+
+  /** At most one random event per period, after a teaching turn commits. */
+  private async startEvent(session: ClassSession) {
+    if (!this.rt.game.events.enabled) return;
+    const c = session.currentConcept;
+    const ev = await maybeStartEvent({
+      handle: this.rt.handle,
+      factory: this.rt.factory,
+      game: this.rt.game,
+      periodId: session.periodId,
+      classroomId: session.classroomId,
+      concept: { id: c.id, title: c.title, keyFacts: c.keyFacts },
+      turnOrd: session.turnCount,
+      cadets: session.roster.map((r) => ({ id: r.id, name: r.name, archetype: r.archetype })),
+    });
+    if (!ev || this.session !== session) return;
+    this.event = ev.kind === "power_flicker" ? null : ev;
+    this.send({
+      type: "event.start",
+      payload: {
+        eventId: ev.id,
+        kind: ev.kind,
+        cadetId: ev.cadetId,
+        text: ev.text,
+        seconds: ev.seconds,
+        ...(ev.toCadetId ? { toCadetId: ev.toCadetId } : {}),
+      },
+    });
+    this.sendCost();
+  }
+
+  private async answerEvent(a: { eventId: string; text?: string; wrong?: boolean }) {
+    const ev = this.event;
+    if (!ev || ev.id !== a.eventId || !this.scope) return;
+    this.event = null;
+    const r = await resolveEvent(ev, a, {
+      handle: this.rt.handle,
+      factory: this.rt.factory,
+      game: this.rt.game,
+      scope: this.scope,
+    });
+    this.send({ type: "event.result", payload: { eventId: ev.id, kind: ev.kind, ...r } });
+    if (r.xp)
+      this.send({
+        type: "xp.update",
+        payload: {
+          delta: r.xp,
+          reason: ev.kind === "pop_quiz" ? "Pop quiz" : "Caught the glitch",
+          standing: standing(this.rt.handle, this.rt.game),
+        },
+      });
     this.sendCost();
   }
 

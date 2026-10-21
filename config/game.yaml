@@ -165,6 +165,7 @@ xp: # docs/02 §7.1
   exitTicketComplete: 25
   examPassPerAvgScore: 200
   glitchCaught: 50
+  popQuizPerPoint: 6 # pop quiz: Grader score 0–5 × this
 
 ranks: # placeholder thresholds; tune after M5
   - { name: Cadet Instructor, minXp: 0 }
@@ -177,6 +178,11 @@ ranks: # placeholder thresholds; tune after M5
 events:
   enabled: true
   maxPerPeriod: 1
+  # An event can happen once this many teaching turns have passed (random in range).
+  earliestTurn: 4
+  latestTurn: 9
+  # Which events can happen (docs/02 §6). Transfer, inspector and debate come later.
+  kinds: [pop_quiz, glitch, power_flicker]
 
 leakGuard:
   enabled: true

@@ -61,6 +61,12 @@ export class WorldDirector {
     this.bloom.intensity = i;
   }
 
+  /** Whole-frame brightness, as a compositor filter so it holds through post-processing. */
+  setExposure(e: number): void {
+    const el = this.renderer.domElement;
+    el.style.filter = e >= 0.999 ? "" : `brightness(${e.toFixed(2)})`;
+  }
+
   resize(): void {
     const canvas = this.renderer.domElement;
     const w = canvas.clientWidth || window.innerWidth;

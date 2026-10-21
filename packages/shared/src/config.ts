@@ -283,7 +283,13 @@ export const GameConfigZ = z.strictObject({
   buildingTiers: z.array(unit).length(3), // mastered fraction for tiers 2, 3, 4
   xp: z.record(z.string(), z.number()),
   ranks: z.array(z.strictObject({ name: z.string(), minXp: z.number().int().nonnegative() })),
-  events: z.strictObject({ enabled: z.boolean(), maxPerPeriod: z.number().int().nonnegative() }),
+  events: z.strictObject({
+    enabled: z.boolean(),
+    maxPerPeriod: z.number().int().nonnegative(),
+    earliestTurn: z.number().int().positive(),
+    latestTurn: z.number().int().positive(),
+    kinds: z.array(z.enum(["pop_quiz", "glitch", "power_flicker"])),
+  }),
   leakGuard: z.strictObject({ enabled: z.boolean(), untaughtTermThreshold: z.number().int() }),
   hands: z.strictObject({
     autoPick: z.boolean(),

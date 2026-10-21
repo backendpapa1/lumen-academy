@@ -248,6 +248,22 @@ export const app = {
     }));
     ensureNet().send("exit.mark", { ticketId, verdict });
   },
+  /** My answer to a pop quiz, or my verdict on a glitch (wrong = I caught it). */
+  answerEvent(eventId: string, answer: { text?: string; wrong?: boolean }) {
+    store.setState((s) =>
+      s.classroom.event?.id === eventId
+        ? { classroom: { ...s.classroom, event: { ...s.classroom.event, sent: true } } }
+        : {},
+    );
+    ensureNet().send("event.answer", { eventId, ...answer });
+  },
+  dismissEvent() {
+    store.setState((s) => {
+      const classroom = { ...s.classroom };
+      delete classroom.event;
+      return { classroom };
+    });
+  },
   finishExitTickets(periodId: string) {
     ensureNet().send("exit.done", { periodId });
   },

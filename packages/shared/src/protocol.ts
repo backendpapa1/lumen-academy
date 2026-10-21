@@ -91,6 +91,15 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
   msg("board.set", z.strictObject({ text: z.string().max(600) })),
   /** T-10 Hyperfocus mode (docs/05 §5: focus.toggle). */
   msg("focus.toggle", z.strictObject({ on: z.boolean() })),
+  /** Random events (docs/02 §6): my answer to a pop quiz, or my verdict on a glitch. */
+  msg(
+    "event.answer",
+    z.strictObject({
+      eventId: z.string(),
+      text: z.string().max(2000).optional(),
+      wrong: z.boolean().optional(),
+    }),
+  ),
   msg("period.pause", empty),
   /** T-7: more time after the bell. */
   msg("period.extend", z.strictObject({ minutes: z.number().int().min(1).max(30) })),
@@ -258,6 +267,32 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
   msg("period.extended", z.strictObject({ plannedMinutes: z.number() })),
   msg("board.updated", z.strictObject({ text: z.string() })),
   msg("focus.changed", z.strictObject({ on: z.boolean() })),
+  msg(
+    "event.start",
+    z.strictObject({
+      eventId: z.string(),
+      kind: z.enum(["pop_quiz", "glitch", "power_flicker"]),
+      cadetId: z.string(),
+      /** Pop quiz question; the glitch line; the misconception whispered in a flicker. */
+      text: z.string(),
+      /** Flicker: who it spread to. */
+      toCadetId: z.string().optional(),
+      seconds: z.number(),
+    }),
+  ),
+  msg(
+    "event.result",
+    z.strictObject({
+      eventId: z.string(),
+      kind: z.enum(["pop_quiz", "glitch", "power_flicker"]),
+      /** Pop quiz: Grader score 0–5. */
+      score: z.number().optional(),
+      /** Glitch: did I catch it? and what it got wrong. */
+      caught: z.boolean().optional(),
+      explanation: z.string(),
+      xp: z.number(),
+    }),
+  ),
   /** "Last time…" arrives after period.started so starting a class never waits on it. */
   msg("period.recap", z.strictObject({ periodId: z.string(), text: z.string() })),
   msg("turn.started", z.strictObject({ turnId: z.string(), text: z.string() })),
