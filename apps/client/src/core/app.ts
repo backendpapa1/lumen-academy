@@ -1,3 +1,4 @@
+import type { ServerMessage } from "@lumen/shared";
 import { applyServerMessage, dismissToast } from "./classroom";
 import { Net } from "./net";
 import { store } from "./store";
@@ -8,22 +9,21 @@ import { store } from "./store";
 let net: Net | null = null;
 const TOAST_MS = 5000;
 
+function receive(m: ServerMessage) {
+  store.setState((s) => ({ classroom: applyServerMessage(s.classroom, m) }));
+  if (m.type === "toast" || m.type === "error") {
+    const id = store.getState().classroom.toasts.at(-1)?.id;
+    if (id !== undefined)
+      setTimeout(
+        () => store.setState((s) => ({ classroom: dismissToast(s.classroom, id) })),
+        TOAST_MS,
+      );
+  }
+}
+
 function ensureNet(): Net {
   if (net) return net;
-  net = new Net(
-    (m) => {
-      store.setState((s) => ({ classroom: applyServerMessage(s.classroom, m) }));
-      if (m.type === "toast" || m.type === "error") {
-        const id = store.getState().classroom.toasts.at(-1)?.id;
-        if (id !== undefined)
-          setTimeout(
-            () => store.setState((s) => ({ classroom: dismissToast(s.classroom, id) })),
-            TOAST_MS,
-          );
-      }
-    },
-    (status) => store.setState({ net: status }),
-  );
+  net = new Net(receive, (status) => store.setState({ net: status }));
   net.connect();
   return net;
 }
@@ -53,6 +53,13 @@ export const app = {
   endClass() {
     store.setState((s) => ({ classroom: { ...s.classroom, status: "ending" } }));
     ensureNet().send("period.end", {});
+  },
+  /** A client-side toast, same look and lifetime as the server's. */
+  notify(text: string, level: "info" | "warn" | "error" = "info") {
+    receive({ type: "toast", payload: { level, text } });
+  },
+  select(cadetId: string | null) {
+    if (store.getState().selectedId !== cadetId) store.setState({ selectedId: cadetId });
   },
   backToBoot() {
     store.setState({ route: { name: "boot" } });

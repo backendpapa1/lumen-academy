@@ -9,6 +9,7 @@ import { BootScene } from "./ui/scenes/BootScene";
 import { ClassroomHud } from "./ui/scenes/ClassroomHud";
 import { GalleryScene } from "./ui/scenes/GalleryScene";
 import { ClassroomScene } from "./world/scenes/ClassroomScene";
+import { world } from "./world/anchors";
 import { WorldDirector } from "./world/WorldDirector";
 import { installKeyboard } from "./core/input";
 
@@ -86,6 +87,7 @@ declare global {
       stats: WorldDirector["stats"];
       /** Feed a server message straight into the store (demo/e2e only). */
       receive(m: ServerMessage): void;
+      world: typeof world;
     };
   }
 }
@@ -94,5 +96,6 @@ window.__lumen = {
   phaserVersion: Phaser.VERSION,
   threeRevision: THREE.REVISION,
   stats: director.stats,
+  world,
   receive: (m) => store.setState((s) => ({ classroom: applyServerMessage(s.classroom, m) })),
 };

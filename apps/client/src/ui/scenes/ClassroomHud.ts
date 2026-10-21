@@ -2,6 +2,7 @@ import * as Phaser from "phaser";
 import { ARCHETYPE_INFO, type HandView } from "@lumen/shared";
 import { app } from "../../core/app";
 import type { ClassroomState } from "../../core/classroom";
+import { pointer } from "../../core/input";
 import { store, type AppState } from "../../core/store";
 import { Button } from "../components/Button";
 import { Meter } from "../components/Meter";
@@ -9,6 +10,7 @@ import { Panel } from "../components/Panel";
 import { label } from "../components/text";
 import { TimerRing } from "../components/TimerRing";
 import { lectern } from "../dom/lectern";
+import "../dom/cadetTag";
 import "../dom/speech";
 import { transcript } from "../dom/transcript";
 import { accentCss, accentOf, color, css, motion, uiScale } from "../theme";
@@ -50,10 +52,22 @@ export class ClassroomHud extends Phaser.Scene {
     this.layout();
     this.scale.on(Phaser.Scale.Events.RESIZE, () => this.layout());
     this.unsubscribe = store.subscribe((st, prev) => this.onState(st, prev));
+    // Pointer events no HUD object took go on into the 3D world (docs/05 §4.4).
+    type Over = Phaser.GameObjects.GameObject[];
+    this.input.on(Phaser.Input.Events.POINTER_MOVE, (p: Phaser.Input.Pointer, over: Over) =>
+      over.length ? pointer.leave() : pointer.move(p.x, p.y, this.game.canvas),
+    );
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, (p: Phaser.Input.Pointer, over: Over) => {
+      if (over.length) return;
+      if (this.conceptMenu) this.toggleConceptMenu(store.getState().classroom);
+      pointer.click(p.x, p.y);
+    });
+    this.input.on(Phaser.Input.Events.GAME_OUT, () => pointer.leave());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unsubscribe?.();
       lectern.hide();
       transcript.toggle(false);
+      pointer.leave();
     });
   }
 
@@ -82,7 +96,12 @@ export class ClassroomHud extends Phaser.Scene {
       c.status !== p.status
     )
       this.buildTop(c);
-    if (c.hands !== p.hands || c.speech?.cadetId !== p.speech?.cadetId) this.buildHands(c);
+    if (
+      c.hands !== p.hands ||
+      c.speech?.cadetId !== p.speech?.cadetId ||
+      st.selectedId !== prev.selectedId
+    )
+      this.buildHands(c);
     if (c.cadets !== p.cadets) this.buildRoster(c);
     if (c.status !== p.status || c.ended !== p.ended) this.buildOverlay(c);
     if (c.toasts !== p.toasts) this.buildToasts(c);
@@ -254,9 +273,11 @@ export class ClassroomHud extends Phaser.Scene {
         hitAreaCallback: Phaser.Geom.Rectangle.Contains,
         useHandCursor: true,
       });
+      const selected = h.cadetId === store.getState().selectedId;
+      card.setFocused(selected);
       card
         .on("pointerover", () => card.setFocused(true))
-        .on("pointerout", () => card.setFocused(false));
+        .on("pointerout", () => card.setFocused(selected));
       card.on("pointerdown", () => app.call(h.cadetId));
       card.setAlpha(0);
       this.tweens.add({ targets: card, alpha: 1, duration: motion.panel, delay: i * 40 });
@@ -285,13 +306,25 @@ export class ClassroomHud extends Phaser.Scene {
       this,
       width / 2,
       y + h + 12 * s,
-      "Enter teach · 1–5 call on a hand · R roster · ` transcript",
+      "Enter teach · Tab pick a hand · Space call · 1–5 call by number · R roster · ` transcript",
       "micro",
       { scale: s },
     ).setOrigin(0.5, 0);
   }
 
   // --- roster drawer -------------------------------------------------------------------
+
+  get hasOpen(): boolean {
+    return !!this.conceptMenu || this.rosterOpen;
+  }
+
+  /** Esc: close the concept menu, else the roster. */
+  closeTop(): boolean {
+    if (this.conceptMenu) this.toggleConceptMenu(store.getState().classroom);
+    else if (this.rosterOpen) this.toggleRoster();
+    else return false;
+    return true;
+  }
 
   toggleRoster() {
     this.rosterOpen = !this.rosterOpen;

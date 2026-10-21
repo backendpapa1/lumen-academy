@@ -143,6 +143,8 @@ export class CadetHologram {
   private hand = 0;
   private speakTarget = 0;
   private speak = 0;
+  private lookTarget = 0;
+  private look = 0;
   private glyphTarget = 0;
   private glyphChangedAt = -10;
   private time = Math.random() * 10;
@@ -264,6 +266,16 @@ export class CadetHologram {
     this.speakTarget = on ? 1 : 0;
   }
 
+  /** Hovered (0.6) or selected (1): a little brighter, so the pointer feels heard. */
+  setHighlight(level: number): void {
+    this.lookTarget = level;
+  }
+
+  /** What pointer rays test against: the billboard quad. */
+  get hitTarget(): THREE.Object3D {
+    return this.holo;
+  }
+
   /** Top of the head in world space, where the speech panel's line attaches. */
   headWorld(out: THREE.Vector3): THREE.Vector3 {
     this.body.updateWorldMatrix(true, false);
@@ -278,6 +290,7 @@ export class CadetHologram {
       this.current[key] += (this.target[key] - this.current[key]) * k;
     this.hand += (this.handTarget - this.hand) * k;
     this.speak += (this.speakTarget - this.speak) * k;
+    this.look += (this.lookTarget - this.look) * k;
     // Glyphs pop, then settle to a quieter presence after 3s.
     const glyphAge = this.time - this.glyphChangedAt;
     const glyphGoal = this.glyphTarget * (glyphAge < 3 ? 1 : 0.35);
@@ -296,7 +309,7 @@ export class CadetHologram {
     const u = this.holo.material.uniforms;
     const pulse = c.bounce * motion * 0.12 * Math.sin(this.time * 9);
     u.uTime!.value = this.time;
-    u.uBrightness!.value = c.brightness + pulse + this.speak * 0.15;
+    u.uBrightness!.value = c.brightness + pulse + this.speak * 0.15 + this.look * 0.3;
     u.uFlicker!.value = c.flicker;
     u.uSkeptic!.value = c.skeptic;
     u.uSpeaking!.value = this.speak;

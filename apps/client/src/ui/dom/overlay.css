@@ -232,3 +232,33 @@
     filter: blur(2px);
   }
 }
+
+/* Hover tag over a cadet. */
+#cadet-tag {
+  --accent: var(--lumen);
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 0;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: rgba(11, 16, 32, 0.9);
+  border: 1px solid var(--hull-500);
+  border-left: 2px solid var(--accent);
+  border-radius: 8px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#cadet-tag.shown {
+  display: flex;
+}
+#cadet-tag b {
+  font: 600 13px var(--font-body);
+  color: var(--accent);
+}
+#cadet-tag span {
+  font: 400 12px var(--font-body);
+  color: var(--ink-dim);
+}

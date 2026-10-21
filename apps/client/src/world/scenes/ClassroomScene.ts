@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { ClassroomState } from "../../core/classroom";
 import { store } from "../../core/store";
 import { accentOf } from "../../ui/theme";
-import { anchors } from "../anchors";
+import { anchors, world } from "../anchors";
 import { dayPhase, PHASES } from "../lighting";
 import { Amphitheater, seatPose } from "../objects/Amphitheater";
 import { CadetLayer } from "../objects/CadetLayer";
@@ -34,6 +34,7 @@ export class ClassroomScene implements WorldScene {
   private speakerId: string | null = null;
   private readonly size = { w: 1, h: 1 };
   private readonly head = new THREE.Vector3();
+  private readonly ray = new THREE.Raycaster();
 
   constructor() {
     this.scene.background = new THREE.Color(0x05070d);
@@ -66,8 +67,15 @@ export class ClassroomScene implements WorldScene {
 
     this.unsubscribe = store.subscribe((s, prev) => {
       if (s.classroom !== prev.classroom) this.sync(s.classroom, prev.classroom);
+      if (
+        s.classroom !== prev.classroom ||
+        s.hoveredId !== prev.hoveredId ||
+        s.selectedId !== prev.selectedId
+      )
+        this.cadetLayer.highlight(s.hoveredId, s.selectedId);
     });
     this.sync(store.getState().classroom, null);
+    world.pick = this.pick;
   }
 
   /** Curved back wall behind the top tier with slow-pulsing light strips (docs/08 §4.1). */
@@ -154,6 +162,15 @@ export class ClassroomScene implements WorldScene {
     this.projectSpeaker();
   }
 
+  private readonly pick = (x: number, y: number): string | null => {
+    this.camera.updateMatrixWorld();
+    this.ray.setFromCamera(
+      new THREE.Vector2((x / this.size.w) * 2 - 1, 1 - (y / this.size.h) * 2),
+      this.camera,
+    );
+    return this.cadetLayer.pick(this.ray);
+  };
+
   /** Where the speech panel attaches: the speaker's head, in stage pixels. */
   private projectSpeaker(): void {
     const h = this.speakerId ? this.cadetLayer.get(this.speakerId) : undefined;
@@ -176,6 +193,7 @@ export class ClassroomScene implements WorldScene {
 
   dispose(): void {
     anchors.speaker = null;
+    if (world.pick === this.pick) world.pick = null; // a newer scene may already own it
     this.unsubscribe();
     this.floor.dispose();
     this.amphitheater.dispose();

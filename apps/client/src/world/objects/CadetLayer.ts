@@ -37,6 +37,20 @@ export class CadetLayer {
     for (const h of this.holograms.values()) h.update(dt, camera);
   }
 
+  highlight(hoveredId: string | null, selectedId: string | null): void {
+    for (const [id, h] of this.holograms)
+      h.setHighlight(id === selectedId ? 1 : id === hoveredId ? 0.6 : 0);
+  }
+
+  /** Cadet whose billboard the ray hits first. */
+  pick(ray: THREE.Raycaster): string | null {
+    const targets = [...this.holograms.values()].map((h) => h.hitTarget);
+    const hit = ray.intersectObjects(targets, false)[0];
+    if (!hit) return null;
+    for (const [id, h] of this.holograms) if (h.hitTarget === hit.object) return id;
+    return null;
+  }
+
   get(id: string): CadetHologram | undefined {
     return this.holograms.get(id);
   }
