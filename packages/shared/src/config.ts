@@ -38,6 +38,7 @@ export const AGENT_NAMES = [
   "knowledgeReporter",
   "peerGrader",
   "teachBack",
+  "analogyMaker",
   "modeJudge",
   "substitute",
   "guestLecturer",

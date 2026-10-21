@@ -133,6 +133,26 @@ export interface ClassroomState {
   stickers: StickerView[];
   /** V5: the student at the centre of a Socratic or teach-back period. */
   hotSeat: string | null;
+  /** V5-04: the Connector's analogies and how I judged them. */
+  analogy: {
+    cadetId: string;
+    cards: string[];
+    results: Record<number, ServerMessageOf<"analogy.result">["payload"]>;
+  } | null;
+  /** V5-05: the ELI round I'm in, and each round's fit. */
+  eli: {
+    round: number;
+    of: number;
+    level: "eli5" | "eli15" | "expert";
+    audience: string;
+    scores: Array<{ round: number; score: number; feedback: string }>;
+  } | null;
+  /** V5-08: the substitute's lesson, my objections, then the result. */
+  sub: {
+    lines: string[];
+    objections: Record<number, { planted: boolean; correction: string }>;
+    result?: ServerMessageOf<"sub.result">["payload"];
+  } | null;
   /** V5-03: the teach-back to mark, then its result. */
   teachBack: {
     cadetId: string;
@@ -171,6 +191,9 @@ export const initialClassroom = (): ClassroomState => ({
   stickers: [],
   hotSeat: null,
   teachBack: null,
+  analogy: null,
+  eli: null,
+  sub: null,
   hyperfocus: false,
 });
 
@@ -291,6 +314,36 @@ export function applyServerMessage(
         thinking: false,
         breakUntil: m.payload.paused ? s.breakUntil : null,
       };
+    case "analogy.cards":
+      return { ...s, analogy: { ...m.payload, results: {} } };
+    case "analogy.result":
+      return s.analogy
+        ? {
+            ...s,
+            analogy: { ...s.analogy, results: { ...s.analogy.results, [m.payload.i]: m.payload } },
+          }
+        : s;
+    case "eli.round":
+      return { ...s, eli: { ...m.payload, scores: s.eli?.scores ?? [] } };
+    case "eli.scored":
+      return s.eli ? { ...s, eli: { ...s.eli, scores: [...s.eli.scores, m.payload] } } : s;
+    case "sub.lesson":
+      return { ...s, sub: { lines: m.payload.lines, objections: {} } };
+    case "sub.objection":
+      return s.sub
+        ? {
+            ...s,
+            sub: {
+              ...s.sub,
+              objections: {
+                ...s.sub.objections,
+                [m.payload.i]: { planted: m.payload.planted, correction: m.payload.correction },
+              },
+            },
+          }
+        : s;
+    case "sub.result":
+      return s.sub ? { ...s, sub: { ...s.sub, result: m.payload } } : s;
     case "teachback.ready":
       return { ...s, teachBack: { ...m.payload } };
     case "teachback.result":

@@ -113,6 +113,42 @@ export const PeerVerdictZ = z.object({
 export type PeerVerdict = z.infer<typeof PeerVerdictZ>;
 
 /** V5-03: the student's own statements, phrased as an explanation (same count, same order). */
+/** V5-04: the Connector's analogies; "sound" and "breaks" stay on the server. */
+export const AnalogySetZ = z.object({
+  analogies: z
+    .array(
+      z.object({
+        text: z.string().min(1).max(400),
+        sound: z.boolean(),
+        breaks: z.string().max(300),
+      }),
+    )
+    .min(2)
+    .max(4),
+});
+export type AnalogySet = z.infer<typeof AnalogySetZ>;
+/** V5-04/05: a judged reason or explanation, 0..1 with one line of feedback. */
+export const ModeJudgementZ = z.object({
+  reasonScore: z.number().min(0).max(1),
+  feedback: z.string().max(300),
+});
+export type ModeJudgement = z.infer<typeof ModeJudgementZ>;
+
+/** V5-08: the substitute's lesson; which lines are planted stays on the server. */
+export const SubstituteLessonZ = z.object({
+  lines: z
+    .array(
+      z.object({
+        text: z.string().min(1).max(400),
+        planted: z.boolean(),
+        correction: z.string().max(300).default(""),
+      }),
+    )
+    .min(3)
+    .max(12),
+});
+export type SubstituteLesson = z.infer<typeof SubstituteLessonZ>;
+
 export const TeachBackPhrasingZ = z.object({ sentences: z.array(z.string().min(1).max(300)) });
 
 /**

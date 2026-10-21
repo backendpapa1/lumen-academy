@@ -129,6 +129,18 @@ export const ClientMessageZ = z.discriminatedUnion("type", [
   /** Exit ticket (M4-05): ✓ = true, ✗ = false. */
   msg("exit.mark", z.strictObject({ ticketId: z.string(), verdict: z.boolean() })),
   msg("exit.done", z.strictObject({ periodId: z.string() })),
+  /** V5-04: my verdict on one analogy, and where I think it breaks down. */
+  msg(
+    "analogy.judge",
+    z.strictObject({
+      i: z.number().int().min(0).max(5),
+      verdict: z.enum(["good", "misleading"]),
+      reason: z.string().max(600),
+    }),
+  ),
+  /** V5-08: I object to the substitute's line i; finish ends the lesson. */
+  msg("sub.object", z.strictObject({ i: z.number().int().min(0).max(20) })),
+  msg("sub.finish", empty),
   /** V5-03: the sentences of a teach-back I think are wrong (indexes). */
   msg("teachback.mark", z.strictObject({ wrong: z.array(z.number().int().min(0).max(20)) })),
 ]);
@@ -371,6 +383,56 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
   /** V4-01: one student turns to another; their lines follow as cadet.stream/done. */
   msg("peer.started", z.strictObject({ speakerId: z.string(), listenerId: z.string() })),
   msg("peer.ended", z.strictObject({ speakerId: z.string(), listenerId: z.string() })),
+  /** V5-04: the Connector's analogies to judge. */
+  msg("analogy.cards", z.strictObject({ cadetId: z.string(), cards: z.array(z.string()) })),
+  msg(
+    "analogy.result",
+    z.strictObject({
+      i: z.number().int(),
+      sound: z.boolean(),
+      right: z.boolean(),
+      reasonScore: z.number(),
+      feedback: z.string(),
+      breaks: z.string(),
+    }),
+  ),
+  /** V5-05: an ELI round starts, and how my explanation fit its audience. */
+  msg(
+    "eli.round",
+    z.strictObject({
+      round: z.number().int(),
+      of: z.number().int(),
+      level: z.enum(["eli5", "eli15", "expert"]),
+      audience: z.string(),
+    }),
+  ),
+  msg(
+    "eli.scored",
+    z.strictObject({ round: z.number().int(), score: z.number(), feedback: z.string() }),
+  ),
+  /** V5-08: the substitute's lesson (lines revealed one by one on the client). */
+  msg("sub.lesson", z.strictObject({ lines: z.array(z.string()) })),
+  msg(
+    "sub.objection",
+    z.strictObject({ i: z.number().int(), planted: z.boolean(), correction: z.string() }),
+  ),
+  msg(
+    "sub.result",
+    z.strictObject({
+      lines: z.array(
+        z.strictObject({
+          text: z.string(),
+          planted: z.boolean(),
+          objected: z.boolean(),
+          correction: z.string(),
+        }),
+      ),
+      caught: z.number(),
+      missed: z.number(),
+      falseAlarms: z.number(),
+      score: z.number(),
+    }),
+  ),
   /** V5-03: a student explained it back; mark the wrong sentences. */
   msg("teachback.ready", z.strictObject({ cadetId: z.string(), sentences: z.array(z.string()) })),
   msg(

@@ -207,6 +207,9 @@ xp: # docs/02 §7.1
   popQuizPerPoint: 6 # pop quiz: Grader score 0–5 × this
   microLesson: 25 # V3-01: flat, instead of teachingMinute (a reduced rate)
   teachBackCatch: 20 # V5-03: per mistake caught in a teach-back
+  analogyJudged: 20 # V5-04: × score (verdict right + reason)
+  eliRound: 20 # V5-05: × fit score per round
+  substituteCatch: 25 # V5-08: per planted error caught
 
 ranks: # placeholder thresholds; tune after M5
   - { name: Student Teacher, minXp: 0 }

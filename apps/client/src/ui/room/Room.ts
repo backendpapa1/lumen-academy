@@ -379,6 +379,8 @@ export class Room {
     this.corkboard(c);
     this.el.classList.toggle("focus", c.hyperfocus);
     this.el.classList.toggle("micro", micro);
+    // V5-05: in the ELI-5 round the class is younger, drawn smaller.
+    this.el.classList.toggle("eli5", c.kind === "eli_ladder" && c.eli?.level === "eli5");
     if (c.event && c.event.id !== this.lastEventId) {
       this.lastEventId = c.event.id;
       if (c.event.kind === "power_flicker") this.flicker();

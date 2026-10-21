@@ -392,6 +392,17 @@ export const app = {
       return { classroom };
     });
   },
+  /** V5-04: my verdict on an analogy, and where it breaks. */
+  judgeAnalogy(i: number, verdict: "good" | "misleading", reason: string) {
+    ensureNet().send("analogy.judge", { i, verdict, reason });
+  },
+  /** V5-08: object to the substitute's line i; finish the lesson. */
+  objectToSub(i: number) {
+    ensureNet().send("sub.object", { i });
+  },
+  finishSub() {
+    ensureNet().send("sub.finish", {});
+  },
   /** V5-03: the teach-back sentences I think are wrong. */
   markTeachBack(wrong: number[]) {
     ensureNet().send("teachback.mark", { wrong });

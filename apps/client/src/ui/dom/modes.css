@@ -83,3 +83,76 @@
 .tb-line:disabled {
   cursor: default;
 }
+/* V5-04 analogy cards. */
+.an-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: var(--line);
+  background: var(--paper);
+}
+.an-card .an-text {
+  margin: 0;
+  font: 400 15px/1.4 var(--font-body);
+}
+.an-card.done p {
+  margin: 0;
+}
+.an-card.right {
+  border-color: var(--leaf);
+  background: var(--leaf-wash);
+}
+.an-card.wrong {
+  border-color: var(--coral);
+  background: var(--coral-wash);
+}
+/* V5-05 ELI ladder. */
+.eli-now {
+  margin: 6px 0 2px;
+  font: 400 20px var(--font-display);
+  color: var(--navy);
+}
+.eli-score {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: var(--cobalt-wash);
+}
+.eli-score p {
+  margin: 4px 0 0;
+}
+/* V5-08 substitute's lesson. */
+.sub-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.sub-line {
+  padding: 10px 12px;
+  border: var(--line);
+  background: var(--paper);
+  animation: pop 0.4s var(--ease) both;
+}
+.sub-line p {
+  margin: 0 0 6px;
+  font: 400 15px/1.4 var(--font-body);
+}
+.sub-line small {
+  display: block;
+  font: 700 11px var(--font-ui);
+}
+.sub-line.objected.planted,
+.sub-line.planted.objected {
+  border-color: var(--leaf);
+  background: var(--leaf-wash);
+}
+.sub-line.objected.fine {
+  border-color: var(--marigold);
+  background: var(--marigold-wash);
+}
+.sub-line.planted:not(.objected) {
+  border-color: var(--coral);
+  border-style: dashed;
+}

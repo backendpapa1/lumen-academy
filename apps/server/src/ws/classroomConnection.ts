@@ -1,3 +1,4 @@
+import { AnalogyLab, EliLadder, SubstituteLessonRunner, type ModeHost } from "./modeRunners.js";
 import { withUsageContext } from "../usage/meter.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { TeachBackPhrasingZ } from "@lumen/shared";
@@ -95,6 +96,38 @@ export class ClassroomConnection {
   /** The random event waiting for my answer (M6-01). */
   private event: PendingEvent | null = null;
   /** The Dean's visit: the explanations watched so far. */
+  /** V5-04/05/08: the card-and-round modes. */
+  private runner: {
+    session: ClassSession;
+    lab?: AnalogyLab;
+    eli?: EliLadder;
+    sub?: SubstituteLessonRunner;
+  } | null = null;
+
+  /** What a mode runner needs from this connection. */
+  private host(): ModeHost {
+    return {
+      send: (m) => this.send(m),
+      say: (cadetId, text, mood = "curious") => {
+        const session = this.session;
+        if (!session) return;
+        const messageId = session.recordCadetUtterance(cadetId, text, "claim", {
+          mode: session.kind,
+        });
+        const streamId = `str_${++this.streamSeq}`;
+        this.send({ type: "cadet.stream", payload: { cadetId, streamId, delta: text } });
+        this.send({
+          type: "cadet.done",
+          payload: { cadetId, streamId, messageId, text, kind: "claim", mood },
+        });
+      },
+      handle: this.rt.handle,
+      factory: this.rt.factory,
+      game: this.rt.game,
+      scope: this.scope,
+    };
+  }
+
   /** V5-03: the teach-back in this period, and its marks once I've checked it. */
   private teachBack: {
     session: ClassSession;
@@ -198,6 +231,16 @@ export class ClassroomConnection {
             this.send({ type: "exit.result", payload: { ticketId: msg.payload.ticketId, ...r } });
           return;
         }
+        case "analogy.judge":
+          if (this.runner?.session === this.session)
+            await this.runner.lab?.judge(msg.payload.i, msg.payload.verdict, msg.payload.reason);
+          return;
+        case "sub.object":
+          if (this.runner?.session === this.session) this.runner.sub?.object(msg.payload.i);
+          return;
+        case "sub.finish":
+          if (this.runner?.session === this.session) this.runner.sub?.finish();
+          return;
         case "teachback.mark":
           return this.markTeachBack(msg.payload.wrong);
         case "exit.done": {
@@ -343,6 +386,26 @@ export class ClassroomConnection {
     this.sendCost();
     if (this.rt.extras?.recaps !== false && !session.resumed) void this.sendRecap(session, room.id);
     if (session.kind === "teach_back") void this.runTeachBack(session).catch(() => undefined);
+    const failed = (what: string) => () =>
+      this.send({
+        type: "toast",
+        payload: { level: "warn", text: `${what} didn't come through. Try starting again.` },
+      });
+    if (session.kind === "analogy_lab") {
+      const lab = new AnalogyLab(this.host(), session);
+      this.runner = { session, lab };
+      void lab.start().catch(failed("The analogies"));
+    }
+    if (session.kind === "eli_ladder") {
+      const eli = new EliLadder(this.host(), session);
+      this.runner = { session, eli };
+      eli.start();
+    }
+    if (session.kind === "substitute") {
+      const sub = new SubstituteLessonRunner(this.host(), session);
+      this.runner = { session, sub };
+      void sub.start().catch(failed("The substitute's lesson"));
+    }
   }
 
   private async sendRecap(session: ClassSession, classroomId: string) {
@@ -376,6 +439,15 @@ export class ClassroomConnection {
 
   private async teach(text: string, replyTo?: string) {
     const session = this.requireSession();
+    // V5-08: with a substitute in, I'm at the back: I object, I don't teach.
+    if (session.kind === "substitute")
+      return this.send({
+        type: "toast",
+        payload: {
+          level: "info",
+          text: "You're at the back today: press Object when you hear a mistake.",
+        },
+      });
     // V5-02: a Socratic class takes questions only. Nothing is saved or charged.
     if (session.kind === "socratic" && !isQuestion(text))
       return this.send({
@@ -416,6 +488,16 @@ export class ClassroomConnection {
     if (session.kind === "socratic" && session.hotSeat && this.turnId === turn.turnId)
       void this.call(session.hotSeat, { answer: text }).catch(() => undefined);
     const done = await turn.committed;
+    // V5-05: each explanation in the ELI ladder is judged for its audience; after
+    // the expert round, the Skeptic (or the Overachiever) presses me on it.
+    if (session.kind === "eli_ladder" && this.runner?.eli && this.runner.session === session)
+      void this.runner.eli.explained(text).then((r) => {
+        if (!r?.expertDone || this.session !== session) return;
+        const expert =
+          session.flavour.find((f) => f.archetype === "skeptic") ??
+          session.flavour.find((f) => f.archetype === "overachiever");
+        if (expert) void this.call(expert.id).catch(() => undefined);
+      });
     // V4-06: stickers for great moments, by server rules on the Director's report.
     if (this.scope)
       for (const s of awardStickers(this.rt.handle, this.rt.game, {
@@ -720,6 +802,10 @@ export class ClassroomConnection {
         session.periodId,
         seat ? { name: seat.name, before: session.hotSeatStart, after: now } : null,
       );
+    }
+    if (this.runner?.session === session) {
+      const r = this.runner.lab ?? this.runner.eli ?? this.runner.sub;
+      if (r) return r.result();
     }
     if (session.kind === "teach_back") {
       const r = this.teachBack?.session === session ? this.teachBack.result : undefined;

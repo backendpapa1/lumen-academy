@@ -38,6 +38,45 @@ async function boot(opts: { peer?: boolean } = {}) {
       if (who === "cadetPeerReply")
         return "Oh! Not in each transaction then.\n###\nkind: answer\nmood: curious\nconfidence: 0.5";
       if (who === "peerGrader") return JSON.stringify({ verdict: "correct" });
+      if (who === "analogyMaker")
+        return JSON.stringify({
+          analogies: [
+            {
+              text: "It's like a tournament bracket.",
+              sound: true,
+              breaks: "Brackets drop losers; hashes keep both.",
+            },
+            {
+              text: "It's like a list where the last item is the total.",
+              sound: false,
+              breaks: "The root isn't a sum.",
+            },
+            {
+              text: "It's like a family tree read upwards.",
+              sound: true,
+              breaks: "Parents aren't made from children.",
+            },
+          ],
+        });
+      if (who === "analogyJudge" || who === "eliJudge")
+        return JSON.stringify({ reasonScore: 0.8, feedback: "Nicely put." });
+      if (who === "substitute")
+        return JSON.stringify({
+          lines: [
+            { text: "A block has a header and transactions.", planted: false, correction: "" },
+            {
+              text: "The header holds all the transactions.",
+              planted: true,
+              correction: "The header is 80 bytes.",
+            },
+            { text: "The Merkle root sits in the header.", planted: false, correction: "" },
+            {
+              text: "Blocks link by copying transactions.",
+              planted: true,
+              correction: "They link by the previous header hash.",
+            },
+          ],
+        });
       if (who === "classDirector") {
         const wrong = body.messages.at(-1)!.content.toLowerCase().includes("every transaction");
         return JSON.stringify({
@@ -265,6 +304,51 @@ describe("classroom over WebSocket", () => {
     expect(result.payload.lines[0]!.marked).toBe(true);
     send("period.end", {});
     expect((await until("period.ended")).payload.mode).toMatchObject({ kind: "teach_back" });
+    ws.close();
+  });
+
+  it("analogy lab: judge an analogy, get the real breaking point (V5-04)", async () => {
+    const { w, send, until, ws } = await boot();
+    send("period.start", { classroomId: w.classroomId, kind: "analogy_lab" });
+    const cards = await until("analogy.cards");
+    expect(cards.payload.cards).toHaveLength(3);
+    send("analogy.judge", { i: 1, verdict: "misleading", reason: "The root isn't a total." });
+    const r = await until("analogy.result");
+    expect(r.payload).toMatchObject({ i: 1, sound: false, right: true, reasonScore: 0.8 });
+    send("period.end", {});
+    expect((await until("period.ended")).payload.mode?.score).toBeCloseTo(0.9);
+    ws.close();
+  });
+
+  it("ELI ladder: three rounds, each explanation scored for its audience (V5-05)", async () => {
+    const { w, send, until, ws } = await boot();
+    send("period.start", { classroomId: w.classroomId, kind: "eli_ladder" });
+    expect((await until("eli.round")).payload).toMatchObject({ round: 1, level: "eli5" });
+    send("teach.message", { text: "Lots of little boxes get squished into one magic box." });
+    expect((await until("eli.scored")).payload).toMatchObject({ round: 1, score: 0.8 });
+    expect((await until("eli.round", 2)).payload).toMatchObject({ round: 2, level: "eli15" });
+    ws.close();
+  });
+
+  it("substitute: I can't teach, I object; planted lines are scored (V5-08)", async () => {
+    const { w, send, until, inbox, ws } = await boot();
+    send("period.start", { classroomId: w.classroomId, kind: "substitute" });
+    const lesson = await until("sub.lesson");
+    expect(lesson.payload.lines).toHaveLength(4);
+    expect(JSON.stringify(lesson.payload)).not.toContain("planted");
+    send("teach.message", { text: "Actually the header is small." });
+    expect((await until("toast")).payload.text).toMatch(/at the back/);
+    expect(inbox.some((m) => m.type === "turn.started")).toBe(false);
+    send("sub.object", { i: 1 });
+    expect((await until("sub.objection")).payload).toMatchObject({ i: 1, planted: true });
+    send("sub.object", { i: 2 });
+    send("sub.finish", {});
+    expect((await until("sub.result")).payload).toMatchObject({
+      caught: 1,
+      missed: 1,
+      falseAlarms: 1,
+      score: 0.25,
+    });
     ws.close();
   });
 

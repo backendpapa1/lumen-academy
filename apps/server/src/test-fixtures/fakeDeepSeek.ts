@@ -125,6 +125,10 @@ export const agentOf = (body: FakeRequest) => {
   if (sys.includes("You are the Debrief Analyst")) return "debriefAnalyst";
   if (sys.includes("You grade a student's answer")) return "grader";
   if (sys.includes("A student just explained something to a classmate")) return "peerGrader";
+  if (sys.includes("You write analogies for a classroom exercise")) return "analogyMaker";
+  if (sys.includes("is judging a student's analogy")) return "analogyJudge";
+  if (sys.includes("is practising explaining")) return "eliJudge";
+  if (sys.includes("You are a substitute teacher")) return "substitute";
   if (/You are .+, a student at Lumen Academy/.test(sys) && sys.includes("You lean over to"))
     return "cadetPeer";
   if (/You are .+, a student at Lumen Academy/.test(sys) && sys.includes("just leaned over"))
