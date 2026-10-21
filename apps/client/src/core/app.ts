@@ -197,10 +197,11 @@ export const app = {
     await this.loadSchools();
     this.notify(`${name} is deleted.`);
   },
-  async createSchool(name: string, description: string) {
+  async createSchool(name: string, description: string, continuesSchoolId?: string) {
     const { id } = await api.post<{ id: string }>("/api/schools", {
       name,
       description: description || undefined,
+      ...(continuesSchoolId ? { continuesSchoolId } : {}),
     });
     this.openSchool(id, "sources");
     return id;

@@ -530,3 +530,12 @@
     transition: none !important;
   }
 }
+
+/* A School series: a gravel footpath between their buildings. */
+.campus .series-paths path {
+  fill: none;
+  stroke: #e9dcc0;
+  stroke-width: 22;
+  stroke-linecap: round;
+  stroke-dasharray: 2 30;
+}

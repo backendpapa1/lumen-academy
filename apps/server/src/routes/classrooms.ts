@@ -4,11 +4,51 @@ import type { DbHandle } from "../db/client.js";
 import { hairOf, registerOf } from "../game/looks.js";
 import type { GameConfig } from "@lumen/shared";
 import { placeUpgrade, removeUpgrade, upgradeState } from "../game/upgrades.js";
+import { seriesBefore } from "../agents/curriculum/build.js";
 
 // REST for picking a School and Classroom (docs/05 §6, read side for M2).
 
 export function registerClassroomRoutes(app: FastifyInstance, handle: DbHandle, game?: GameConfig) {
   const { sqlite } = handle;
+
+  /**
+   * A series: the class moves on to the School that continues this one, the
+   * same students, still knowing what they were taught (their ledger stays).
+   */
+  app.post<{ Params: { id: string } }>("/api/classrooms/:id/move", async (req, reply) => {
+    const body = z.object({ schoolId: z.string() }).safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: "Move it to which School?" });
+    const room = sqlite
+      .prepare("SELECT id, name, school_id s FROM classrooms WHERE id = ? AND status != 'archived'")
+      .get(req.params.id) as { id: string; name: string; s: string } | undefined;
+    if (!room) return reply.code(404).send({ error: "no such class" });
+    const to = sqlite
+      .prepare("SELECT id, name FROM schools WHERE id = ? AND archived = 0")
+      .get(body.data.schoolId) as { id: string; name: string } | undefined;
+    if (!to) return reply.code(404).send({ error: "That School isn't there." });
+    if (!seriesBefore(handle, to.id).some((x) => x.id === room.s))
+      return reply.code(409).send({
+        error: `${to.name} doesn't continue this class's School, so the class can't move there.`,
+      });
+    const open = sqlite
+      .prepare("SELECT 1 FROM periods WHERE classroom_id = ? AND ended_at IS NULL")
+      .get(room.id);
+    if (open) return reply.code(409).send({ error: "End the class's lesson first, then move it." });
+    const limit = game?.classroomsPerSchool ?? 3;
+    const count = (
+      sqlite
+        .prepare("SELECT count(*) n FROM classrooms WHERE school_id = ? AND status != 'archived'")
+        .get(to.id) as { n: number }
+    ).n;
+    if (count >= limit)
+      return reply
+        .code(409)
+        .send({ error: `${to.name} already has ${count} classes, the most a School can have.` });
+    sqlite
+      .prepare("UPDATE classrooms SET school_id = ?, current_concept_id = NULL WHERE id = ?")
+      .run(to.id, room.id);
+    return { ok: true, classroomId: room.id, schoolId: to.id };
+  });
 
   // V7-02: the class photo: who's in it (with their stickers), then the drawn SVG I keep.
   app.get<{ Params: { id: string } }>("/api/classrooms/:id/photo-data", async (req, reply) => {
@@ -134,7 +174,8 @@ export function registerClassroomRoutes(app: FastifyInstance, handle: DbHandle, 
            CASE WHEN (SELECT status FROM assets a WHERE a.id = s.emblem_asset_id) = 'ready'
              THEN '/api/assets/' || s.emblem_asset_id END AS emblemUrl,
            (SELECT count(*) FROM sources x WHERE x.school_id = s.id AND x.status = 'ready') AS sources,
-           (SELECT count(*) FROM concepts c JOIN modules m ON m.id = c.module_id WHERE m.school_id = s.id) AS concepts
+           (SELECT count(*) FROM concepts c JOIN modules m ON m.id = c.module_id WHERE m.school_id = s.id) AS concepts,
+           s.continues_school_id AS continuesSchoolId
          FROM schools s WHERE s.archived = 0 ORDER BY s.campus_slot`,
       )
       .all() as Array<{ id: string; name: string }>;

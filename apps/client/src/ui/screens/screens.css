@@ -2549,3 +2549,61 @@ table.heat td {
   color: var(--coral);
   white-space: normal;
 }
+
+/* The curriculum map, book by book: a band per book with its coverage. */
+.map.grouped {
+  flex-direction: column;
+  gap: 28px;
+}
+.unit-band {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.unit-head {
+  position: sticky;
+  left: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  max-width: min(100%, 900px);
+  padding: 8px 12px;
+  background: var(--paper);
+  border-left: 4px solid var(--cobalt);
+  box-shadow: var(--shadow-sm);
+  z-index: 1;
+}
+.unit-title {
+  margin: 0;
+  font: 700 16px var(--font-ui);
+  color: var(--navy);
+}
+.unit-cover {
+  font: 400 13px var(--font-body);
+}
+.unit-row {
+  display: flex;
+  gap: 20px;
+}
+
+/* A School series: "Continues X · Continued by Y". */
+.series-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 6px 0 0;
+  color: var(--ink-dim);
+}
+button.linkish {
+  appearance: none;
+  background: none;
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--cobalt);
+  text-decoration: underline;
+  cursor: pointer;
+}

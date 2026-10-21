@@ -394,6 +394,12 @@ function schoolCard(s: SchoolSummary, wing?: CampusView["wings"][number]): HTMLE
         "div",
         { style: "flex:1;min-width:0" },
         h("h2", { class: "h2" }, s.name),
+        s.continuesSchoolId &&
+          h(
+            "div",
+            { class: "micro", style: "color:var(--ink-dim)" },
+            `Continues ${(store.getState().setup.schools ?? []).find((x) => x.id === s.continuesSchoolId)?.name ?? "another School"}`,
+          ),
         h(
           "div",
           { class: "mono" },
@@ -710,6 +716,14 @@ export function newSchoolDialog() {
   });
   const err = h("p", { class: "error-text", role: "alert" });
   const create = h("button", { class: "btn primary", type: "submit" }, "Found School");
+  // A series: this School picks up where another left off (its prerequisites, its classes).
+  const others = store.getState().setup.schools ?? [];
+  const continues = h(
+    "select",
+    { class: "field", id: "school-continues" },
+    h("option", { value: "" }, "No, it's a new topic"),
+    ...others.map((o) => h("option", { value: o.id }, `Yes, it continues ${o.name}`)),
+  ) as HTMLSelectElement;
   const form = h(
     "form",
     {},
@@ -717,6 +731,19 @@ export function newSchoolDialog() {
     name,
     h("label", { class: "lbl", for: "school-desc" }, "Description"),
     desc,
+    others.length > 0 &&
+      h(
+        "label",
+        { class: "lbl", for: "school-continues" },
+        "Is it the next part of another School?",
+      ),
+    others.length > 0 && continues,
+    others.length > 0 &&
+      h(
+        "p",
+        { class: "dim small", style: "margin:4px 0 0" },
+        "Its concepts can build on that School's, and a class there can move on to it with the same students.",
+      ),
     err,
     h(
       "div",
@@ -734,7 +761,7 @@ export function newSchoolDialog() {
     }
     create.disabled = true;
     app
-      .createSchool(name.value.trim(), desc.value.trim())
+      .createSchool(name.value.trim(), desc.value.trim(), continues.value || undefined)
       .then(() => close())
       .catch((e: unknown) => {
         err.textContent = e instanceof ApiError ? e.message : String(e);

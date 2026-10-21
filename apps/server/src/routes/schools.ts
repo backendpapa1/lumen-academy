@@ -21,6 +21,7 @@ import type { SourceKind } from "../ingest/parse.js";
 import { ensureSchool } from "../ingest/pipeline.js";
 import { join } from "node:path";
 import { deleteSchool, exportSchool, importSchool } from "../school/exportImport.js";
+import { seriesBefore } from "../agents/curriculum/build.js";
 import { yearbookMarkdown } from "../school/yearbook.js";
 import { knowledgeMarkdown, knowledgeReport } from "../school/knowledge.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
@@ -30,6 +31,7 @@ import {
   addSource,
   extendCurriculum,
   curriculumBuildState,
+  fillCurriculumGaps,
   generateCurriculum,
   generateEmblem,
   sourcesOutsideCurriculum,
@@ -54,7 +56,10 @@ const KINDS: Record<string, SourceKind> = {
 const CreateSchoolZ = z.strictObject({
   name: z.string().trim().min(2).max(60),
   description: z.string().trim().max(400).optional(),
+  /** A series: this School continues that one. */
+  continuesSchoolId: z.string().optional(),
 });
+const SeriesZ = z.strictObject({ continuesSchoolId: z.string().nullable() });
 const PasteZ = z.strictObject({
   title: z.string().trim().min(1).max(120),
   text: z.string().trim().min(40).max(2_000_000),
@@ -78,6 +83,17 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
   const { sqlite } = deps.handle;
   await app.register(multipart, { limits: { fileSize: MAX_UPLOAD, files: 1 } });
 
+  /** Where a School sits in its series: what it continues, and what continues it. */
+  const seriesOf = (id: string) => ({
+    continues: seriesBefore(deps.handle, id)[0] ?? null,
+    before: seriesBefore(deps.handle, id),
+    continuedBy: sqlite
+      .prepare(
+        "SELECT id, name FROM schools WHERE continues_school_id = ? AND archived = 0 ORDER BY created_at",
+      )
+      .all(id) as Array<{ id: string; name: string }>,
+  });
+
   const school = (id: string) =>
     sqlite
       .prepare("SELECT id, name, description FROM schools WHERE id = ? AND archived = 0")
@@ -87,6 +103,8 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
     const body = CreateSchoolZ.safeParse(req.body);
     if (!body.success)
       return reply.code(400).send({ error: "Give the School a name (2–60 characters)." });
+    if (body.data.continuesSchoolId && !school(body.data.continuesSchoolId))
+      return reply.code(404).send({ error: "The School it continues isn't there any more." });
     const s = ensureSchool(deps.handle, body.data.name, body.data.description);
     if (!s.created) {
       const gone = sqlite.prepare("SELECT archived FROM schools WHERE id = ?").get(s.id) as {
@@ -99,8 +117,31 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
         id: s.id,
       });
     }
+    if (body.data.continuesSchoolId)
+      sqlite
+        .prepare("UPDATE schools SET continues_school_id = ? WHERE id = ?")
+        .run(body.data.continuesSchoolId, s.id);
     void generateEmblem(deps, s.id).catch(() => undefined); // S-4: never blocks creation
     return reply.code(201).send({ id: s.id });
+  });
+
+  /** A series: this School continues another (or nothing). Never a loop. */
+  app.put<{ Params: { id: string } }>("/api/schools/:id/series", async (req, reply) => {
+    const s = school(req.params.id);
+    if (!s) return reply.code(404).send({ error: "no such School" });
+    const body = SeriesZ.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: "Which School does it continue?" });
+    const next = body.data.continuesSchoolId;
+    if (next) {
+      if (next === s.id) return reply.code(400).send({ error: "A School can't continue itself." });
+      if (!school(next)) return reply.code(404).send({ error: "That School isn't there." });
+      if (seriesBefore(deps.handle, next).some((x) => x.id === s.id))
+        return reply
+          .code(409)
+          .send({ error: "That School already continues this one, so the series would loop." });
+    }
+    sqlite.prepare("UPDATE schools SET continues_school_id = ? WHERE id = ?").run(next, s.id);
+    return { ok: true, series: seriesOf(s.id) };
   });
 
   // P-6: the Yearbook, your study notes from everything you taught.
@@ -299,6 +340,7 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
       sources,
       classrooms,
       classroomLimit: deps.game.classroomsPerSchool,
+      series: seriesOf(s.id),
     };
   });
 
@@ -492,7 +534,31 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
       status: schoolConceptStatuses(deps.handle, s.id, deps.game.status),
       // S-5: sources added after the curriculum was built.
       newSources: sourcesOutsideCurriculum(deps.handle, s.id),
+      // Book by book: each book's chapters and what became of them (coverage).
+      units: (
+        sqlite
+          .prepare(
+            "SELECT source_id sourceId, title, chapters_json c, built_at builtAt FROM curriculum_units WHERE school_id = ? ORDER BY ord",
+          )
+          .all(s.id) as Array<{ sourceId: string; title: string; c: string; builtAt: string }>
+      ).map(({ c, ...u }) => ({ ...u, chapters: JSON.parse(c) as unknown[] })),
     };
+  });
+
+  /** Re-reads the chapters of one book that couldn't be read the first time. */
+  app.post<{ Params: { id: string } }>("/api/schools/:id/curriculum/gaps", async (req, reply) => {
+    const s = school(req.params.id);
+    if (!s) return reply.code(404).send({ error: "no such School" });
+    const body = z.object({ sourceId: z.string() }).safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: "Which book?" });
+    const unit = sqlite
+      .prepare("SELECT chapters_json c FROM curriculum_units WHERE school_id = ? AND source_id = ?")
+      .get(s.id, body.data.sourceId) as { c: string } | undefined;
+    if (!unit) return reply.code(404).send({ error: "That book isn't in this curriculum." });
+    if (!(JSON.parse(unit.c) as Array<{ state: string }>).some((ch) => ch.state === "failed"))
+      return reply.code(409).send({ error: "Every chapter of that book is already in." });
+    void fillCurriculumGaps(deps, s.id, body.data.sourceId);
+    return reply.code(202).send({ accepted: true });
   });
 
   /** The build as it runs (stage, fraction, heartbeat), or the last failure. */
@@ -504,10 +570,6 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
   app.post<{ Params: { id: string } }>("/api/schools/:id/curriculum/extend", async (req, reply) => {
     const s = school(req.params.id);
     if (!s) return reply.code(404).send({ error: "no such School" });
-    if (!deps.embedder)
-      return reply
-        .code(503)
-        .send({ error: `The Curriculum Architect needs an OpenAI key ${keyPlace()}.` });
     if (!sourcesOutsideCurriculum(deps.handle, s.id).length)
       return reply.code(409).send({ error: "Every source is already in the curriculum." });
     void extendCurriculum(deps, s.id).catch(() => undefined);
@@ -519,10 +581,6 @@ export async function registerSchoolRoutes(app: FastifyInstance, deps: JobDeps) 
     async (req, reply) => {
       const s = school(req.params.id);
       if (!s) return reply.code(404).send({ error: "no such School" });
-      if (!deps.embedder)
-        return reply
-          .code(503)
-          .send({ error: `The Curriculum Architect needs an OpenAI key ${keyPlace()}.` });
       const ready = sqlite
         .prepare("SELECT count(*) AS n FROM sources WHERE school_id = ? AND status = 'ready'")
         .get(s.id) as {

@@ -51,6 +51,7 @@ function sync(s: AppState) {
           accent: school?.accent ?? "#2A40FF",
           emblemUrl: assetSrc(school?.emblemUrl),
           decalUrl: assetSrc(w.decalUrl),
+          continuesSchoolId: school?.continuesSchoolId ?? null,
         };
       }),
       seen,

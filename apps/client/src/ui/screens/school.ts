@@ -2,7 +2,13 @@ import { openClassPhoto } from "./classPhoto";
 import { openDecorate } from "./decorate";
 import { planStrip } from "./planStrip";
 import { openModePicker } from "./modePicker";
-import { api, ApiError, type SchoolDetail, type SourceRow } from "../../core/api";
+import {
+  api,
+  ApiError,
+  type SchoolDetail,
+  type SchoolSeries,
+  type SourceRow,
+} from "../../core/api";
 import { SERVER_HTTP } from "../../core/net";
 import { app } from "../../core/app";
 import type { SourceJob } from "../../core/setup";
@@ -69,6 +75,7 @@ export function mountSchool(root: HTMLElement, schoolId: string): () => void {
         h("div", { class: "micro" }, "School"),
         h("h1", { class: "display" }, s?.name ?? "…"),
         s?.description ? h("p", { class: "lede" }, s.description) : null,
+        s?.series && seriesLine(s.id, s.series),
       ),
       h("span", { class: "spacer" }),
       // P-6 / O-5: your study notes, and the whole School as a zip.
@@ -562,7 +569,7 @@ function mountClasses(root: HTMLElement, schoolId: string): () => void {
       c.status === "active" || graduated
         ? h(
             "div",
-            { class: "row", style: "margin-top:14px;gap:8px" },
+            { class: "row", style: "margin-top:14px;gap:8px;flex-wrap:wrap" },
             !graduated &&
               h(
                 "button",
@@ -576,6 +583,17 @@ function mountClasses(root: HTMLElement, schoolId: string): () => void {
                 { class: "btn", onclick: () => openModePicker(c.id) },
                 "Other ways to teach",
               ),
+            ...(store.getState().setup.school?.series?.continuedBy ?? []).map((next) =>
+              h(
+                "button",
+                {
+                  class: "btn quiet",
+                  title: `The same students, still knowing what you taught them, carry on in ${next.name}`,
+                  onclick: () => void moveClass(c.id, c.name, next),
+                },
+                `Move on to ${next.name}`,
+              ),
+            ),
             graduated
               ? h(
                   "button",
@@ -687,4 +705,100 @@ function readPhoto(schoolId: string, file: File) {
         add.disabled = false;
       });
   });
+}
+
+/** "Continues Solidity I · continued by Solidity III", and a way to change it. */
+function seriesLine(schoolId: string, series: SchoolSeries): HTMLElement {
+  const link = (x: { id: string; name: string }) =>
+    h("button", { class: "linkish", onclick: () => app.openSchool(x.id) }, x.name);
+  return h(
+    "p",
+    { class: "series-line" },
+    series.continues ? h("span", {}, "Continues ", link(series.continues)) : null,
+    series.continues && series.continuedBy.length ? " · " : null,
+    series.continuedBy.length
+      ? h(
+          "span",
+          {},
+          "Continued by ",
+          ...series.continuedBy.flatMap((x, i) => (i ? [", ", link(x)] : [link(x)])),
+        )
+      : null,
+    h(
+      "button",
+      { class: "btn small quiet", onclick: () => openSeries(schoolId, series) },
+      series.continues ? "Change series" : "Part of a series?",
+    ),
+  );
+}
+
+function openSeries(schoolId: string, series: SchoolSeries) {
+  const others = (store.getState().setup.schools ?? []).filter((x) => x.id !== schoolId);
+  const pick = h(
+    "select",
+    { class: "field", "aria-label": "This School continues" },
+    h("option", { value: "" }, "Nothing: it's its own topic"),
+    ...others.map((o) =>
+      h("option", { value: o.id, selected: series.continues?.id === o.id }, o.name),
+    ),
+  ) as HTMLSelectElement;
+  const err = h("p", { class: "error-text", role: "alert" });
+  const save = h(
+    "button",
+    {
+      class: "btn primary",
+      onclick: () =>
+        api
+          .put(`/api/schools/${schoolId}/series`, { continuesSchoolId: pick.value || null })
+          .then(async () => {
+            close();
+            await app.refreshSchool();
+            await app.loadSchools();
+            app.notify(
+              pick.value ? "Linked into the series." : "Unlinked: it's its own School now.",
+            );
+          })
+          .catch((e: unknown) => (err.textContent = e instanceof ApiError ? e.message : String(e))),
+    },
+    "Save",
+  );
+  const close = openModal(
+    "Part of a series",
+    h(
+      "div",
+      { class: "stack" },
+      h(
+        "p",
+        { style: "margin-top:0" },
+        "When a School continues another, its concepts can build on that School's, the campus joins them with a path, and a class can move on to it with the same students.",
+      ),
+      h("label", { class: "lbl" }, "This School continues"),
+      pick,
+      err,
+      h(
+        "div",
+        { class: "actions" },
+        h("button", { class: "btn quiet", onclick: () => close() }, "Cancel"),
+        h("span", { class: "spacer" }),
+        save,
+      ),
+    ),
+  );
+}
+
+async function moveClass(classroomId: string, name: string, next: { id: string; name: string }) {
+  const ok = await confirmDialog(
+    `Move ${name} on to ${next.name}?`,
+    `The same students carry on in ${next.name}, still knowing everything you taught them here. The class leaves this School.`,
+    "Move the class",
+  );
+  if (!ok) return;
+  api
+    .post(`/api/classrooms/${classroomId}/move`, { schoolId: next.id })
+    .then(async () => {
+      app.notify(`${name} moved on to ${next.name}.`);
+      await app.loadSchools();
+      app.openSchool(next.id, "classes");
+    })
+    .catch((e: unknown) => app.notify(e instanceof ApiError ? e.message : String(e), "error"));
 }

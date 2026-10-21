@@ -17,6 +17,8 @@ export interface WingInfo {
   decalUrl: string | null;
   /** V7-05: exams won against the rival class. */
   trophies?: number;
+  /** A series: the School this one continues (a footpath joins their buildings). */
+  continuesSchoolId?: string | null;
 }
 
 const W = 1600;
@@ -284,6 +286,7 @@ function grounds(): string {
       <rect class="step" x="-70" y="-6" width="120" height="10"/>
     </g>
     <g class="crowd"></g>
+    <g class="series-paths"></g>
     <g class="plots"></g>
     <g class="weather"></g>
     <g class="festival"></g>`;
@@ -293,6 +296,7 @@ export class Campus {
   readonly el: HTMLElement;
   private readonly svg: SVGSVGElement;
   private readonly plots: SVGGElement;
+  private readonly seriesPaths: SVGGElement;
   private readonly weather: SVGGElement;
   private readonly festival: SVGGElement;
   private readonly crowd: SVGGElement;
@@ -313,6 +317,7 @@ export class Campus {
     this.el.append(this.svg);
     stage.prepend(this.el);
     this.plots = this.svg.querySelector(".plots")!;
+    this.seriesPaths = this.svg.querySelector(".series-paths")!;
     this.weather = this.svg.querySelector(".weather")!;
     this.festival = this.svg.querySelector(".festival")!;
     this.crowd = this.svg.querySelector(".crowd")!;
@@ -359,6 +364,17 @@ export class Campus {
         w.g.classList.add("grew");
       }
     }
+    // Footpaths between the buildings of a series, drawn under them.
+    const at = new Map(sorted.map(({ info, slot }) => [info.schoolId, slot]));
+    this.seriesPaths.innerHTML = sorted
+      .map(({ info, slot: b }) => {
+        const a = info.continuesSchoolId ? at.get(info.continuesSchoolId) : undefined;
+        if (!a) return "";
+        const mx = (a.x + b.x) / 2;
+        const my = Math.max(a.y, b.y) + 40;
+        return `<path d="M${a.x} ${a.y} Q${mx} ${my} ${b.x} ${b.y}"/>`;
+      })
+      .join("");
     this.flyTo(this.focused, true);
     return up;
   }

@@ -68,6 +68,55 @@ async function boot() {
 }
 
 describe("School setup routes", () => {
+  it("links a School into a series, refuses a loop, and moves a class along it", async () => {
+    const { w, app } = await boot();
+    const post = (url: string, payload: object) => app.inject({ method: "POST", url, payload });
+    const part2 = (
+      await post("/api/schools", { name: "Blockchain II", continuesSchoolId: w.schoolId })
+    ).json<{ id: string }>().id;
+    const detail = (await app.inject({ method: "GET", url: `/api/schools/${part2}` })).json<{
+      series: { continues: { id: string } | null };
+    }>();
+    expect(detail.series.continues?.id).toBe(w.schoolId);
+    const first = (await app.inject({ method: "GET", url: `/api/schools/${w.schoolId}` })).json<{
+      series: { continuedBy: Array<{ id: string }> };
+    }>();
+    expect(first.series.continuedBy.map((x) => x.id)).toEqual([part2]);
+
+    // Part 1 can't continue Part 2: that would loop.
+    const loop = await app.inject({
+      method: "PUT",
+      url: `/api/schools/${w.schoolId}/series`,
+      payload: { continuesSchoolId: part2 },
+    });
+    expect(loop.statusCode).toBe(409);
+
+    // The class can move forward along the series, keeping its students' ledger.
+    w.handle.sqlite
+      .prepare(
+        "INSERT INTO ledger_entries (cadet_id, concept_id, comprehension, exposures, misconceptions_json) VALUES (?, ?, 0.7, 2, '[]')",
+      )
+      .run(w.cadets[0]!.id, w.conceptIds[0]);
+    const back = await post(`/api/classrooms/${w.classroomId}/move`, { schoolId: w.schoolId });
+    expect(back.statusCode).toBe(409); // it's already there: not a continuation of itself
+    const moved = await post(`/api/classrooms/${w.classroomId}/move`, { schoolId: part2 });
+    expect(moved.statusCode).toBe(200);
+    expect(
+      w.handle.sqlite.prepare("SELECT school_id s FROM classrooms WHERE id = ?").get(w.classroomId),
+    ).toEqual({ s: part2 });
+    expect(w.handle.sqlite.prepare("SELECT count(*) n FROM ledger_entries").get()).toEqual({
+      n: 1,
+    });
+
+    // Unlinking leaves both Schools as they are.
+    const unlink = await app.inject({
+      method: "PUT",
+      url: `/api/schools/${part2}/series`,
+      payload: { continuesSchoolId: null },
+    });
+    expect(unlink.json<{ series: { continues: null } }>().series.continues).toBeNull();
+  });
+
   it("creates a School, refuses duplicates and bad names", async () => {
     const { app } = await boot();
     const made = await app.inject({
