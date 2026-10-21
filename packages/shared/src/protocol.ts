@@ -34,6 +34,12 @@ export const CadetViewZ = z.object({
   state: ReactionStateZ,
   /** Portrait image URL (server-relative), once generated. */
   portraitUrl: z.string().nullable().optional(),
+  /** V4-07: the Registrar's hair description, so the drawn student matches it. */
+  hair: z.string().optional(),
+  /** V4-04 */
+  interests: z.array(z.string()).optional(),
+  /** V4-03: where they are in their growth arc, and what moves them on. */
+  arc: z.object({ stage: z.number().int(), label: z.string(), trigger: z.string() }).optional(),
 });
 export type CadetView = z.infer<typeof CadetViewZ>;
 
@@ -66,6 +72,13 @@ export type XpStanding = z.infer<typeof XpStandingZ>;
 
 export const BudgetStateZ = z.enum(["ok", "warn", "degrade", "pause"]);
 export const PeriodKindZ = z.enum(["class", "micro"]);
+export const StickerViewZ = z.strictObject({
+  id: z.string(),
+  cadetId: z.string(),
+  kind: z.string(),
+  label: z.string(),
+});
+export type StickerView = z.infer<typeof StickerViewZ>;
 export const EnergyZ = z.enum(["low", "ok", "high"]);
 
 // --- Client → Server ----------------------------------------------------------------
@@ -147,6 +160,8 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
       lastTaughtDays: z.number().int().nullable().optional(),
       kind: PeriodKindZ.optional(),
       energy: EnergyZ.nullable().optional(),
+      /** V4-06: the corkboard, latest first. */
+      stickers: z.array(StickerViewZ).optional(),
     }),
   ),
   /** XP just earned (e.g. answering a cadet's question). */
@@ -348,6 +363,21 @@ export const ServerMessageZ = z.discriminatedUnion("type", [
     }),
   ),
   msg("cadet.interrupted", z.strictObject({ cadetId: z.string(), streamId: z.string() })),
+  /** V4-01: one student turns to another; their lines follow as cadet.stream/done. */
+  msg("peer.started", z.strictObject({ speakerId: z.string(), listenerId: z.string() })),
+  msg("peer.ended", z.strictObject({ speakerId: z.string(), listenerId: z.string() })),
+  /** V4-03: a student moved on in their growth arc. */
+  msg(
+    "cadet.arc",
+    z.strictObject({
+      cadetId: z.string(),
+      stage: z.number().int(),
+      label: z.string(),
+      moment: z.string(),
+    }),
+  ),
+  /** V4-06: a student gave me a sticker. */
+  msg("sticker", StickerViewZ),
   msg(
     "cadet.rewrite",
     z.strictObject({ messageId: z.string(), cadetId: z.string(), text: z.string() }),

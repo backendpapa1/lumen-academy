@@ -159,6 +159,10 @@ export const cadets = sqliteTable(
     notesMd: text("notes_md").notNull().default(""),
     /** V1-04: the Kokoro voice and pace, picked on first speech and kept. */
     voiceJson: text("voice_json"),
+    /** V4-04: one or two everyday interests (JSON array of strings). */
+    interestsJson: text("interests_json").notNull().default("[]"),
+    /** V4-03: growth arc state {stage, count}; null = the first stage. */
+    arcJson: text("arc_json"),
     status: text("status", { enum: ["enrolled", "transferred_in", "expelled", "alumni"] })
       .notNull()
       .default("enrolled"),
@@ -240,7 +244,7 @@ export const messages = sqliteTable(
       .references(() => periods.id),
     speaker: text("speaker").notNull(), // 'teacher' | cadet id | 'system'
     kind: text("kind", {
-      enum: ["lecture", "question", "answer", "objection", "claim", "board", "event"],
+      enum: ["lecture", "question", "answer", "objection", "claim", "board", "event", "peer"],
     }).notNull(),
     text: text("text").notNull(),
     conceptId: text("concept_id"),
@@ -509,4 +513,25 @@ export const parkingLot = sqliteTable(
     resolvedAt: text("resolved_at"),
   },
   (t) => [index("parking_school_status").on(t.schoolId, t.status)],
+);
+
+/** V4-06: stickers students hand out for great moments. */
+export const stickers = sqliteTable(
+  "stickers",
+  {
+    id: text("id").primaryKey(),
+    classroomId: text("classroom_id")
+      .notNull()
+      .references(() => classrooms.id),
+    periodId: text("period_id"),
+    /** Who gave it. */
+    cadetId: text("cadet_id")
+      .notNull()
+      .references(() => cadets.id),
+    kind: text("kind").notNull(),
+    /** What earned it: my words, trimmed. */
+    reason: text("reason").notNull().default(""),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("stickers_classroom").on(t.classroomId, t.createdAt)],
 );

@@ -728,3 +728,36 @@
     transform: rotate(2.5deg) translateY(-2%);
   }
 }
+/* Peer talk (V4-01): the listener leans toward the classmate who's talking. */
+.room .seat.listening .bust > svg {
+  animation: lean 0.6s var(--ease) both;
+}
+@keyframes lean {
+  to {
+    transform: translateX(calc(var(--lean, 1) * 3%)) translateY(-1.5%);
+  }
+}
+/* Stickers (V4-06) on the corkboard: round, glossy, slightly crooked. */
+.room .corkboard .sticker circle {
+  fill: var(--marigold);
+  stroke: var(--navy);
+  stroke-width: 2;
+}
+.room .corkboard .sticker.fixed_confusion circle {
+  fill: var(--leaf-wash);
+}
+.room .corkboard .sticker.brave_correction circle {
+  fill: var(--coral);
+}
+.room .corkboard .sticker.landed circle {
+  fill: var(--cobalt-wash);
+}
+.room .corkboard .sticker text {
+  font: 700 16px var(--font-ui);
+  fill: var(--navy);
+}
+.room .corkboard .sticker.fresh {
+  animation: pop 0.6s var(--ease) both;
+  transform-box: fill-box;
+  transform-origin: center;
+}

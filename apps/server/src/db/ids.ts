@@ -21,6 +21,7 @@ export const ID_PREFIXES = {
   teacherError: "ter",
   asset: "ast",
   parked: "prk",
+  sticker: "stk",
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIXES;

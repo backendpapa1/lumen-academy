@@ -22,6 +22,7 @@ const PREVIEW_MAX = 80;
 
 export type ReactorLine =
   | { kind: "reaction"; seat: number; state: ReactionState }
+  | { kind: "peer"; seat: number; to: number; preview: string }
   | { kind: "hand"; seat: number; intent: HandIntent; urgency: number; preview: string };
 
 /** Parses one output line; null for anything malformed (skipped, never re-asked). */
@@ -34,6 +35,19 @@ export function parseReactorLine(raw: string): ReactorLine | null {
       ? { kind: "reaction", seat: Number(reaction[1]), state: state as ReactionState }
       : null;
   }
+  const peer = /^P\s+(\d{1,2})\s+(\d{1,2})\s+(.+)$/i.exec(line);
+  if (peer)
+    return peer[1] === peer[2]
+      ? null
+      : {
+          kind: "peer",
+          seat: Number(peer[1]),
+          to: Number(peer[2]),
+          preview: peer[3]!
+            .trim()
+            .replace(/^["“]|["”]$/g, "")
+            .slice(0, PREVIEW_MAX),
+        };
   const hand = /^H\s+(\d{1,2})\s+([a-z_0-9]+)\s+([01](?:\.\d+)?)\s+(.+)$/i.exec(line);
   if (hand) {
     const intent = hand[2]!.toLowerCase();
@@ -62,6 +76,10 @@ export interface ReactorInput {
   hyperfocus?: boolean;
   /** R-6: gentle classes ask kindly, ruthless ones press hard. */
   difficulty?: "gentle" | "standard" | "ruthless";
+  /** V4-01: the server allows one peer exchange this turn. */
+  peerOk?: boolean;
+  /** V4-05: my related claims from earlier classes ("3 days ago: …"). */
+  pastClaims?: string[];
 }
 
 export interface ReactorEvents {
@@ -85,6 +103,8 @@ export function reactorMessages(input: ReactorInput): BaseMessage[] {
     hyperfocus: !!input.hyperfocus,
     gentle: input.difficulty === "gentle",
     ruthless: input.difficulty === "ruthless",
+    peerOk: !!input.peerOk,
+    pastClaims: input.pastClaims?.length ? input.pastClaims.map((c) => `- ${c}`).join("\n") : "",
     conceptTitle: input.conceptTitle,
     cadetTable: cadetTable(input.cards.map((c, i) => ({ ...c, id: String(i + 1) }))),
   });
@@ -110,6 +130,7 @@ export async function runCrowdReactor(
     let skippedLines = 0;
     const states = new Map<number, ReactionState>();
     const hands: CrowdReaction["handRaises"] = [];
+    let peerBeat: CrowdReaction["peerBeat"];
 
     const consume = (raw: string) => {
       if (!raw.trim()) return;
@@ -117,6 +138,12 @@ export async function runCrowdReactor(
       const card = parsed ? input.cards[parsed.seat - 1] : undefined;
       if (!parsed || !card) {
         skippedLines++;
+        return;
+      }
+      if (parsed.kind === "peer") {
+        const to = input.cards[parsed.to - 1];
+        if (input.peerOk && to && !peerBeat)
+          peerBeat = { speakerId: card.id, listenerId: to.id, preview: parsed.preview };
         return;
       }
       if (parsed.kind === "reaction") {
@@ -152,7 +179,12 @@ export async function runCrowdReactor(
       return { cadetId: card.id, state: state ?? card.lastState };
     });
     return {
-      reaction: CrowdReactionZ.parse({ reactions, handRaises: hands }),
+      reaction: CrowdReactionZ.parse({
+        reactions,
+        handRaises: hands,
+        // A student who raised a hand is waiting for me, not turning to a neighbour.
+        ...(peerBeat && !hands.some((h) => h.cadetId === peerBeat!.speakerId) ? { peerBeat } : {}),
+      }),
       firstReactionMs,
       totalMs: performance.now() - started,
       filled,

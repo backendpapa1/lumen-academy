@@ -63,6 +63,7 @@ agents:
   artDirector: { role: fast, maxOutputTokens: 120 } # emblem motifs (docs/07 §2.2)
   transcriptFixer: { role: fastest, maxOutputTokens: 200, temperature: 0 }
   knowledgeReporter: { role: fast, maxOutputTokens: 400 } # V2-07: a summary of the numbers only
+  peerGrader: { role: fastest, maxOutputTokens: 120, temperature: 0 }
 
 budget:
   monthlyUsdCap: 20

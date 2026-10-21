@@ -1,3 +1,4 @@
+import { defaultInterests } from "./interests.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ARCHETYPE_INFO, CadetFlavourZ, type CadetFlavour, type GameConfig } from "@lumen/shared";
 import { eq, sql } from "drizzle-orm";
@@ -148,6 +149,11 @@ export async function registerClassroom(deps: RegisterDeps, input: RegisterInput
             quirk: f.quirk,
             voiceNotes: f.voiceNotes,
             backstory: f.backstory || null,
+            interestsJson: JSON.stringify(
+              f.interests.length
+                ? f.interests.slice(0, 2).map((x) => x.toLowerCase())
+                : defaultInterests(cadet.id, game.interests),
+            ),
             enrolledAt: now(),
           })
           .run();

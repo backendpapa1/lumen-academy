@@ -487,7 +487,19 @@ export class ClassroomHud {
               "span",
               { class: "who" },
               h("b", {}, s.name),
-              h("small", {}, ARCHETYPE_INFO[s.archetype].label),
+              h(
+                "small",
+                {},
+                ARCHETYPE_INFO[s.archetype].label,
+                s.interests?.length ? ` · loves ${s.interests.join(", ")}` : "",
+              ),
+              // V4-03: where they are in their growth, and what moves them on.
+              s.arc &&
+                h(
+                  "small",
+                  { class: "arc", title: s.arc.trigger },
+                  `${"●".repeat(s.arc.stage + 1)} ${s.arc.label}`,
+                ),
             ),
             h("span", { class: "bar" }, h("i", { style: `width:${pct}%` })),
             h("span", { class: "pct mono" }, `${pct}%`),

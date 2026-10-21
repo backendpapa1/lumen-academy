@@ -5,6 +5,7 @@ import type {
   ReactionState,
   ServerMessage,
   ServerMessageOf,
+  StickerView,
   XpStanding,
 } from "@lumen/shared";
 
@@ -125,6 +126,10 @@ export interface ClassroomState {
   parking: { open: number; items: ParkedItem[] };
   /** V3-05: a Pomodoro break is running until this time (the period is paused). */
   breakUntil: number | null;
+  /** V4-01: two students talking to each other right now. */
+  peer: { speakerId: string; listenerId: string } | null;
+  /** V4-06: the corkboard, latest first. */
+  stickers: StickerView[];
   /** T-10: Hyperfocus mode for this period. */
   hyperfocus: boolean;
   /** The exit-ticket minigame at the bell (M4-05). */
@@ -153,6 +158,8 @@ export const initialClassroom = (): ClassroomState => ({
   energy: null,
   parking: { open: 0, items: [] },
   breakUntil: null,
+  peer: null,
+  stickers: [],
   hyperfocus: false,
 });
 
@@ -183,6 +190,7 @@ export function applyServerMessage(
         board: m.payload.board ?? "",
         lastTaughtDays: m.payload.lastTaughtDays ?? null,
         kind: m.payload.kind ?? "class",
+        stickers: m.payload.stickers ?? [],
         energy: m.payload.energy ?? null,
         transcript: m.payload.transcript.map((t) => ({
           speaker: t.cadetId ? "cadet" : "headmaster",
@@ -271,6 +279,18 @@ export function applyServerMessage(
         thinking: false,
         breakUntil: m.payload.paused ? s.breakUntil : null,
       };
+    case "cadet.arc": {
+      const c = s.cadets[m.payload.cadetId];
+      if (!c?.arc) return s;
+      const arc = { ...c.arc, stage: m.payload.stage, label: m.payload.label };
+      return { ...s, cadets: { ...s.cadets, [c.id]: { ...c, arc } } };
+    }
+    case "sticker":
+      return { ...s, stickers: [m.payload, ...s.stickers].slice(0, 12) };
+    case "peer.started":
+      return { ...s, peer: { ...m.payload } };
+    case "peer.ended":
+      return s.peer?.speakerId === m.payload.speakerId ? { ...s, peer: null } : s;
     case "period.recap":
       return m.payload.periodId === s.periodId ? { ...s, recap: m.payload.text } : s;
     case "turn.started":

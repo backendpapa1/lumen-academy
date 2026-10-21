@@ -205,6 +205,46 @@ ranks: # placeholder thresholds; tune after M5
   - { name: Principal, minXp: 15000 }
   - { name: Chancellor, minXp: 40000 }
 
+pastClaims: # V4-05: students remember what I said in earlier classes (my words, not the source)
+  enabled: true
+  minSimilarity: 0.5 # cosine, text-embedding-3-small
+  max: 2
+
+arcs: # V4-03 (VD10): growth arcs move only by these server rules
+  enabled: true
+  skepticReasons: 2 # reasoned turns in a row ("because…", "which means…")
+  quietCalls: 3 # times called on
+  lostFixes: 1 # misconceptions cleared
+  saboteurKind: 1 # kind corrections ("I see why you'd think that, but…")
+
+# V4-04: everyday interests (new students get theirs from the Registrar; older ones from here)
+interests:
+  [
+    football,
+    cooking,
+    music,
+    gaming,
+    basketball,
+    drawing,
+    films,
+    running,
+    gardening,
+    fashion,
+    cycling,
+    baking,
+  ]
+
+stickers: # V4-06: students hand them out for great moments
+  enabled: true
+  maxPerPeriod: 3
+
+peerTalk: # V4-01/02 (VD9): students talk to each other, only from what they've been taught
+  enabled: true
+  maxPerPeriod: 2
+  fromTurn: 3 # teaching turns before the first exchange
+  minTurnsBetween: 4
+  correctGain: 0.05 # a correct peer explanation nudges the listener (a teacher's turn moves more)
+
 events:
   enabled: true
   maxPerPeriod: 1

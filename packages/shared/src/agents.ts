@@ -65,6 +65,10 @@ export interface CadetCard {
   comprehension: number;
   /** Misconceptions on the current concept, max 2. */
   misconceptions: string[];
+  /** V4-04: everyday interests, for examples that land. */
+  interests?: string[];
+  /** V4-03: where they are in their growth arc, as a prompt line. */
+  arc?: string;
   lastState: ReactionState;
   /** Fairness: the reactor prefers cadets who haven't spoken lately. */
   spokeTurnsAgo: number | null;
@@ -85,8 +89,28 @@ export const CrowdReactionZ = z.object({
       }),
     )
     .max(3),
+  /** V4-01: optional, and only when the server offered one this turn. */
+  peerBeat: z
+    .object({ speakerId: z.string(), listenerId: z.string(), preview: z.string().max(80) })
+    .optional(),
 });
 export type CrowdReaction = z.infer<typeof CrowdReactionZ>;
+
+/** V4-01: the reactor may suggest one student turning to another (the server decides). */
+export const PeerBeatZ = z.object({
+  speakerId: z.string(),
+  listenerId: z.string(),
+  preview: z.string().max(80),
+});
+export type PeerBeat = z.infer<typeof PeerBeatZ>;
+
+/** V4-02: was a classmate's explanation right, by the key facts? */
+export const PeerVerdictZ = z.object({
+  verdict: z.enum(["correct", "wrong", "neither"]),
+  /** For "wrong": the mistaken idea the listener might now hold, in plain words. */
+  misconception: z.string().max(160).optional(),
+});
+export type PeerVerdict = z.infer<typeof PeerVerdictZ>;
 
 /**
  * Slow path: how well I taught, and how each cadet's understanding moves (role `standard`).
@@ -254,6 +278,8 @@ export const CadetFlavourZ = z.object({
       backstory: z.string().default(""),
       visualQuirk: z.string().default(""),
       hair: z.string().default(""),
+      /** V4-04: one or two everyday interests. */
+      interests: z.array(z.string().max(30)).max(3).default([]),
     }),
   ),
 });

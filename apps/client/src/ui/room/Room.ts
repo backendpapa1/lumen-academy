@@ -67,6 +67,14 @@ function rng(seed: string) {
   };
 }
 
+/** V4-06: what each sticker looks like on the corkboard. */
+const STICKER_GLYPH: Record<string, string> = {
+  best_analogy: "💡",
+  fixed_confusion: "✓",
+  brave_correction: "★",
+  landed: "🎯",
+};
+
 // --- the room itself ----------------------------------------------------------
 
 const SKIES = {
@@ -172,6 +180,7 @@ function roomMarkup(): string {
         <rect class="note n3" x="18" y="70" width="86" height="30" transform="rotate(1 60 85)"/>
         <rect class="note n4" x="40" y="108" width="50" height="32" transform="rotate(-3 65 124)"/>
         <g class="pins"><circle cx="34" cy="18" r="3"/><circle cx="86" cy="24" r="3"/><circle cx="60" cy="73" r="3"/><circle cx="65" cy="112" r="3"/></g>
+        <g class="stickers"></g>
       </g>
       <g class="door" transform="translate(1388 134)">
         <rect class="door-shadow" x="8" y="8" width="168" height="366"/>
@@ -353,8 +362,21 @@ export class Room {
       this.setEmote(seat, speaking === st.id ? "" : REACTION_GLYPHS[st.state], st.state);
       this.setBadge(seat, pos >= 0 && speaking !== st.id ? pos + 1 : 0);
       seat.g.classList.toggle("speaking", speaking === st.id);
+      // V4-01: in a peer exchange, whoever isn't talking leans toward the one who is.
+      const peer = c.peer;
+      const other =
+        peer?.speakerId === st.id
+          ? peer.listenerId
+          : peer?.listenerId === st.id
+            ? peer.speakerId
+            : null;
+      const otherSeat = other ? this.seats.get(other) : undefined;
+      seat.g.classList.toggle("listening", !!otherSeat && speaking !== st.id);
+      if (otherSeat)
+        seat.g.style.setProperty("--lean", otherSeat.desk.x > seat.desk.x ? "1" : "-1");
     }
     this.board(c);
+    this.corkboard(c);
     this.el.classList.toggle("focus", c.hyperfocus);
     this.el.classList.toggle("micro", micro);
     if (c.event && c.event.id !== this.lastEventId) {
@@ -500,6 +522,36 @@ export class Room {
           : `<div class="b-meter"><span>Class understanding</span><i><b style="width:${Math.round(avg * 100)}%"></b></i><em>${Math.round(avg * 100)}%</em></div>`
       }
       ${parked ? `<div class="b-sticky" title="Parked thoughts: they wait for you at the bell"><b>${parked}</b>parked</div>` : ""}`;
+  }
+
+  /** V4-06: the class's stickers, pinned over the corkboard notes (latest on top). */
+  private corkboard(c: ClassroomState) {
+    const g = this.root.querySelector<SVGGElement>(".corkboard .stickers");
+    if (!g) return;
+    const key = c.stickers.map((s) => s.id).join(",");
+    if (g.dataset.key === key) return;
+    const fresh = g.dataset.key !== undefined && c.stickers[0]?.id !== g.dataset.key.split(",")[0];
+    g.dataset.key = key;
+    const spots = [
+      [28, 30],
+      [84, 40],
+      [36, 88],
+      [88, 96],
+      [30, 136],
+      [86, 138],
+    ];
+    g.innerHTML = c.stickers
+      .slice(0, spots.length)
+      .reverse()
+      .map((s, i, all) => {
+        const [x, y] = spots[all.length - 1 - i]!;
+        const glyph = STICKER_GLYPH[s.kind] ?? "★";
+        const who = c.cadets[s.cadetId]?.name.split(" ")[0] ?? "";
+        const pop = fresh && i === all.length - 1 ? " fresh" : "";
+        // The pop animates the inner group, so it never overrides the position.
+        return `<g transform="translate(${x} ${y}) rotate(${((i * 37) % 24) - 12})"><g class="sticker ${escapeXml(s.kind)}${pop}"><title>${escapeXml(`${s.label} (from ${who})`)}</title><circle r="17"/><text y="6" text-anchor="middle">${glyph}</text></g></g>`;
+      })
+      .join("");
   }
 
   private highlight(hovered: string | null, selected: string | null) {

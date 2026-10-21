@@ -3,7 +3,7 @@
 // only difference between the two classrooms is the quality of the teaching.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { activeProfile, type Archetype } from "@lumen/shared";
+import { activeProfile, type Archetype, type PeerBeat } from "@lumen/shared";
 import { answerQuestion, gradeAnswer } from "../src/agents/assessment.js";
 import { guardUtterance } from "../src/agents/realtime/leakGuard.js";
 import { findConfigDir, loadConfig } from "../src/config/load.js";
@@ -33,6 +33,8 @@ const LEAK_TARGET = 0.03;
 // the exam, so the mirror check reports as not run.
 const MAX_TURNS = Number(process.env.EVAL_TURNS ?? Number.POSITIVE_INFINITY);
 const NO_EXAM = process.env.EVAL_NO_EXAM === "1";
+// V4-08: peer talk is on (as in the game) unless EVAL_PEER=0; its lines count in the leak rate.
+cfg.game.peerTalk = { ...cfg.game.peerTalk, enabled: process.env.EVAL_PEER !== "0" };
 const started = new Date();
 const stamp = started.toISOString().replace(/[:.]/g, "-").slice(0, 19);
 
@@ -153,7 +155,10 @@ interface LessonRun {
     action: string;
     leaked: string[];
     deliveredLeak: boolean;
+    /** V4-08: said to a classmate in a peer exchange. */
+    peer?: boolean;
   }>;
+  peerBeats: number;
   turns: number;
   lowConfidence: number;
   plantedCaught: number;
@@ -176,11 +181,50 @@ for (const lessonId of ["correct", "wrong"] as const) {
     lowConfidence: 0,
     plantedCaught: 0,
     planted: 0,
+    peerBeats: 0,
   };
+  const beats: PeerBeat[] = [];
   const session = ClassSession.open(
     { handle, factory, game: cfg.game, embedder },
     { classroomId, conceptId: conceptByTitle.get(lesson.messages[0]!.concept)!.id },
+    { onPeerBeat: (b) => beats.push(b) },
   );
+  /** Guards what was said, re-checks a rewrite independently, and records it. */
+  const record = async (
+    spoken: NonNullable<Awaited<ReturnType<typeof session.speak>>>,
+    cadetId: string,
+    i: number,
+    peer = false,
+  ) => {
+    const outcome = await spoken.guard;
+    if (spoken.firstTokenMs != null) run.cadetFirstToken.push(spoken.firstTokenMs);
+    const name = session.roster.find((c) => c.id === cadetId)?.name ?? "?";
+    // Delivered leak: a failed rewrite, or a rewrite that an independent re-check still flags.
+    let deliveredLeak = outcome.action === "rewrite_failed";
+    if (outcome.action === "rewrite") {
+      const taughtSoFar = lesson.messages.slice(0, i + 1).map((x) => x.text);
+      const recheck = await guardUtterance(factory, {
+        utteranceId: `${spoken.messageId}:recheck`,
+        utterance: outcome.text,
+        taughtLines: taughtSoFar,
+        flaggedTerms: [],
+        forced: true,
+        sampleRate: 1,
+        persona: { name, voiceNotes: "Plain." },
+      });
+      deliveredLeak = recheck.action !== "pass";
+    }
+    run.utterances.push({
+      name,
+      text: spoken.utterance.text,
+      delivered: outcome.text,
+      action: outcome.action,
+      leaked: outcome.leakedTerms,
+      deliveredLeak,
+      ...(peer ? { peer: true } : {}),
+    });
+    return outcome.text;
+  };
   for (const [i, m] of lesson.messages.slice(0, MAX_TURNS).entries()) {
     const t0 = performance.now();
     const turn = session.teach(m.text, { conceptId: conceptByTitle.get(m.concept)!.id });
@@ -193,43 +237,32 @@ for (const lessonId of ["correct", "wrong"] as const) {
       run.planted++;
       if (committed.analysis.teaching.errors.length) run.plantedCaught++;
     }
+    // V4-01: a peer exchange runs as in the game (explain, the listener replies, graded).
+    const beat = beats.shift();
+    if (beat) {
+      run.peerBeats++;
+      const a = await session.speak(beat.speakerId, {
+        peer: { role: "explain", toId: beat.listenerId, preview: beat.preview },
+      });
+      if (a) {
+        const said = await record(a, beat.speakerId, i, true);
+        await session.gradePeer(beat.listenerId, said);
+        const b = await session.speak(beat.listenerId, {
+          peer: { role: "reply", toId: beat.speakerId, said },
+        });
+        if (b) await record(b, beat.listenerId, i, true);
+      }
+    }
     if ((i + 1) % SPEAK_EVERY === 0 && session.handQueue.length) {
       const hand = session.handQueue[0]!;
       const spoken = await session.speak(hand.cadetId);
-      if (spoken) {
-        const outcome = await spoken.guard;
-        if (spoken.firstTokenMs != null) run.cadetFirstToken.push(spoken.firstTokenMs);
-        const name = session.roster.find((c) => c.id === hand.cadetId)?.name ?? "?";
-        // Delivered leak: a failed rewrite, or a rewrite that an independent re-check still flags.
-        let deliveredLeak = outcome.action === "rewrite_failed";
-        if (outcome.action === "rewrite") {
-          const taughtSoFar = lesson.messages.slice(0, i + 1).map((x) => x.text);
-          const recheck = await guardUtterance(factory, {
-            utteranceId: `${spoken.messageId}:recheck`,
-            utterance: outcome.text,
-            taughtLines: taughtSoFar,
-            flaggedTerms: [],
-            forced: true,
-            sampleRate: 1,
-            persona: { name, voiceNotes: "Plain." },
-          });
-          deliveredLeak = recheck.action !== "pass";
-        }
-        run.utterances.push({
-          name,
-          text: spoken.utterance.text,
-          delivered: outcome.text,
-          action: outcome.action,
-          leaked: outcome.leakedTerms,
-          deliveredLeak,
-        });
-      }
+      if (spoken) await record(spoken, hand.cadetId, i);
     }
   }
   await session.close();
   runs.push(run);
   log(
-    `taught "${lessonId}": ${run.turns} turns, ${run.utterances.length} cadet utterances, planted errors caught ${run.plantedCaught}/${run.planted}`,
+    `taught "${lessonId}": ${run.turns} turns, ${run.utterances.length} cadet utterances (${run.peerBeats} peer exchanges), planted errors caught ${run.plantedCaught}/${run.planted}`,
   );
 }
 
@@ -343,6 +376,9 @@ const conceptWins = evalConcepts.filter(
 ).length;
 const mirrorPass = gap >= MIRROR_MARGIN && conceptWins >= Math.ceil((evalConcepts.length * 2) / 3);
 const leakPass = leakRate < LEAK_TARGET;
+const peerLines = utterances.filter((u) => u.peer);
+const peerDelivered = peerLines.filter((u) => u.deliveredLeak);
+const peerBeats = runs.reduce((a, r) => a + r.peerBeats, 0);
 
 const usage = handle.sqlite
   .prepare(
@@ -375,6 +411,9 @@ out(
 );
 out(
   `| Leak rate, raw (before Leak Guard; info) | < ${LEAK_TARGET * 100}% | ${(rawLeakRate * 100).toFixed(1)}% (${leaks.length}/${utterances.length}) | ${rawLeakRate < LEAK_TARGET ? "✅" : "⚠"} |`,
+);
+out(
+  `| Peer talk (V4-08): exchanges, delivered leaks in peer lines | ${cfg.game.peerTalk.enabled ? "on" : "off"} | ${peerBeats} exchanges, ${peerDelivered.length}/${peerLines.length} lines leaked | ${peerDelivered.length / Math.max(1, peerLines.length) < LEAK_TARGET ? "✅" : "❌"} |`,
 );
 out(
   `| Mirror check | correct − wrong ≥ ${MIRROR_MARGIN} and ≥ ${Math.ceil((evalConcepts.length * 2) / 3)}/${evalConcepts.length} concepts | ${gap.toFixed(2)} (${examMean("correct").toFixed(2)} vs ${examMean("wrong").toFixed(2)}), ${conceptWins}/${evalConcepts.length} concepts | ${mirrorPass ? "✅" : "❌"} |`,

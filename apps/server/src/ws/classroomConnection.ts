@@ -1,8 +1,28 @@
+import { ARCS, type Archetype, type ArcState } from "@lumen/shared";
+import { interestsOf } from "../game/interests.js";
+import { awardStickers, recentStickers } from "../game/stickers.js";
+
+/** V4-03: the roster's arc line ({} for archetypes without one). */
+function arcView(archetype: Archetype, state?: ArcState) {
+  const arc = ARCS[archetype];
+  if (!arc) return {};
+  const stage = state?.stage ?? 0;
+  return { arc: { stage, label: arc.stages[stage]?.label ?? "", trigger: arc.trigger } };
+}
+function arcLabel(
+  students: ReadonlyArray<{ id: string; archetype: string; arc: ArcState }>,
+  id: string,
+) {
+  const s = students.find((x) => x.id === id);
+  return s ? (ARCS[s.archetype as Archetype]?.stages[s.arc.stage]?.label ?? "") : "";
+}
+import { hairOf } from "../game/looks.js";
 import {
   ServerMessageZ,
   type CadetView,
   type ClientMessage,
   type GameConfig,
+  type PeerBeat,
   type ReactionState,
   type ServerMessage,
 } from "@lumen/shared";
@@ -253,6 +273,12 @@ export class ClassroomConnection {
           this.send({ type: "concept.changed", payload: { id, title } }),
         onRewrite: (messageId, cadetId, text) =>
           this.send({ type: "cadet.rewrite", payload: { messageId, cadetId, text } }),
+        onPeerBeat: (beat) => void this.runPeer(beat).catch(() => undefined),
+        onArc: (cadetId, stage, moment) =>
+          this.send({
+            type: "cadet.arc",
+            payload: { cadetId, stage, label: arcLabel(session.flavour, cadetId), moment },
+          }),
         onError: (stage) =>
           this.send({
             type: "toast",
@@ -287,6 +313,7 @@ export class ClassroomConnection {
         lastTaughtDays: this.lastTaughtDays(room.id, session.currentConcept.id),
         kind: session.kind,
         energy: session.energy,
+        stickers: recentStickers(handle, room.id),
       },
     });
     this.sendCost();
@@ -355,6 +382,17 @@ export class ClassroomConnection {
       payload: { turnId: turn.turnId, firstReactionMs: reaction?.firstReactionMs ?? null },
     });
     const done = await turn.committed;
+    // V4-06: stickers for great moments, by server rules on the Director's report.
+    if (this.scope)
+      for (const s of awardStickers(this.rt.handle, this.rt.game, {
+        periodId: session.periodId,
+        classroomId: session.classroomId,
+        text,
+        analysis: done.analysis,
+        changes: done.changes,
+        students: [...session.flavour],
+      }))
+        this.send({ type: "sticker", payload: s });
     const conceptId = done.analysis.conceptIds[0] ?? session.currentConcept.id;
     const forConcept = done.changes.filter((c) => c.conceptId === conceptId);
     if (forConcept.length) {
@@ -480,6 +518,61 @@ export class ClassroomConnection {
       },
     });
     void spoken.guard.then(() => this.sendCost());
+  }
+
+  /**
+   * V4-01 (VD9): a short exchange between two students. Each line is written
+   * with that student's own knowledge and passes the Leak Guard before the
+   * other hears it. Anything I say cuts it off (teach() interrupts).
+   */
+  private async runPeer(beat: PeerBeat) {
+    const session = this.session;
+    if (!session) return;
+    const { speakerId, listenerId } = beat;
+    const line = async (
+      cadetId: string,
+      peer: { role: "explain" | "reply"; toId: string; preview?: string; said?: string },
+    ) => {
+      const streamId = `str_${++this.streamSeq}`;
+      const spoken = await session.speak(cadetId, {
+        peer,
+        onDelta: (delta) =>
+          this.send({ type: "cadet.stream", payload: { cadetId, streamId, delta } }),
+      });
+      if (!spoken) {
+        this.send({ type: "cadet.interrupted", payload: { cadetId, streamId } });
+        return null;
+      }
+      this.send({
+        type: "cadet.done",
+        payload: {
+          cadetId,
+          streamId,
+          messageId: spoken.messageId,
+          text: spoken.utterance.text,
+          kind: spoken.utterance.kind,
+          mood: spoken.utterance.mood,
+        },
+      });
+      // The other student hears what survives the Leak Guard, never a leak.
+      return (await spoken.guard).text;
+    };
+    this.send({ type: "peer.started", payload: { speakerId, listenerId } });
+    try {
+      const said = await line(speakerId, {
+        role: "explain",
+        toId: listenerId,
+        preview: beat.preview,
+      });
+      if (said && this.session === session) {
+        void session.gradePeer(listenerId, said);
+        await line(listenerId, { role: "reply", toId: speakerId, said });
+      }
+    } finally {
+      if (this.session === session)
+        this.send({ type: "peer.ended", payload: { speakerId, listenerId } });
+      this.sendCost();
+    }
   }
 
   private async end() {
@@ -626,6 +719,9 @@ export class ClassroomConnection {
         homeworld: row.homeworld,
         quirk: row.quirk,
         portraitUrl: this.portraitUrl(row.portraitAssetId),
+        hair: hairOf(row.traitsJson),
+        interests: interestsOf(row.interestsJson),
+        ...arcView(row.archetype as Archetype, session.flavour.find((f) => f.id === r.id)?.arc),
         // What they recall today (V2 forgetting), not the old peak.
         comprehension: ledger
           ? recall(ledger.c, ledger.at, ledger.s, new Date(), this.rt.game.memory)

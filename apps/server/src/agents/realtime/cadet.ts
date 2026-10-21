@@ -35,6 +35,10 @@ export interface CadetPersona {
   quirk: string;
   voiceNotes: string;
   notesMd: string;
+  /** V4-04: everyday interests ("football, baking"). */
+  interests?: string[];
+  /** V4-03: where they are in their growth arc. */
+  arcLine?: string;
 }
 
 export interface CadetTurnInput {
@@ -52,6 +56,10 @@ export interface CadetTurnInput {
   preview: string;
   canPeek: boolean;
   maxWords: number;
+  /** V4-05: my related claims from earlier classes (my words, so gating holds). */
+  pastClaims?: string[];
+  /** V4-01: talking to a classmate instead of the teacher (never with peek_ahead). */
+  peer?: { role: "explain" | "reply"; name: string; said?: string };
 }
 
 export interface CadetTurnDeps {
@@ -187,7 +195,11 @@ export async function runCadetTurn(
   const p = input.persona;
   const info = ARCHETYPE_INFO[p.archetype];
   const state = { peeked: !!opts.peekedAlready };
-  const tools = cadetTools(deps, { ...input, canPeek: input.canPeek && !state.peeked }, state);
+  const tools = cadetTools(
+    deps,
+    { ...input, canPeek: input.canPeek && !state.peeked && !input.peer },
+    state,
+  );
   const system = loadPrompt("cadet", {
     name: p.name,
     homeworld: p.homeworld,
@@ -195,6 +207,8 @@ export async function runCadetTurn(
     archetypeBrief: info.brief,
     quirk: p.quirk,
     voiceNotes: p.voiceNotes,
+    interests: p.interests?.join(", ") ?? "",
+    arcLine: p.arcLine ?? "",
     conceptTitle: input.concept.title,
     intent: input.intent,
     preview: input.preview,
@@ -207,14 +221,23 @@ export async function runCadetTurn(
       ? input.misconceptions.join("; ")
       : "nothing in particular",
     notes: p.notesMd.trim() || "(no notes yet)",
-    canPeek: input.canPeek && !state.peeked,
+    canPeek: input.canPeek && !state.peeked && !input.peer,
     maxWords: input.maxWords,
+    pastClaims: input.pastClaims?.length ? input.pastClaims.map((c) => `  - ${c}`).join("\n") : "",
+    peerExplain: input.peer?.role === "explain",
+    peerReply: input.peer?.role === "reply",
+    peerName: input.peer?.name.split(" ")[0] ?? "",
+    peerSaid: input.peer?.said ?? "",
   });
+  const first = p.name.split(" ")[0];
+  const cue = !input.peer
+    ? `Teacher: Yes, ${first}?`
+    : input.peer.role === "explain"
+      ? `(${first} turns to ${input.peer.name.split(" ")[0]}.)`
+      : `${input.peer.name.split(" ")[0]} (to you): "${input.peer.said ?? ""}"`;
   const messages: BaseMessage[] = [
     new SystemMessage(system),
-    new HumanMessage(
-      `Class so far:\n${recentTranscript(input.transcript, 8)}\n\nHeadmaster: Yes, ${p.name.split(" ")[0]}?`,
-    ),
+    new HumanMessage(`Class so far:\n${recentTranscript(input.transcript, 8)}\n\n${cue}`),
   ];
 
   return deps.factory.run("cadetTalk", async ({ model }) => {

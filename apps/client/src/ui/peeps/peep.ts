@@ -96,7 +96,14 @@ function rng(seed: string) {
   };
 }
 
-export function lookFor(id: string, hair = ""): Look {
+// V4-07: the Registrar's hair description per student, so every screen draws
+// the same person. Filled from /api/looks at start and from each CadetView.
+const HAIR = new Map<string, string>();
+export function rememberHair(entries: Iterable<[string, string | undefined]>): void {
+  for (const [id, hair] of entries) if (hair) HAIR.set(id, hair);
+}
+
+export function lookFor(id: string, hair = HAIR.get(id) ?? ""): Look {
   const r = rng(id);
   const pick = <T>(xs: readonly T[]) => xs[Math.floor(r() * xs.length)]!;
   const matched = HAIR_WORDS.find(([re]) => re.test(hair))?.[1];

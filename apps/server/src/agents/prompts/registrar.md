@@ -10,6 +10,7 @@ For each student below write:
 - backstory: at most 2 sentences tying them to their hometown and everyday life (a job, a hobby, a family detail).
 - visualQuirk: one distinctive everyday visual detail (glasses, a hoodie, a pencil behind the ear).
 - hair: a short hair description.
+- interests: one or two everyday interests, as short lowercase words (e.g. "football", "baking"). Ordinary life, nothing to do with "{{schoolName}}". Vary them across the class.
 
 Keep it warm and non-mocking: students are likeable even when difficult. Never give them knowledge of "{{schoolName}}"; they're here to learn it.
 
@@ -21,4 +22,4 @@ Quirks classmates already have (make each new quirk clearly different, even for 
 Students:
 {{cadetList}}
 
-Return JSON: {"students": [{"index", "name", "quirk", "voiceNotes", "backstory", "visualQuirk", "hair"}]} with one entry per student index above.
+Return JSON: {"students": [{"index", "name", "quirk", "voiceNotes", "backstory", "visualQuirk", "hair", "interests"}]} with one entry per student index above.

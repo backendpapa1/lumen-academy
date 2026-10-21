@@ -1,3 +1,6 @@
+import { ARCHETYPE_INFO, ARCS, type Archetype } from "@lumen/shared";
+import { parseArc } from "../game/arcs.js";
+import { STICKER_KINDS, type StickerKind } from "../game/stickers.js";
 import type { GameConfig, TeachingAnalysis } from "@lumen/shared";
 import type { DbHandle } from "../db/client.js";
 import { schoolConceptStatuses } from "../game/schoolStatus.js";
@@ -130,6 +133,43 @@ export function yearbookMarkdown(handle: DbHandle, game: GameConfig, schoolId: s
         out.push("");
       }
     }
+  }
+  // V4-03/06: the students, how they've grown, and the stickers they gave me.
+  const students = sqlite
+    .prepare(
+      `SELECT d.id, d.name, d.archetype, d.arc_json AS arc, c.name AS room FROM cadets d
+       JOIN classrooms c ON c.id = d.classroom_id WHERE c.school_id = ? AND d.status != 'expelled'
+       ORDER BY c.created_at, d.seat`,
+    )
+    .all(schoolId) as Array<{
+    id: string;
+    name: string;
+    archetype: Archetype;
+    arc: string | null;
+    room: string;
+  }>;
+  const given = sqlite
+    .prepare(
+      `SELECT s.cadet_id AS cadetId, s.kind, s.reason FROM stickers s JOIN classrooms c ON c.id = s.classroom_id
+       WHERE c.school_id = ? ORDER BY s.created_at`,
+    )
+    .all(schoolId) as Array<{ cadetId: string; kind: StickerKind; reason: string }>;
+  if (students.length) {
+    out.push("## Your students", "");
+    if (given.length) out.push(`${given.length} stickers on the corkboard.`, "");
+    for (const st of students) {
+      const arc = ARCS[st.archetype];
+      const stage = parseArc(st.arc).stage;
+      const grown = arc && stage > 0 ? ` · grew to "${arc.stages[stage]!.label}"` : "";
+      out.push(
+        `- **${st.name}** (${st.room}, ${ARCHETYPE_INFO[st.archetype]?.label ?? st.archetype})${grown}`,
+      );
+      for (const g of given.filter((x) => x.cadetId === st.id))
+        out.push(
+          `  - Sticker: ${STICKER_KINDS[g.kind] ?? g.kind}, for "${g.reason.replace(/\n/g, " ")}"`,
+        );
+    }
+    out.push("");
   }
   return out.join("\n").replace(/\n{3,}/g, "\n\n") + "\n";
 }

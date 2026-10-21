@@ -10,7 +10,7 @@ import { yearbookMarkdown } from "./yearbook.js";
 // zip, so it moves to another machine (or back) with no API calls.
 
 // 2 (V2/V3): learned mishearings, self-ratings, memory half-lives, journal
-// fields, period kind and energy, and the parking lot.
+// fields, period kind and energy, the parking lot, interests, arcs and stickers.
 // Version 1 exports still import: the new columns have defaults.
 const VERSION = 2;
 const READS = [1, 2];
@@ -67,6 +67,7 @@ const TABLES: Array<[table: string, where: string]> = [
   ["xp_events", "school_id = :school"],
   ["speech_corrections", "school_id = :school"], // my mishearings travel with the School
   ["parking_lot", "school_id = :school"],
+  ["stickers", "classroom_id IN (SELECT id FROM classrooms WHERE school_id = :school)"],
   [
     "self_ratings",
     "concept_id IN (SELECT c.id FROM concepts c JOIN modules m ON m.id = c.module_id WHERE m.school_id = :school)",

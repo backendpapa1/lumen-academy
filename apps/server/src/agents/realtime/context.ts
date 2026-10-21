@@ -13,7 +13,14 @@ export function cadetTable(cards: CadetCard[], opts: { withSpoke?: boolean } = {
         c.learningStyle,
         c.comprehension.toFixed(2),
         c.misconceptions.length ? c.misconceptions.join("; ") : "-",
-        ...(opts.withSpoke === false ? [] : [c.lastState, c.spokeTurnsAgo ?? "never"]),
+        ...(opts.withSpoke === false
+          ? []
+          : [
+              c.lastState,
+              c.spokeTurnsAgo ?? "never",
+              c.interests?.length ? c.interests.join(", ") : "-",
+              c.arc || "-",
+            ]),
       ].join(" | "),
     )
     .join("\n");

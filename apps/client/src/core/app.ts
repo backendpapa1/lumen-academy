@@ -11,6 +11,7 @@ import { serverEvents } from "./bus";
 import { applySetupMessage } from "./setup";
 import { Net } from "./net";
 import { rhythm } from "./rhythm";
+import { rememberHair } from "../ui/peeps/peep";
 import { store } from "./store";
 
 // The one place that talks to the server: actions in, server messages applied
@@ -59,6 +60,17 @@ function loadBreak(): { periodId: string; until: number } | null {
 }
 
 function receive(m: ServerMessage) {
+  // V4-07: learn each student's hair before anything draws them.
+  if (m.type === "period.started") rememberHair(m.payload.cadets.map((c) => [c.id, c.hair]));
+  if (m.type === "registration.arrival") rememberHair([[m.payload.cadet.id, m.payload.cadet.hair]]);
+  // V4-03/06: growth moments and stickers get their own little cheer.
+  if (m.type === "cadet.arc" && m.payload.moment)
+    queueMicrotask(() => app.notify(m.payload.moment));
+  if (m.type === "sticker") {
+    const who =
+      store.getState().classroom.cadets[m.payload.cadetId]?.name.split(" ")[0] ?? "A student";
+    queueMicrotask(() => app.notify(`${who} gave you a sticker: ${m.payload.label}`));
+  }
   const wasStarting = store.getState().classroom.status === "starting";
   store.setState((s) => ({
     classroom: applyServerMessage(s.classroom, m),
@@ -120,6 +132,10 @@ export const app = {
     ensureNet();
   },
   async loadSchools() {
+    void api
+      .get<Record<string, string>>("/api/looks")
+      .then((looks) => rememberHair(Object.entries(looks)))
+      .catch(() => undefined);
     const [schools, campus, archived] = await Promise.all([
       api.get<SchoolSummary[]>("/api/schools"),
       api.get<CampusView>("/api/campus"),

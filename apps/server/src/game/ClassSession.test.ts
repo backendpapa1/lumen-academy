@@ -4,6 +4,7 @@ import { loadConfig } from "../config/load.js";
 import type { DbHandle } from "../db/client.js";
 import { concepts, ledgerEntries, messages, periods, teacherErrors, turns } from "../db/schema.js";
 import { agentOf, fakeDeepSeekFactory, type FakeRequest } from "../test-fixtures/fakeDeepSeek.js";
+import { BowEmbedder } from "../test-fixtures/bowEmbedder.js";
 import { smallWorld } from "../test-fixtures/world.js";
 import { ClassSession } from "./ClassSession.js";
 
@@ -313,6 +314,159 @@ describe("ClassSession: micro-lessons and energy (V3-01/02)", () => {
     expect(s.roster).toHaveLength(3);
     const row = w.handle.db.select().from(periods).all()[0]!;
     expect(row).toMatchObject({ kind: "class", energy: "low" });
+    await s.close();
+  });
+});
+
+describe("ClassSession: peer talk (V4-01/02, VD9)", () => {
+  async function peerSetup(verdict: object) {
+    const w = await smallWorld([
+      { attention: 0.8, skepticism: 0.5 },
+      { attention: 0.5, skepticism: 0.1 },
+      { attention: 0.6, skepticism: 0.9 },
+    ]);
+    h = w.handle;
+    const seen: Record<string, FakeRequest[]> = {};
+    const { factory } = fakeDeepSeekFactory(cfg.models, (body) => {
+      const who = agentOf(body);
+      (seen[who] ??= []).push(body);
+      if (who === "crowdReactor")
+        return "1 attentive\n2 confused\n3 notetaking\nP 1 2 I think the root sits in the header\n";
+      if (who === "cadetPeer")
+        return "Sora, the teacher said the root sits in the header.\n###\nkind: claim\nmood: proud\nconfidence: 0.7";
+      if (who === "cadetPeerReply")
+        return "Oh, so not in every transaction?\n###\nkind: question\nmood: curious\nconfidence: 0.4";
+      if (who === "peerGrader") return JSON.stringify(verdict);
+      if (who === "classDirector") return directorJson(w.conceptIds[0]!);
+      return JSON.stringify({ verdict: "pass", leakedTerms: [], reason: "" });
+    });
+    return { w, factory, seen };
+  }
+
+  it("the server allows a beat from turn 3, then spaces them out", async () => {
+    const { w, factory } = await peerSetup({ verdict: "neither" });
+    const beats: string[] = [];
+    const s = ClassSession.open(
+      { handle: w.handle, factory, game: cfg.game },
+      { classroomId: w.classroomId },
+      { onPeerBeat: (b) => beats.push(`${b.speakerId}>${b.listenerId}`) },
+    );
+    for (let i = 0; i < 4; i++) {
+      const t = s.teach(`The Merkle root goes in the block header, point ${i}.`);
+      await t.reaction;
+      await t.committed;
+    }
+    // fromTurn 3, then minTurnsBetween 4: exactly one beat in four turns.
+    expect(beats).toEqual([`${w.cadets[0]!.id}>${w.cadets[1]!.id}`]);
+    await s.close();
+  });
+
+  it("each line is the student's own, recorded as peer talk; a correct one nudges the listener", async () => {
+    const { w, factory, seen } = await peerSetup({ verdict: "correct" });
+    const s = ClassSession.open(
+      { handle: w.handle, factory, game: cfg.game },
+      { classroomId: w.classroomId },
+    );
+    const t = s.teach("The Merkle root goes in the block header.");
+    await t.committed;
+    const [a, b] = [w.cadets[0]!.id, w.cadets[1]!.id];
+    const said = await s.speak(a, {
+      peer: { role: "explain", toId: b, preview: "root in header" },
+    });
+    expect(said?.utterance.text).toContain("header");
+    // The speaker's prompt is their own pack: no source chunks, no peek tool.
+    const sys = seen.cadetPeer![0]!.messages[0]!.content;
+    expect(sys).toContain("You lean over to your classmate");
+    expect(sys).not.toContain("peek_ahead");
+    const before =
+      (
+        w.handle.sqlite
+          .prepare(
+            "SELECT comprehension c FROM ledger_entries WHERE cadet_id = ? AND concept_id = ?",
+          )
+          .get(b, w.conceptIds[0]) as { c: number } | undefined
+      )?.c ?? 0;
+    const effect = await s.gradePeer(b, said!.utterance.text);
+    expect(effect?.comprehension).toBeCloseTo(Math.min(1, before + cfg.game.peerTalk.correctGain));
+    const row = w.handle.sqlite
+      .prepare(
+        "SELECT kind, meta_json FROM messages WHERE speaker = ? ORDER BY created_at DESC LIMIT 1",
+      )
+      .get(a) as { kind: string; meta_json: string };
+    expect(row.kind).toBe("peer");
+    expect(JSON.parse(row.meta_json).to).toBe(b);
+    expect(s.lines.at(-1)!.text).toMatch(/^\(to \w+\) /);
+    await s.close();
+  });
+
+  it("a wrong explanation spreads its idea to the listener; never in a micro-lesson", async () => {
+    const { w, factory } = await peerSetup({
+      verdict: "wrong",
+      misconception: "The root is stored in every transaction.",
+    });
+    const s = ClassSession.open(
+      { handle: w.handle, factory, game: cfg.game },
+      { classroomId: w.classroomId },
+    );
+    const b = w.cadets[1]!.id;
+    const effect = await s.gradePeer(b, "The root is in every transaction.");
+    expect(effect?.spread).toBe("The root is stored in every transaction.");
+    const held = JSON.parse(
+      (
+        w.handle.sqlite
+          .prepare(
+            "SELECT misconceptions_json m FROM ledger_entries WHERE cadet_id = ? AND concept_id = ?",
+          )
+          .get(b, w.conceptIds[0]) as { m: string }
+      ).m,
+    );
+    expect(held.at(-1)).toMatchObject({ source: "peer" });
+    await s.close();
+
+    const beats: unknown[] = [];
+    const m = ClassSession.open(
+      { handle: w.handle, factory, game: cfg.game },
+      { classroomId: w.classroomId, kind: "micro" },
+      { onPeerBeat: (x) => beats.push(x) },
+    );
+    for (let i = 0; i < 4; i++) await m.teach(`Point ${i}.`).committed;
+    expect(beats).toEqual([]);
+    await m.close();
+  });
+});
+
+describe("ClassSession: memory across classes (V4-05)", () => {
+  it("recalls my related claim from an earlier class for the crowd, the students and the guard", async () => {
+    const w = await smallWorld([
+      { attention: 0.8, skepticism: 0.9 },
+      { attention: 0.5, skepticism: 0.1 },
+    ]);
+    h = w.handle;
+    const reactorSystems: string[] = [];
+    const { factory } = fakeDeepSeekFactory(cfg.models, (body) => {
+      const who = agentOf(body);
+      if (who === "crowdReactor") {
+        reactorSystems.push(body.messages[0]!.content);
+        return "1 skeptical\n2 attentive\nH 1 challenge 0.8 Last week you said hashes never collide?\n";
+      }
+      if (who === "classDirector") return directorJson(w.conceptIds[0]!);
+      return JSON.stringify({ verdict: "pass", leakedTerms: [], reason: "" });
+    });
+    const deps = { handle: w.handle, factory, game: cfg.game, embedder: new BowEmbedder() };
+    const last = ClassSession.open(deps, { classroomId: w.classroomId });
+    await last.teach("Two different blocks never share the same hash, hashes never collide.")
+      .committed;
+    await last.close();
+
+    const s = ClassSession.open(deps, { classroomId: w.classroomId });
+    const t1 = s.teach("Actually hashes can collide, two blocks may share a hash.");
+    await t1.committed;
+    await sleep(20); // the embedding (and the recall) runs in the background
+    await s.teach("So a collision is possible but very unlikely.").committed;
+    expect(reactorSystems.at(-1)).toContain("In earlier classes the teacher said");
+    expect(reactorSystems.at(-1)).toContain("hashes never collide");
+    // Today's own lines never count as "earlier classes".
+    expect(reactorSystems.at(-1)).not.toContain("Actually hashes can collide");
     await s.close();
   });
 });

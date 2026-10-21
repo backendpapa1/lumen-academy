@@ -42,7 +42,16 @@ store.subscribe((s, prev) => {
     doneAt = 0;
     rephrasedAt = undefined;
     const cadet = s.classroom.cadets[next.cadetId];
-    who.textContent = cadet?.name ?? "Cadet";
+    // V4-01: a line to a classmate says who it's for.
+    const p = s.classroom.peer;
+    const toId =
+      p?.speakerId === next.cadetId
+        ? p.listenerId
+        : p?.listenerId === next.cadetId
+          ? p.speakerId
+          : null;
+    const to = toId ? s.classroom.cadets[toId]?.name.split(" ")[0] : null;
+    who.textContent = `${cadet?.name ?? "Student"}${to ? ` → ${to}` : ""}`;
     panel.style.setProperty("--accent", cadet ? accentCss(cadet.archetype) : "var(--lumen)");
   }
   if (next?.done && !doneAt) {

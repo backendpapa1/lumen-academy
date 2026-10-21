@@ -36,6 +36,7 @@ export const AGENT_NAMES = [
   "artDirector",
   "transcriptFixer",
   "knowledgeReporter",
+  "peerGrader",
 ] as const;
 export const AgentNameZ = z.enum(AGENT_NAMES);
 export type AgentName = z.infer<typeof AgentNameZ>;
@@ -372,6 +373,58 @@ export const GameConfigZ = z.strictObject({
   buildingTiers: z.array(unit).length(3), // mastered fraction for tiers 2, 3, 4
   xp: z.record(z.string(), z.number()),
   ranks: z.array(z.strictObject({ name: z.string(), minXp: z.number().int().nonnegative() })),
+  /** V4-05: my own claims from earlier classes, recalled when I touch the same idea. */
+  pastClaims: z
+    .strictObject({
+      enabled: z.boolean(),
+      /** Cosine similarity to what I just said. */
+      minSimilarity: unit,
+      max: z.number().int().positive(),
+    })
+    .default({ enabled: true, minSimilarity: 0.5, max: 2 }),
+  /** V4-03 (VD10): growth arcs move on these counts; V4-04 interests; V4-06 stickers. */
+  arcs: z
+    .strictObject({
+      enabled: z.boolean(),
+      skepticReasons: z.number().int().positive(),
+      quietCalls: z.number().int().positive(),
+      lostFixes: z.number().int().positive(),
+      saboteurKind: z.number().int().positive(),
+    })
+    .default({ enabled: true, skepticReasons: 2, quietCalls: 3, lostFixes: 1, saboteurKind: 1 }),
+  interests: z
+    .array(z.string())
+    .default([
+      "football",
+      "cooking",
+      "music",
+      "gaming",
+      "basketball",
+      "drawing",
+      "films",
+      "running",
+    ]),
+  stickers: z
+    .strictObject({ enabled: z.boolean(), maxPerPeriod: z.number().int().nonnegative() })
+    .default({ enabled: true, maxPerPeriod: 3 }),
+  /** V4-01/02 (VD9): students talk to each other, inside the class's own knowledge. */
+  peerTalk: z
+    .strictObject({
+      enabled: z.boolean(),
+      maxPerPeriod: z.number().int().nonnegative(),
+      /** Teaching turns before the first exchange, and between exchanges. */
+      fromTurn: z.number().int().positive(),
+      minTurnsBetween: z.number().int().positive(),
+      /** A correct explanation moves the listener this much (a teacher's turn moves more). */
+      correctGain: unit,
+    })
+    .default({
+      enabled: true,
+      maxPerPeriod: 2,
+      fromTurn: 3,
+      minTurnsBetween: 4,
+      correctGain: 0.05,
+    }),
   events: z.strictObject({
     enabled: z.boolean(),
     maxPerPeriod: z.number().int().nonnegative(),

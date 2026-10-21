@@ -353,5 +353,6 @@ function cadetView(deps: JobDeps, c: RegisteredCadet, portraitAssetId: string | 
     comprehension: 0,
     state: "attentive",
     portraitUrl: ready ? `/api/assets/${portraitAssetId}` : null,
+    hair: appearanceOf(deps, c.id).hair ?? "",
   };
 }

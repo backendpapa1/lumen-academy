@@ -19,7 +19,7 @@ afterEach(async () => {
 
 const SECRET_ERROR = "The Merkle root is stored in every transaction.";
 
-async function boot() {
+async function boot(opts: { peer?: boolean } = {}) {
   const w = await smallWorld([
     { attention: 0.8, skepticism: 0.2 },
     { attention: 0.6, skepticism: 0.5 },
@@ -32,7 +32,12 @@ async function boot() {
     (body) => {
       const who = agentOf(body);
       if (who === "crowdReactor")
-        return "1 confused\n2 attentive\n3 skeptical\nH 1 clarify 0.9 Where is the root kept?\n";
+        return `1 confused\n2 attentive\n3 skeptical\nH 1 clarify 0.9 Where is the root kept?\n${opts.peer ? "P 2 3 The root lives in the header\n" : ""}`;
+      if (who === "cadetPeer")
+        return "Psst, the root lives in the header.\n###\nkind: claim\nmood: proud\nconfidence: 0.8";
+      if (who === "cadetPeerReply")
+        return "Oh! Not in each transaction then.\n###\nkind: answer\nmood: curious\nconfidence: 0.5";
+      if (who === "peerGrader") return JSON.stringify({ verdict: "correct" });
       if (who === "classDirector") {
         const wrong = body.messages.at(-1)!.content.toLowerCase().includes("every transaction");
         return JSON.stringify({
@@ -193,6 +198,27 @@ describe("classroom over WebSocket", () => {
     expect(ended.payload.xp.breakdown).toEqual([
       { kind: "microLesson", amount: cfg.game.xp.microLesson },
     ]);
+    ws.close();
+  });
+
+  it("peer talk: two students talk, line by line, after the Leak Guard (V4-01)", async () => {
+    const { w, send, until, inbox, ws } = await boot({ peer: true });
+    send("period.start", { classroomId: w.classroomId });
+    await until("period.started");
+    for (let i = 1; i <= 3; i++) {
+      send("teach.message", { text: `The Merkle root goes in the block header (${i}).` });
+      await until("ledger.update", i);
+    }
+    const started = await until("peer.started");
+    expect(started.payload).toEqual({ speakerId: w.cadets[1]!.id, listenerId: w.cadets[2]!.id });
+    await until("peer.ended");
+    const lines = inbox.filter((m) => m.type === "cadet.done");
+    expect(lines.map((m) => m.type === "cadet.done" && m.payload.cadetId)).toEqual([
+      w.cadets[1]!.id,
+      w.cadets[2]!.id,
+    ]);
+    // Nothing about whether it was right reaches the client: judging it is my job.
+    expect(JSON.stringify(inbox)).not.toContain("verdict");
     ws.close();
   });
 

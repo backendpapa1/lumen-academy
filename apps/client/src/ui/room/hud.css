@@ -746,3 +746,11 @@
   font-size: 40px;
   color: var(--coral);
 }
+
+/* V4-03: a student's growth stage on the roster. */
+.hud-roster .who small.arc {
+  display: block;
+  color: var(--leaf);
+  font: 700 11px var(--font-ui);
+  cursor: help;
+}

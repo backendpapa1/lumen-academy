@@ -53,3 +53,28 @@ describe("reactorMessages", () => {
     expect(standard).not.toContain("GENTLE");
   });
 });
+
+describe("peer lines (V4-01)", () => {
+  it("parses a peer line, never to oneself", () => {
+    expect(parseReactorLine("P 2 4 Wait, I think it's like a league table")).toEqual({
+      kind: "peer",
+      seat: 2,
+      to: 4,
+      preview: "Wait, I think it's like a league table",
+    });
+    expect(parseReactorLine("P 3 3 talking to myself")).toBeNull();
+  });
+
+  it("the prompt only offers peer lines when the server allows one", () => {
+    const base = {
+      cards: [],
+      conceptTitle: "Merkle Trees",
+      transcript: [],
+      teacherMessage: "Pairs of hashes are hashed again.",
+      maxHands: 3,
+    } as unknown as Parameters<typeof reactorMessages>[0];
+    const sys = (peerOk: boolean) => String(reactorMessages({ ...base, peerOk })[0]!.content);
+    expect(sys(true)).toContain("P <speaker seat> <listener seat>");
+    expect(sys(false)).not.toContain("P <speaker seat>");
+  });
+});

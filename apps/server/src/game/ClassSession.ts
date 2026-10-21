@@ -1,3 +1,8 @@
+import { arcMoment, arcPrompt, arcStep, parseArc, type ArcSignal } from "./arcs.js";
+import { interestsOf } from "./interests.js";
+import type { ArcState } from "@lumen/shared";
+import { PeerVerdictZ, type PeerBeat } from "@lumen/shared";
+import { applyPeerVerdict, type PeerEffect } from "./peer.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {
   normalizeTeachingAnalysis,
@@ -59,6 +64,10 @@ export interface SessionEvents {
   onError?: (stage: "reactor" | "director" | "embedding" | "leakGuard", err: unknown) => void;
   /** The Leak Guard replaced a cadet's words (client shows a "rephrasing" shimmer). */
   onRewrite?: (messageId: string, cadetId: string, text: string) => void;
+  /** V4-01: the crowd suggested a peer exchange and the server allowed it. */
+  onPeerBeat?: (beat: PeerBeat) => void;
+  /** V4-03: a student moved on in their growth arc ("Sora raised a hand for the first time!"). */
+  onArc?: (cadetId: string, stage: number, moment: string) => void;
 }
 
 export interface SessionDeps {
@@ -85,6 +94,10 @@ interface CadetState {
   learningStyle: CadetCard["learningStyle"];
   lastState: ReactionState;
   lastSpokeTurn: number | null;
+  /** V4-04 */
+  interests: string[];
+  /** V4-03 */
+  arc: ArcState;
 }
 
 interface ConceptInfo {
@@ -243,6 +256,8 @@ export class ClassSession {
         learningStyle: c.learningStyle as CadetCard["learningStyle"],
         lastState: "attentive",
         lastSpokeTurn: null,
+        interests: interestsOf(c.interestsJson),
+        arc: parseArc(c.arcJson),
       };
     });
 
@@ -326,6 +341,16 @@ export class ClassSession {
     return this.transcript;
   }
 
+  /** V4-03/04: each student's interests and arc, for views and sticker rules. */
+  get flavour(): ReadonlyArray<{
+    id: string;
+    archetype: string;
+    interests: string[];
+    arc: ArcState;
+  }> {
+    return this.cadetStates;
+  }
+
   get handQueue(): HandRaise[] {
     return [...this.hands];
   }
@@ -362,6 +387,23 @@ export class ClassSession {
   /** T-10 Hyperfocus: sharper, more frequent questions (lighting is the client's). */
   hyperfocus = false;
   kind: PeriodKind = "class";
+  private peerCount = 0;
+  private lastPeerTurn = -Infinity;
+  /**
+   * V4-01 (VD9): may the crowd suggest a peer exchange now? Off in quiet
+   * periods, capped per period, spaced out, and never over someone speaking.
+   */
+  private peerOk(ord: number): boolean {
+    const p = this.deps.game.peerTalk;
+    return (
+      p.enabled &&
+      !this.quiet &&
+      this.cadetStates.length >= 2 &&
+      this.peerCount < p.maxPerPeriod &&
+      ord >= p.fromTurn &&
+      ord - this.lastPeerTurn >= p.minTurnsBetween
+    );
+  }
   energy: Energy | null = null;
   /** V3-01/02: no surprise events in a micro-lesson or on a low-energy day. */
   get quiet(): boolean {
@@ -460,7 +502,10 @@ export class ClassSession {
       text,
       opts.replyToCadetId,
     );
+    // V4-05: what the last turn recalled, taken now (this turn's own recall may land first).
+    const pastClaims = this.pastClaims;
     this.embedTeacherMessage(messageId, text);
+    this.arcSignal({ kind: "teach", text, replyToCadetId: opts.replyToCadetId });
 
     // Snapshot the transcript now: "recent class" must not include this message,
     // which the prompts present separately as what the Headmaster just said.
@@ -486,6 +531,8 @@ export class ClassSession {
             maxHands: this.deps.game.hands.maxPerTurn,
             hyperfocus: this.hyperfocus,
             difficulty: this.difficulty,
+            peerOk: this.peerOk(ord),
+            pastClaims,
           },
           { onReaction: (id, state) => this.events.onReaction?.(id, state) },
         )
@@ -495,6 +542,12 @@ export class ClassSession {
               if (s) s.lastState = x.state;
             }
             this.mergeHands(r.reaction.handRaises, ord);
+            const beat = r.reaction.peerBeat;
+            if (beat && this.peerOk(ord) && this.turnOrd === ord && !this.speaking) {
+              this.peerCount++;
+              this.lastPeerTurn = ord;
+              this.events.onPeerBeat?.(beat);
+            }
             return r;
           })
           .catch((err: unknown) => {
@@ -525,6 +578,7 @@ export class ClassSession {
     this.interruptSpeaker();
     const abort = new AbortController();
     this.speaking = { cadetId, abort, hand };
+    this.arcSignal({ kind: "called", cadetId });
     return { cadetId, signal: abort.signal, hand };
   }
 
@@ -532,12 +586,14 @@ export class ClassSession {
   recordCadetUtterance(
     cadetId: string,
     text: string,
-    kind: "question" | "answer" | "objection" | "claim" = "question",
+    kind: "question" | "answer" | "objection" | "claim" | "peer" = "question",
     meta?: unknown,
+    /** V4-01: peer lines read "(to Sora) …" in the class transcript. */
+    toName?: string,
   ): string {
     if (this.speaking?.cadetId === cadetId) this.speaking = null;
     const name = this.cadetStates.find((c) => c.id === cadetId)?.name ?? cadetId;
-    this.transcript.push({ speaker: name, text });
+    this.transcript.push({ speaker: name, text: toName ? `(to ${toName}) ${text}` : text });
     return this.saveMessage(cadetId, kind, text, undefined, meta);
   }
 
@@ -547,9 +603,15 @@ export class ClassSession {
    */
   async speak(
     cadetId: string,
-    opts: { onDelta?: (text: string) => void } = {},
+    opts: {
+      onDelta?: (text: string) => void;
+      /** V4-01: talk to a classmate (explain, or reply to what they said). */
+      peer?: { role: "explain" | "reply"; toId: string; preview?: string; said?: string };
+    } = {},
   ): Promise<SpokenTurn | null> {
-    const { signal, hand } = this.call(cadetId);
+    const to = opts.peer && this.cadetStates.find((c) => c.id === opts.peer!.toId);
+    if (opts.peer && (!to || this.speaking)) return null;
+    const { signal, hand } = opts.peer ? this.callPeer(cadetId) : this.call(cadetId);
     const { handle, factory, embedder, game } = this.deps;
     const row = handle.db.select().from(cadets).where(eq(cadets.id, cadetId)).get()!;
     const ledger = handle.db
@@ -572,6 +634,11 @@ export class ClassSession {
               quirk: row.quirk,
               voiceNotes: row.voiceNotes,
               notesMd: row.notesMd,
+              interests: interestsOf(row.interestsJson),
+              arcLine: arcPrompt(
+                row.archetype as CadetCard["archetype"],
+                this.cadetStates.find((c) => c.id === cadetId)?.arc ?? parseArc(row.arcJson),
+              ),
             },
             classroomId: this.classroomId,
             concept: {
@@ -592,9 +659,13 @@ export class ClassSession {
               ? (JSON.parse(ledger.misconceptionsJson) as Misconception[]).map((m) => m.text)
               : [],
             transcript: [...this.transcript],
-            intent: hand?.intent ?? "clarify",
-            preview: hand?.preview ?? "(the teacher called on you)",
-            canPeek,
+            intent: opts.peer ? "talk to a classmate" : (hand?.intent ?? "clarify"),
+            preview: opts.peer?.preview ?? hand?.preview ?? "(the teacher called on you)",
+            ...(to
+              ? { peer: { role: opts.peer!.role, name: to.name, said: opts.peer!.said } }
+              : {}),
+            canPeek: canPeek && !opts.peer,
+            pastClaims: this.pastClaims,
             hyperfocus: this.hyperfocus,
             difficulty: this.difficulty,
             maxWords: game.cadet.maxWords,
@@ -604,23 +675,132 @@ export class ClassSession {
       );
       if (signal.aborted) return null;
       if (result.peeked) this.peeked.add(cadetId);
-      const kind =
-        result.utterance.kind === "objection" ||
-        result.utterance.kind === "claim" ||
-        result.utterance.kind === "answer"
+      const kind = opts.peer
+        ? "peer"
+        : result.utterance.kind === "objection" ||
+            result.utterance.kind === "claim" ||
+            result.utterance.kind === "answer"
           ? result.utterance.kind
           : "question";
-      const messageId = this.recordCadetUtterance(cadetId, result.utterance.text, kind, {
-        mood: result.utterance.mood,
-        confidence: result.utterance.confidence,
-        tools: result.usedTools,
-      });
+      const messageId = this.recordCadetUtterance(
+        cadetId,
+        result.utterance.text,
+        kind,
+        {
+          mood: result.utterance.mood,
+          confidence: result.utterance.confidence,
+          tools: result.usedTools,
+          ...(to ? { to: to.id } : {}),
+        },
+        to?.name.split(" ")[0],
+      );
       const guard = this.guard(messageId, row, result);
       this.background.push(guard);
       return { ...result, messageId, guard };
     } catch (err) {
       if (signal.aborted) return null;
       throw err;
+    }
+  }
+
+  /**
+   * V4-05: what I said in earlier classes about the same idea, found with the
+   * vector of what I just said. It's my words, never the source, so knowledge
+   * gating is unchanged. The next reactor and any student I call get it.
+   */
+  private pastClaims: string[] = [];
+  private recallPastClaims(v: Float32Array | number[]): string[] {
+    const cfg = this.deps.game.pastClaims;
+    if (!cfg.enabled) return [];
+    const { sqlite } = this.deps.handle;
+    const vec = v instanceof Float32Array ? v : new Float32Array(v);
+    const near = sqlite
+      .prepare(
+        "SELECT message_id FROM message_vec WHERE embedding MATCH ? AND k = 40 ORDER BY distance",
+      )
+      .all(vec) as Array<{ message_id: string }>;
+    if (!near.length) return [];
+    const ids = near.map((n) => n.message_id);
+    const rows = sqlite
+      .prepare(
+        `SELECT m.id, m.text, m.created_at AS at, vec_distance_cosine(v.embedding, ?) AS d
+         FROM messages m JOIN periods p ON p.id = m.period_id JOIN message_vec v ON v.message_id = m.id
+         WHERE p.classroom_id = ? AND p.id != ? AND m.speaker = 'teacher'
+           AND m.id IN (${ids.map(() => "?").join(",")})`,
+      )
+      .all(vec, this.classroomId, this.periodId, ...ids) as Array<{
+      id: string;
+      text: string;
+      at: string;
+      d: number;
+    }>;
+    const now = this.now();
+    return rows
+      .filter((r) => 1 - r.d >= cfg.minSimilarity)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, cfg.max)
+      .map((r) => {
+        const days = Math.max(0, Math.round((now - Date.parse(r.at)) / 86_400_000));
+        const when = days === 0 ? "earlier today" : days === 1 ? "yesterday" : `${days} days ago`;
+        return `${when}: "${r.text.length > 220 ? `${r.text.slice(0, 217)}…` : r.text}"`;
+      });
+  }
+
+  /** V4-03 (VD10): feeds one signal to every student's arc; saves and announces any move. */
+  private arcSignal(signal: ArcSignal) {
+    for (const s of this.cadetStates) {
+      const r = arcStep(s, s.arc, signal, this.deps.game.arcs);
+      if (r.state === s.arc) continue;
+      s.arc = r.state;
+      this.deps.handle.sqlite
+        .prepare("UPDATE cadets SET arc_json = ? WHERE id = ?")
+        .run(JSON.stringify(s.arc), s.id);
+      if (r.advanced) this.events.onArc?.(s.id, s.arc.stage, arcMoment(s.archetype, s.arc, s.name));
+    }
+  }
+
+  /** V4-01: a student turns to a classmate. Nothing changes in the hand queue. */
+  private callPeer(cadetId: string): { cadetId: string; signal: AbortSignal; hand?: HandRaise } {
+    this.assertTeaching();
+    const s = this.cadetStates.find((c) => c.id === cadetId);
+    if (!s) throw new Error(`cadet ${cadetId} is not in this class`);
+    s.lastSpokeTurn = this.turnOrd;
+    const abort = new AbortController();
+    this.speaking = { cadetId, abort };
+    return { cadetId, signal: abort.signal };
+  }
+
+  /**
+   * V4-02: grade what a student told a classmate against the key facts, and
+   * let it move the listener (server rules in game/peer.ts). Never shown to
+   * the client: judging it is my job.
+   */
+  async gradePeer(listenerId: string, said: string): Promise<PeerEffect | null> {
+    const c = this.currentConcept;
+    try {
+      const res = await withUsageContext({ periodId: this.periodId }, () =>
+        callStructured(this.deps.factory, "peerGrader", {
+          schema: PeerVerdictZ,
+          name: "peer_verdict",
+          messages: [
+            new SystemMessage(
+              loadPrompt("peerGrader", {
+                conceptTitle: c.title,
+                keyFacts: c.keyFacts.map((f) => `- ${f}`).join("\n"),
+              }),
+            ),
+            new HumanMessage(`What the student said:\n"${said}"`),
+          ],
+        }),
+      );
+      return applyPeerVerdict(this.deps.handle, this.deps.game, {
+        listenerId,
+        conceptId: c.id,
+        verdict: res.data,
+      });
+    } catch (err) {
+      this.events.onError?.("director", err);
+      return null;
     }
   }
 
@@ -653,7 +833,11 @@ export class ClassSession {
         guardUtterance(factory, {
           utteranceId: messageId,
           utterance: text,
-          taughtLines: this.transcript.filter((l) => l.speaker === "Teacher").map((l) => l.text),
+          // My earlier-class claims count as taught too (V4-05): students may quote them.
+          taughtLines: [
+            ...this.pastClaims,
+            ...this.transcript.filter((l) => l.speaker === "Teacher").map((l) => l.text),
+          ],
           flaggedTerms: terms.untaught,
           forced: terms.forceGuard,
           sampleRate: this.deps.factory.config.agents.leakGuard.sampleRate ?? 0.5,
@@ -832,6 +1016,8 @@ export class ClassSession {
             )
           : 0,
         misconceptions: held.slice(-2).map((m) => m.text),
+        interests: s.interests,
+        arc: arcPrompt(s.archetype, s.arc),
         lastState: s.lastState,
         spokeTurnsAgo: s.lastSpokeTurn === null ? null : this.turnOrd - s.lastSpokeTurn,
       };
@@ -964,6 +1150,8 @@ export class ClassSession {
 
     this.events.onAnalysis?.(turnId, analysis, lowConfidence);
     this.events.onLedger?.(changes);
+    for (const ch of changes)
+      if (ch.resolved.length) this.arcSignal({ kind: "resolved", cadetId: ch.cadetId });
     return { analysis, lowConfidence, changes };
   }
 
@@ -982,7 +1170,7 @@ export class ClassSession {
 
   private saveMessage(
     speaker: string,
-    kind: "lecture" | "answer" | "question" | "objection" | "claim" | "board",
+    kind: "lecture" | "answer" | "question" | "objection" | "claim" | "board" | "peer",
     text: string,
     replyToId?: string,
     meta?: unknown,
@@ -1013,10 +1201,11 @@ export class ClassSession {
       embedder
         .embed([text])
         .then(([v]) => {
-          if (v)
-            this.deps.handle.sqlite
-              .prepare("INSERT INTO message_vec (message_id, embedding) VALUES (?, ?)")
-              .run(messageId, v);
+          if (!v) return;
+          this.deps.handle.sqlite
+            .prepare("INSERT INTO message_vec (message_id, embedding) VALUES (?, ?)")
+            .run(messageId, v);
+          this.pastClaims = this.recallPastClaims(v);
         })
         .catch((err: unknown) => this.events.onError?.("embedding", err)),
     );

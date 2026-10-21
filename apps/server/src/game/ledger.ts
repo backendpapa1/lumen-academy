@@ -17,7 +17,7 @@ export interface LedgerCadet {
 
 export interface Misconception {
   text: string;
-  source: "teacher_error" | "archetype" | "spread";
+  source: "teacher_error" | "archetype" | "spread" | "peer";
   since: string;
 }
 
