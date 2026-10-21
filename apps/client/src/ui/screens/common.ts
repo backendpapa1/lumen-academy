@@ -10,6 +10,16 @@ const badges = import.meta.glob<string>("../../assets/generated/badges/*.webp", 
   import: "default",
 });
 
+const ranks = import.meta.glob<string>("../../assets/generated/ranks/*.webp", {
+  eager: true,
+  import: "default",
+});
+
+/** The generated insignia for a rank name ("Cadet Instructor" → ranks/cadet_instructor.webp). */
+export function rankInsignia(rank: string): string | undefined {
+  return ranks[`../../assets/generated/ranks/${rank.toLowerCase().replace(/\s+/g, "_")}.webp`];
+}
+
 export function badgeSrc(archetype: Archetype): string | undefined {
   return badges[`../../assets/generated/badges/${archetype}.webp`];
 }

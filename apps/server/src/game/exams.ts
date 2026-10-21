@@ -10,7 +10,9 @@ import { answerQuestion, gradeAnswer } from "../agents/assessment.js";
 import { classWeakSpots, draftQuestions, loadExamConcepts } from "../agents/examiner.js";
 import { callStructured } from "../agents/harness.js";
 import { loadPrompt } from "../agents/prompts/load.js";
+import type { AssetService } from "../assets/service.js";
 import type { DbHandle } from "../db/client.js";
+import { checkGraduation, refreshTiers } from "./campus.js";
 import { newId } from "../db/ids.js";
 import type { EventBus } from "../events.js";
 import type { ModelFactory } from "../models/factory.js";
@@ -27,6 +29,8 @@ export interface ExamDeps {
   factory: ModelFactory;
   game: GameConfig;
   bus?: EventBus;
+  /** For tier-up facade decals. */
+  assets?: AssetService;
 }
 
 /** E-1: `unlock` is the share of the module's concepts that must be taught (game.yaml exam.unlockTaughtFraction). */
@@ -289,6 +293,9 @@ export async function runExam(deps: ExamDeps, examId: string): Promise<void> {
       avg,
     );
   await writeDebrief(deps, examId).catch(() => undefined);
+  // P-4 + tiers: a passed final module may graduate the class and lift the wing.
+  checkGraduation(handle, exam.classroom_id);
+  refreshTiers(handle, deps.game, deps.assets);
   emit("done");
 }
 
@@ -460,6 +467,12 @@ export function debriefView(
     heatmap,
     teacherErrors: errors,
     analysis: stored,
+    graduated:
+      (
+        sqlite.prepare("SELECT status FROM classrooms WHERE id = ?").get(exam.classroom_id) as {
+          status: string;
+        }
+      ).status === "graduated",
     xpEarned: xp,
   };
 }

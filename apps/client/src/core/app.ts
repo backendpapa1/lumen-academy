@@ -1,5 +1,5 @@
 import type { ServerMessage } from "@lumen/shared";
-import { api, type SchoolDetail, type SchoolSummary } from "./api";
+import { api, type CampusView, type SchoolDetail, type SchoolSummary } from "./api";
 import { applyServerMessage, dismissToast } from "./classroom";
 import { serverEvents } from "./bus";
 import { applySetupMessage } from "./setup";
@@ -65,8 +65,11 @@ export const app = {
     ensureNet();
   },
   async loadSchools() {
-    const schools = await api.get<SchoolSummary[]>("/api/schools");
-    store.setState((s) => ({ setup: { ...s.setup, schools } }));
+    const [schools, campus] = await Promise.all([
+      api.get<SchoolSummary[]>("/api/schools"),
+      api.get<CampusView>("/api/campus"),
+    ]);
+    store.setState((s) => ({ setup: { ...s.setup, schools, campus } }));
     return schools;
   },
   async createSchool(name: string, description: string) {

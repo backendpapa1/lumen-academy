@@ -2,6 +2,7 @@ import { dismissToast } from "../../core/classroom";
 import { store, type AppState } from "../../core/store";
 import { fill, h } from "./dom";
 import { mountArena } from "./arena";
+import { installCampusSync } from "./campusSync";
 import { mountDebrief } from "./debrief";
 import { mountDesk } from "./desk";
 import { mountLobby } from "./lobby";
@@ -90,6 +91,7 @@ function renderToasts(s: AppState) {
 
 export function installScreens(): void {
   stage.append(toasts);
+  installCampusSync();
   mount(store.getState().route);
   renderToasts(store.getState());
   store.subscribe((s, p) => {

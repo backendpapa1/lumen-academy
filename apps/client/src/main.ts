@@ -8,7 +8,8 @@ import { loadFonts } from "./ui/fonts";
 import { ClassroomHud } from "./ui/scenes/ClassroomHud";
 import { GalleryScene } from "./ui/scenes/GalleryScene";
 import { installScreens } from "./ui/screens";
-import { BackdropScene } from "./world/scenes/BackdropScene";
+import { CampusScene } from "./world/scenes/CampusScene";
+import { campusView } from "./world/anchors";
 import { ClassroomScene } from "./world/scenes/ClassroomScene";
 import { world } from "./world/anchors";
 import { WorldDirector } from "./world/WorldDirector";
@@ -52,7 +53,7 @@ window.addEventListener("resize", () => director.resize());
 // Route → 3D scene + UI layer (docs/05 §4.3). The classroom uses the Phaser
 // HUD; setup screens (lobby, School Wing, registration) are DOM (D14).
 let showing: string | null = null;
-let showingWorld: "backdrop" | "classroom" | null = null;
+let showingWorld: "campus" | "classroom" | null = null;
 function applyRoute() {
   const route = store.getState().route;
   const key =
@@ -76,14 +77,36 @@ function applyRoute() {
     // Registration and the exam both happen in the room itself.
     director.show(new ClassroomScene({ arrivals: route.name === "registration" }));
     showingWorld = "classroom";
-  } else if (showingWorld !== "backdrop") {
-    director.show(new BackdropScene());
-    showingWorld = "backdrop";
+  } else if (showingWorld !== "campus") {
+    // Lobby, School Wing, desk and debrief all sit over the campus (M5-02).
+    campusView.current = new CampusScene();
+    director.show(campusView.current);
+    showingWorld = "campus";
   }
+  if (showingWorld !== "campus") campusView.current = null;
 }
 store.subscribe(applyRoute);
 
-if (view === "classroom-demo") {
+if (view === "campus-demo") {
+  // Visual check: one wing per tier, 0 Blueprint → 4 Landmark (no server).
+  const campus = new CampusScene();
+  director.show(campus);
+  const accents = ["#FFB547", "#FF6B6B", "#A78BFA", "#22D3EE", "#A3E635"];
+  campus.setWings(
+    accents.map((accent, i) => ({
+      schoolId: `sch_${i}`,
+      slot: i,
+      tier: i,
+      accent,
+      emblemUrl: null,
+      decalUrl: null,
+    })),
+    {},
+  );
+  store.setState({ route: { name: "gallery" } }); // keep applyRoute from swapping the scene
+  const focus = new URLSearchParams(location.search).get("focus");
+  if (focus) setTimeout(() => campus.flyTo(`sch_${focus}`), 300);
+} else if (view === "classroom-demo") {
   loadDemoClassroom();
   store.setState({ route: { name: "classroom", classroomId: "cls_demo" } });
 } else if (view !== "gallery") {

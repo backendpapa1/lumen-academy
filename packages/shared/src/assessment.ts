@@ -103,4 +103,6 @@ export interface DebriefView {
   }>;
   analysis: DebriefContent | null;
   xpEarned: number;
+  /** Every module passed: the class graduated (P-4). */
+  graduated: boolean;
 }

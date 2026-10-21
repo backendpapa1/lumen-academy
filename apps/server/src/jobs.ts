@@ -10,6 +10,7 @@ import type { Embedder } from "./ingest/embed.js";
 import type { SourceKind } from "./ingest/parse.js";
 import { ingestSource } from "./ingest/pipeline.js";
 import type { ModelFactory } from "./models/factory.js";
+import { refreshTiers } from "./game/campus.js";
 import { registerClassroom, type RegisteredCadet } from "./game/registrar.js";
 import type { Difficulty } from "./game/registration.js";
 import type { GameConfig, ArtPromptsConfig } from "@lumen/shared";
@@ -216,14 +217,14 @@ export function startRegistration(
         },
       },
     )
-      .then(
-        () =>
-          created &&
-          deps.bus.emit({
-            type: "registration.done",
-            payload: { classroomId: created.classroomId, status: "active" },
-          }),
-      )
+      .then(() => {
+        if (!created) return;
+        refreshTiers(deps.handle, deps.game, deps.assets); // first class: Blueprint → Frame
+        deps.bus.emit({
+          type: "registration.done",
+          payload: { classroomId: created.classroomId, status: "active" },
+        });
+      })
       .catch((err: unknown) => {
         if (!created) return reject(err as Error);
         deps.bus.emit({

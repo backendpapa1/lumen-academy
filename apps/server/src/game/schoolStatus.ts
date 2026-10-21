@@ -2,7 +2,7 @@ import type { GameConfig } from "@lumen/shared";
 import type { DbHandle } from "../db/client.js";
 import { conceptStatus, type ConceptStatus } from "./status.js";
 
-/** C-4: each concept's status across the School's enrolled cadets (assessments join in M4). */
+/** C-4: each concept's status across the School's cadets, alumni included (mastery is history). */
 export function schoolConceptStatuses(
   handle: DbHandle,
   schoolId: string,
@@ -14,7 +14,7 @@ export function schoolConceptStatuses(
        FROM concepts c JOIN modules m ON m.id = c.module_id
        LEFT JOIN ledger_entries l ON l.concept_id = c.id
          AND l.cadet_id IN (SELECT d.id FROM cadets d JOIN classrooms r ON r.id = d.classroom_id
-                            WHERE r.school_id = ? AND d.status IN ('enrolled','transferred_in'))
+                            WHERE r.school_id = ? AND d.status IN ('enrolled','transferred_in','alumni'))
        WHERE m.school_id = ? GROUP BY c.id`,
     )
     .all(schoolId, schoolId) as Array<{

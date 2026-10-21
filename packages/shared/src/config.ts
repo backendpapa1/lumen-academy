@@ -279,6 +279,7 @@ export const GameConfigZ = z.strictObject({
     masteredComprehension: unit,
   }),
   exam: z.strictObject({ passThreshold: unit, unlockTaughtFraction: unit }),
+  streak: z.strictObject({ timezone: z.string().min(1) }),
   buildingTiers: z.array(unit).length(3), // mastered fraction for tiers 2, 3, 4
   xp: z.record(z.string(), z.number()),
   ranks: z.array(z.strictObject({ name: z.string(), minXp: z.number().int().nonnegative() })),

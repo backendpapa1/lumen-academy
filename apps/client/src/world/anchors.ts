@@ -7,6 +7,11 @@ export interface ScreenPoint {
 /** Screen-space points the DOM overlays attach to, written by the world each frame. */
 export const anchors: { speaker: ScreenPoint | null } = { speaker: null };
 
+/** The campus, when it's the world on screen (lobby and School screens fly it). */
+export const campusView: {
+  current: import("./scenes/CampusScene").CampusScene | null;
+} = { current: null };
+
 /** The active 3D scene's hooks for pointer routing (core/input.ts). */
 export const world: {
   /** Cadet id under a stage-pixel point, if any. */

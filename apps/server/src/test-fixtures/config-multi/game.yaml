@@ -152,6 +152,9 @@ exam:
   passThreshold: 0.7
   unlockTaughtFraction: 0.7
 
+streak:
+  timezone: Africa/Lagos # days are counted in this zone (docs/06 §4)
+
 buildingTiers: [0.25, 0.6, 1.0] # mastered fraction for tiers 2, 3, 4 (docs/02 §7.3)
 
 xp: # docs/02 §7.1

@@ -111,6 +111,35 @@ export interface Settings {
 
 export type { Archetype };
 
+export interface CampusView {
+  wings: Array<{
+    schoolId: string;
+    slot: number;
+    tier: number;
+    tierName: string;
+    masteredFraction: number;
+    nextAt: number | null;
+    graduations: number;
+    decalUrl: string | null;
+  }>;
+  streak: { current: number; best: number; missedDays: number; taughtToday: boolean };
+  xp: {
+    total: number;
+    rank: string;
+    next: { name: string; minXp: number } | null;
+    progress: number;
+  };
+  resume: {
+    schoolId: string;
+    schoolName: string;
+    classroomId: string;
+    classroomName: string;
+    conceptTitle: string | null;
+    inProgress: boolean;
+    lastAt: string;
+  } | null;
+}
+
 export interface DeskView {
   /** Share of a module that must be taught before its exam (game.yaml). */
   unlock: number;
