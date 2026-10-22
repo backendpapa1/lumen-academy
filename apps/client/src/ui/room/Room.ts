@@ -1,11 +1,13 @@
 import { REACTION_GLYPHS, type Diagram, type ReactionState } from "@lumen/shared";
 import { arrowEnds, type Point } from "./sketch";
 import { upgradeArt } from "./upgradeArt";
+import { boardLayer, type BoardLayer } from "./boardLayer";
 import type { CadetState, ClassroomState } from "../../core/classroom";
 import { app } from "../../core/app";
 import { store } from "../../core/store";
 import { voice } from "../../core/voice";
-import { currentLayout, onLayout, type Layout } from "../../core/layout";
+import { currentLayout, onLayout } from "../../core/layout";
+import { frameFor } from "./frame";
 import { anchors, world } from "../../world/anchors";
 import { dayPhase } from "../../world/lighting";
 import { FACE_FOR, lookFor, peepSvg, restingFace, type Look, type Pose } from "../peeps/peep";
@@ -31,17 +33,6 @@ const ROWS = [
   { y: 520, s: 0.6, gap: 152 },
 ] as const;
 const PER_ROW = 5;
-/**
- * Part B: on a phone held upright the room is framed around the board and the
- * desks (the windows and the door fall away), fitted rather than cropped, so
- * every student stays in view. CSS gives the room the top of the screen.
- */
-const FRAMES: Record<Layout, { box: string; fit: string }> = {
-  regular: { box: `0 0 ${W} ${H}`, fit: "xMidYMid slice" },
-  // A phone on its side: the board and the front desks, the ceiling and floor trimmed.
-  landscape: { box: "0 20 1600 780", fit: "xMidYMin slice" },
-  portrait: { box: "200 40 1180 960", fit: "xMidYMin meet" },
-};
 /** The bust's drawn size at scale 1. */
 export const BUST_W = 168;
 export const BUST_H = (BUST_W * 1130.6) / 940.3;
@@ -113,17 +104,19 @@ function roomMarkup(): string {
   const vx = 780;
   const vy = 300;
   const floorTop = 500;
-  const boards = Array.from({ length: 17 }, (_, i) => {
-    const bx = -500 + i * 162;
+  // The walls and floor run past both edges (three room-widths), so a window
+  // wider than the room sees more wall, not the end of the drawing.
+  const boards = Array.from({ length: 37 }, (_, i) => {
+    const bx = -2120 + i * 162;
     const t = (floorTop - vy) / (H - vy);
     return `<line x1="${vx + (bx - vx) * t}" y1="${floorTop}" x2="${bx}" y2="${H}"/>`;
   }).join("");
   const seams = [540, 600, 690, 820, 990]
-    .map((y) => `<line x1="0" y1="${y}" x2="${W}" y2="${y}"/>`)
+    .map((y) => `<line x1="${-W}" y1="${y}" x2="${2 * W}" y2="${y}"/>`)
     .join("");
   const wainscot = Array.from(
-    { length: 20 },
-    (_, i) => `<rect x="${i * 84 + 8}" y="${432}" width="68" height="52" rx="2"/>`,
+    { length: 58 },
+    (_, i) => `<rect x="${(i - 19) * 84 + 8}" y="${432}" width="68" height="52" rx="2"/>`,
   ).join("");
   const window = (x: number) => `
     <g class="window" transform="translate(${x} 92)">
@@ -155,8 +148,8 @@ function roomMarkup(): string {
       <radialGradient id="spot-g">
         <stop offset="0.5" stop-color="#000"/><stop offset="1" stop-color="#fff"/>
       </radialGradient>
-      <mask id="spot" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
-        <rect width="${W}" height="${H}" fill="#fff"/>
+      <mask id="spot" maskUnits="userSpaceOnUse" x="${-W}" y="0" width="${3 * W}" height="${H}">
+        <rect x="${-W}" width="${3 * W}" height="${H}" fill="#fff"/>
         <ellipse cx="${CX}" cy="${ROWS[0].y - 110}" rx="300" ry="330" fill="url(#spot-g)"/>
       </mask>
       <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -167,16 +160,16 @@ function roomMarkup(): string {
       </pattern>
     </defs>
     <g class="room-back">
-      <rect class="wall" x="0" y="0" width="${W}" height="${floorTop}"/>
-      <rect class="wall-dots" x="0" y="40" width="${W}" height="380" fill="url(#dots)"/>
-      <rect class="ceiling" x="0" y="0" width="${W}" height="36"/>
-      <line class="trim" x1="0" y1="36" x2="${W}" y2="36"/>
-      <rect class="wainscot" x="0" y="420" width="${W}" height="${floorTop - 420}"/>
+      <rect class="wall" x="${-W}" y="0" width="${3 * W}" height="${floorTop}"/>
+      <rect class="wall-dots" x="${-W}" y="40" width="${3 * W}" height="380" fill="url(#dots)"/>
+      <rect class="ceiling" x="${-W}" y="0" width="${3 * W}" height="36"/>
+      <line class="trim" x1="${-W}" y1="36" x2="${2 * W}" y2="36"/>
+      <rect class="wainscot" x="${-W}" y="420" width="${3 * W}" height="${floorTop - 420}"/>
       <g class="wainscot-panels">${wainscot}</g>
-      <line class="trim" x1="0" y1="420" x2="${W}" y2="420"/>
-      <rect class="floor" x="0" y="${floorTop}" width="${W}" height="${H - floorTop}"/>
+      <line class="trim" x1="${-W}" y1="420" x2="${2 * W}" y2="420"/>
+      <rect class="floor" x="${-W}" y="${floorTop}" width="${3 * W}" height="${H - floorTop}"/>
       <g class="boards">${boards}${seams}</g>
-      <line class="trim thick" x1="0" y1="${floorTop}" x2="${W}" y2="${floorTop}"/>
+      <line class="trim thick" x1="${-W}" y1="${floorTop}" x2="${2 * W}" y2="${floorTop}"/>
       ${lamp(330)}${lamp(800)}${lamp(1270)}
       ${window(36)}${window(206)}
       <g class="plant" transform="translate(372 368)">
@@ -217,9 +210,6 @@ function roomMarkup(): string {
       <rect class="board-shadow" x="452" y="80" width="700" height="300"/>
       <rect class="board" x="444" y="72" width="700" height="300"/>
       <rect class="board-inner" x="458" y="86" width="672" height="272"/>
-      <foreignObject x="472" y="96" width="644" height="252">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="board-text"></div>
-      </foreignObject>
       <defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrowhead"/></marker></defs>
       <g class="diagram" transform="translate(${BOARD_X} ${BOARD_Y})"></g>
       <rect class="tray" x="560" y="372" width="468" height="12"/>
@@ -231,8 +221,8 @@ function roomMarkup(): string {
     <g class="upgrades"></g>
     <g class="desks"></g>
     <g class="teacher-desk">
-      <rect class="td-top" x="-20" y="936" width="${W + 40}" height="80"/>
-      <line class="trim thick" x1="0" y1="936" x2="${W}" y2="936"/>
+      <rect class="td-top" x="${-W}" y="936" width="${3 * W}" height="80"/>
+      <line class="trim thick" x1="${-W}" y1="936" x2="${2 * W}" y2="936"/>
       <g transform="translate(1340 870)">
         <rect class="book b1" x="0" y="44" width="120" height="22"/>
         <rect class="book b2" x="10" y="24" width="104" height="20"/>
@@ -241,7 +231,7 @@ function roomMarkup(): string {
         <path class="apple" d="M244 66 c-22 0 -26 -30 -12 -38 c6 -4 12 -2 14 0 c2 -2 8 -4 14 0 c14 8 10 38 -12 38z M246 28 q2 -10 8 -14"/>
       </g>
     </g>
-    <rect class="dim" x="0" y="0" width="${W}" height="${H}"/>`;
+    <rect class="dim" x="${-W}" y="0" width="${3 * W}" height="${H}"/>`;
 }
 
 // --- one student at a desk ------------------------------------------------------
@@ -295,12 +285,14 @@ export class Room {
   private readonly root: SVGSVGElement;
   private readonly desksG: SVGGElement;
   private readonly boardText: HTMLElement;
+  private readonly boardLayer: BoardLayer;
   private readonly seats = new Map<string, Seat>();
   private readonly unsubscribe: () => void;
   private readonly offVoice: () => void;
   private layoutKey = "";
   private raf = 0;
   private readonly offLayout: () => void;
+  private readonly resizeObs: ResizeObserver;
   private flickerTimer: ReturnType<typeof setTimeout> | null = null;
   private lastEventId: string | null = null;
   private readonly clock: { h: SVGElement; m: SVGElement; s: SVGElement };
@@ -312,22 +304,23 @@ export class Room {
   ) {
     this.el = document.createElement("div");
     this.el.className = "room";
-    const frame = FRAMES[currentLayout()];
-    this.root = svg("svg", {
-      viewBox: frame.box,
-      preserveAspectRatio: frame.fit,
-      role: "img",
-      "aria-label": "Your classroom",
-    });
-    this.offLayout = onLayout((l) => {
-      this.root.setAttribute("viewBox", FRAMES[l].box);
-      this.root.setAttribute("preserveAspectRatio", FRAMES[l].fit);
-    });
+    this.root = svg("svg", { role: "img", "aria-label": "Your classroom" });
+    // Framed for the window: re-framed when it turns or resizes.
+    const reframe = () => {
+      const f = frameFor(currentLayout(), this.el.clientWidth, this.el.clientHeight);
+      this.root.setAttribute("viewBox", f.box);
+      this.root.setAttribute("preserveAspectRatio", f.fit);
+    };
+    this.offLayout = onLayout(reframe);
+    this.resizeObs = new ResizeObserver(reframe);
     this.root.innerHTML = roomMarkup();
     this.el.append(this.root);
     stage.prepend(this.el);
+    this.resizeObs.observe(this.el);
+    reframe();
     this.desksG = this.root.querySelector(".desks")!;
-    this.boardText = this.root.querySelector(".board-text")!;
+    this.boardLayer = boardLayer(this.el, this.root, { x: 472, y: 96, width: 644, height: 252 });
+    this.boardText = this.boardLayer.text;
     this.clock = {
       h: this.root.querySelector(".clock .hour")!,
       m: this.root.querySelector(".clock .minute")!,
@@ -661,6 +654,7 @@ export class Room {
   };
 
   private tick = () => {
+    this.boardLayer.place();
     const c = store.getState().classroom;
     const id = c.speech?.cadetId;
     const seat = id ? this.seats.get(id) : undefined;
@@ -751,6 +745,7 @@ export class Room {
     this.unsubscribe();
     this.offVoice();
     this.offLayout();
+    this.resizeObs.disconnect();
     if (world.pick === this.pick) world.pick = null;
     anchors.speaker = null;
     this.el.remove();

@@ -1,0 +1,32 @@
+<!doctype html><meta charset="utf-8" />
+<body style="margin: 0">
+  <iframe
+    id="f"
+    src="/?view=classroom-demo"
+    style="width: 2000px; height: 770px; border: 0"
+  ></iframe>
+  <script>
+    setTimeout(() => {
+      const d = document.getElementById("f").contentDocument;
+      const r = (s) => {
+        const e = d.querySelector(s);
+        if (!e) return null;
+        const b = e.getBoundingClientRect();
+        return [b.x, b.y, b.width, b.height].map(Math.round);
+      };
+      const out = {
+        board: r(".board-inner"),
+        layer: r(".board-layer"),
+        text: r(".board-text"),
+        box: d.querySelector(".room svg").getAttribute("viewBox"),
+        title: r(".board-text .b-title"),
+        ua: navigator.userAgent,
+      };
+      fetch("http://127.0.0.1:5299/r", {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify(out),
+      });
+    }, 6000);
+  </script>
+</body>

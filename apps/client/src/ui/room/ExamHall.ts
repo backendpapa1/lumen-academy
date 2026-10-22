@@ -1,7 +1,9 @@
 import type { Archetype } from "@lumen/shared";
-import { currentLayout, onLayout, type Layout } from "../../core/layout";
+import { currentLayout, onLayout } from "../../core/layout";
+import { frameFor } from "./frame";
 import { reducedMotion } from "../theme";
 import { lookFor, peepSvg, restingFace, type Look, type Pose } from "../peeps/peep";
+import { boardLayer, type BoardLayer } from "./boardLayer";
 import { BUST_H, BUST_W, deskLayout, deskMarkup, escapeXml, type Desk } from "./Room";
 import "./room.css";
 
@@ -20,12 +22,6 @@ export interface ArenaCadet {
 const W = 1600;
 const H = 1000;
 const NS = "http://www.w3.org/2000/svg";
-/** Part B: framed like the classroom on a phone held upright (fitted, not cropped). */
-const FRAMES: Record<Layout, { box: string; fit: string }> = {
-  regular: { box: `0 0 ${W} ${H}`, fit: "xMidYMid slice" },
-  landscape: { box: "0 20 1600 780", fit: "xMidYMin slice" },
-  portrait: { box: "200 40 1180 960", fit: "xMidYMin meet" },
-};
 
 interface Seat {
   g: SVGGElement;
@@ -52,13 +48,13 @@ function hallMarkup(): string {
       <pattern id="hall-dots" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.2" class="dot"/></pattern>
     </defs>
     <g class="room-back">
-      <rect class="wall" x="0" y="0" width="${W}" height="${floorTop}"/>
-      <rect x="0" y="0" width="${W}" height="${floorTop}" fill="url(#hall-dots)"/>
-      <rect class="wainscot" x="0" y="430" width="${W}" height="${floorTop - 430}"/>
-      <line class="trim" x1="0" y1="430" x2="${W}" y2="430"/>
-      <rect class="floor" x="0" y="${floorTop}" width="${W}" height="${H - floorTop}"/>
-      <g class="boards">${Array.from({ length: 12 }, (_, i) => `<line x1="0" y1="${floorTop + 30 + i * i * 4}" x2="${W}" y2="${floorTop + 30 + i * i * 4}"/>`).join("")}</g>
-      <line class="trim thick" x1="0" y1="${floorTop}" x2="${W}" y2="${floorTop}"/>
+      <rect class="wall" x="${-W}" y="0" width="${3 * W}" height="${floorTop}"/>
+      <rect x="${-W}" y="0" width="${3 * W}" height="${floorTop}" fill="url(#hall-dots)"/>
+      <rect class="wainscot" x="${-W}" y="430" width="${3 * W}" height="${floorTop - 430}"/>
+      <line class="trim" x1="${-W}" y1="430" x2="${2 * W}" y2="430"/>
+      <rect class="floor" x="${-W}" y="${floorTop}" width="${3 * W}" height="${H - floorTop}"/>
+      <g class="boards">${Array.from({ length: 12 }, (_, i) => `<line x1="${-W}" y1="${floorTop + 30 + i * i * 4}" x2="${2 * W}" y2="${floorTop + 30 + i * i * 4}"/>`).join("")}</g>
+      <line class="trim thick" x1="${-W}" y1="${floorTop}" x2="${2 * W}" y2="${floorTop}"/>
       ${window(60)}${window(220)}${window(1270)}${window(1430)}
       <g class="clock" transform="translate(870 72)">
         <circle class="face" r="40"/>
@@ -79,9 +75,6 @@ function hallMarkup(): string {
       <rect class="board-shadow" x="588" y="138" width="580" height="250"/>
       <rect class="board" x="580" y="130" width="580" height="250"/>
       <rect class="board-inner" x="594" y="144" width="552" height="222"/>
-      <foreignObject x="608" y="154" width="524" height="204">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="board-text exam-board"></div>
-      </foreignObject>
       <g class="verdict" transform="translate(1030 300) rotate(-8)"></g>
     </g>
     <g class="desks"></g>`;
@@ -92,12 +85,14 @@ export class ExamHall {
   private readonly root: SVGSVGElement;
   private readonly desksG: SVGGElement;
   private readonly boardText: HTMLElement;
+  private readonly board: BoardLayer;
   private readonly verdict: SVGGElement;
   private readonly seats = new Map<string, Seat>();
   private readonly clock: { h: SVGElement; m: SVGElement; s: SVGElement };
   private readonly still = reducedMotion();
   private raf = 0;
   private readonly offLayout: () => void;
+  private readonly resizeObs: ResizeObserver;
   private pass = 0.6;
   private question = { ord: 0, total: 0, concept: "", kind: "" };
   private result: { avg: number; passed: boolean } | null = null;
@@ -106,19 +101,28 @@ export class ExamHall {
     this.el = document.createElement("div");
     this.el.className = "room hall";
     this.root = document.createElementNS(NS, "svg");
-    const frame = (l: Layout) => {
-      this.root.setAttribute("viewBox", FRAMES[l].box);
-      this.root.setAttribute("preserveAspectRatio", FRAMES[l].fit);
+    const reframe = () => {
+      const f = frameFor(currentLayout(), this.el.clientWidth, this.el.clientHeight);
+      this.root.setAttribute("viewBox", f.box);
+      this.root.setAttribute("preserveAspectRatio", f.fit);
     };
-    frame(currentLayout());
-    this.offLayout = onLayout(frame);
+    this.offLayout = onLayout(reframe);
+    this.resizeObs = new ResizeObserver(reframe);
     this.root.setAttribute("role", "img");
     this.root.setAttribute("aria-label", "The exam hall");
     this.root.innerHTML = hallMarkup();
     this.el.append(this.root);
     stage.prepend(this.el);
+    this.resizeObs.observe(this.el);
+    reframe();
     this.desksG = this.root.querySelector(".desks")!;
-    this.boardText = this.root.querySelector(".board-text")!;
+    this.board = boardLayer(
+      this.el,
+      this.root,
+      { x: 608, y: 154, width: 524, height: 204 },
+      "exam-board",
+    );
+    this.boardText = this.board.text;
     this.verdict = this.root.querySelector(".verdict")!;
     this.clock = {
       h: this.root.querySelector(".clock .hour")!,
@@ -230,6 +234,7 @@ export class ExamHall {
   }
 
   private tick = () => {
+    this.board.place();
     const now = new Date();
     const sec = now.getSeconds();
     const min = now.getMinutes() + sec / 60;
@@ -243,6 +248,7 @@ export class ExamHall {
   dispose(): void {
     cancelAnimationFrame(this.raf);
     this.offLayout();
+    this.resizeObs.disconnect();
     this.el.remove();
   }
 }

@@ -979,3 +979,16 @@ html[data-layout="portrait"] .room > svg {
   width: 100%;
   height: calc(100vw * 960 / 1180);
 }
+
+/* The board's writing, over the drawn board (see boardLayer.ts). */
+.board-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.board-layer .board-text {
+  width: 100%;
+}
