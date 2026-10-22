@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // M2 gate, latency side: a real class against the real server and DeepSeek.
 // Costs a few cents, so it only runs with LUMEN_LIVE=1, ideally against a

@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // M5 gate (live): boot → Resume → teaching in ≤ 2 clicks and < 10 s, timed in
 // the browser. It opens a real period, so it's opt-in (LUMEN_LIVE=1); run it

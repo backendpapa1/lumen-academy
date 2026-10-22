@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // V1: push-to-talk and students' voices, with a fake socket, a fake microphone
 // and mocked speech endpoints (no server involved). Hold Space in the empty

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./test";
 
 // M6-01 random events on the demo class: the glitch card (Y/N), the pop quiz
 // (typing never triggers classroom keys), and the power-flicker banner.

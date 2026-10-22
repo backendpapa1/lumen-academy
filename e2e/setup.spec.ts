@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./test";
 
 // The School setup flow end to end in the browser, against a faked server
 // (REST via page.route, broadcasts via a fake socket): no models, no database.

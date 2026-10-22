@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // Paul: a progress bar and stage updates for long curriculum builds, so it's
 // clearly not hanging, and errors stated plainly. The panel on its own.

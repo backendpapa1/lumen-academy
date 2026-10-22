@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // M6-09: the 3D exam arena. A scripted exam (fake socket + mocked API): beams
 // for each graded answer, Class Integrity on the floor ring, the final reveal.

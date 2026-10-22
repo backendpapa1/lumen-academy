@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // V7-01: a decorated room (every upgrade on its spot, the class reacting to a
 // new one) and the Decorate picker. Socket and API faked.

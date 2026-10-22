@@ -1,4 +1,5 @@
 import type { Archetype } from "@lumen/shared";
+import { currentLayout, onLayout, type Layout } from "../../core/layout";
 import { reducedMotion } from "../theme";
 import { lookFor, peepSvg, restingFace, type Look, type Pose } from "../peeps/peep";
 import { BUST_H, BUST_W, deskLayout, deskMarkup, escapeXml, type Desk } from "./Room";
@@ -19,6 +20,12 @@ export interface ArenaCadet {
 const W = 1600;
 const H = 1000;
 const NS = "http://www.w3.org/2000/svg";
+/** Part B: framed like the classroom on a phone held upright (fitted, not cropped). */
+const FRAMES: Record<Layout, { box: string; fit: string }> = {
+  regular: { box: `0 0 ${W} ${H}`, fit: "xMidYMid slice" },
+  landscape: { box: "0 20 1600 780", fit: "xMidYMin slice" },
+  portrait: { box: "200 40 1180 960", fit: "xMidYMin meet" },
+};
 
 interface Seat {
   g: SVGGElement;
@@ -90,6 +97,7 @@ export class ExamHall {
   private readonly clock: { h: SVGElement; m: SVGElement; s: SVGElement };
   private readonly still = reducedMotion();
   private raf = 0;
+  private readonly offLayout: () => void;
   private pass = 0.6;
   private question = { ord: 0, total: 0, concept: "", kind: "" };
   private result: { avg: number; passed: boolean } | null = null;
@@ -98,8 +106,12 @@ export class ExamHall {
     this.el = document.createElement("div");
     this.el.className = "room hall";
     this.root = document.createElementNS(NS, "svg");
-    this.root.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    this.root.setAttribute("preserveAspectRatio", "xMidYMid slice");
+    const frame = (l: Layout) => {
+      this.root.setAttribute("viewBox", FRAMES[l].box);
+      this.root.setAttribute("preserveAspectRatio", FRAMES[l].fit);
+    };
+    frame(currentLayout());
+    this.offLayout = onLayout(frame);
     this.root.setAttribute("role", "img");
     this.root.setAttribute("aria-label", "The exam hall");
     this.root.innerHTML = hallMarkup();
@@ -230,6 +242,7 @@ export class ExamHall {
 
   dispose(): void {
     cancelAnimationFrame(this.raf);
+    this.offLayout();
     this.el.remove();
   }
 }

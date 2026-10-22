@@ -404,7 +404,7 @@ label.lbl {
 }
 @media (max-width: 1000px) {
   .map-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 .map {
@@ -2606,4 +2606,200 @@ button.linkish {
   color: var(--cobalt);
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* --- Part B: phones -----------------------------------------------------------------------
+   One pass for every DOM screen: gutters that respect the notch, headers that
+   wrap, tab strips that scroll sideways instead of squashing, rows that wrap,
+   and touch targets at least 44 px tall. */
+html[data-layout="portrait"] .screen .wrap,
+html[data-layout="landscape"] .screen .wrap {
+  padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right))
+    calc(48px + var(--safe-bottom)) calc(16px + var(--safe-left));
+}
+html[data-layout="portrait"] .display {
+  font-size: 32px;
+  overflow-wrap: anywhere;
+}
+html[data-layout="landscape"] .display {
+  font-size: 34px;
+}
+html[data-layout="portrait"] .topbar,
+html[data-layout="landscape"] .topbar {
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin-bottom: 20px;
+}
+html[data-layout="portrait"] .topbar > div:not(.row):not(.emblem) {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+html[data-layout="portrait"] .topbar > .spacer,
+html[data-layout="landscape"] .topbar > .spacer {
+  display: none;
+}
+/* The header's actions: their own line, swiped sideways. */
+html[data-layout="portrait"] .topbar > .row,
+html[data-layout="landscape"] .topbar > .row {
+  flex: 1 0 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -4px;
+  padding: 0 4px 4px;
+}
+html[data-layout="portrait"] .topbar > .row > *,
+html[data-layout="landscape"] .topbar > .row > * {
+  flex: none;
+}
+html[data-layout="portrait"] .seg.tabs,
+html[data-layout="landscape"] .seg.tabs {
+  display: flex;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+html[data-layout="portrait"] .seg button,
+html[data-layout="landscape"] .seg button {
+  flex: none;
+  white-space: nowrap;
+}
+html[data-layout="portrait"] .extend-banner {
+  flex-direction: column;
+  align-items: stretch;
+}
+html[data-pointer="coarse"] .screen .btn,
+html[data-pointer="coarse"] .modal .btn,
+html[data-pointer="coarse"] .seg button {
+  min-height: var(--touch);
+}
+html[data-pointer="coarse"] .screen .btn.small {
+  min-height: 38px;
+}
+/* Inputs at 16px, or the phone zooms into them. */
+html[data-pointer="coarse"] .screen .field,
+html[data-pointer="coarse"] .modal .field {
+  font-size: 16px;
+}
+
+/* Part B: keyboard hints mean nothing on a touch screen. */
+html[data-pointer="coarse"] .kbd-hint,
+html[data-pointer="coarse"] .btn kbd,
+html[data-pointer="coarse"] .checkin kbd,
+html[data-pointer="coarse"] .mode-pick kbd {
+  display: none;
+}
+html[data-layout="portrait"] .savebar {
+  flex-wrap: wrap;
+}
+/* In class, events (a mix-up, a pop quiz…) rise as a sheet above the lectern. */
+html[data-layout="portrait"] .event-back {
+  left: 8px;
+  right: 8px;
+  width: auto;
+  bottom: calc(80px + var(--safe-bottom));
+  max-height: 58vh;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+html[data-layout="landscape"] .event-back {
+  left: 8px;
+  right: auto;
+  width: min(400px, 48vw);
+  bottom: calc(72px + var(--safe-bottom));
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
+/* Part B: the exam hall on a phone. Portrait: the exam's title, the hall,
+   the answers so far, and the question at the bottom. Landscape: tightened. */
+html[data-layout="portrait"] {
+  --hall-top: calc(112px + var(--safe-top));
+}
+html[data-layout="portrait"] .room.hall {
+  background: var(--paper-2);
+}
+html[data-layout="portrait"] .room.hall > svg {
+  position: absolute;
+  top: var(--hall-top);
+  left: 0;
+  width: 100%;
+  height: calc(100vw * 960 / 1180);
+}
+html[data-layout="portrait"] .arena-top {
+  left: 8px;
+  right: 8px;
+  top: calc(8px + var(--safe-top));
+  width: auto;
+  padding: 10px 12px;
+}
+html[data-layout="portrait"] .arena-top .display,
+html[data-layout="landscape"] .arena-top .display {
+  font-size: 22px;
+}
+html[data-layout="portrait"] .arena-rail {
+  left: 8px;
+  right: 8px;
+  top: calc(var(--hall-top) + 100vw * 960 / 1180 + 6px);
+  width: auto;
+  max-height: 18vh;
+  padding: 8px 12px;
+  columns: 2;
+}
+html[data-layout="portrait"] .arena-card,
+html[data-layout="landscape"] .arena-card {
+  left: 8px;
+  right: 8px;
+  bottom: calc(8px + var(--safe-bottom));
+  transform: none;
+  width: auto;
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: 12px 14px;
+}
+html[data-layout="portrait"] .arena-card .opts {
+  columns: 1;
+}
+html[data-layout="landscape"] .arena-top {
+  left: 8px;
+  top: calc(8px + var(--safe-top));
+  width: min(400px, 48vw);
+  padding: 8px 12px;
+}
+html[data-layout="landscape"] .arena-rail {
+  right: 8px;
+  top: calc(8px + var(--safe-top));
+  width: 220px;
+  max-height: calc(100vh - 180px);
+  padding: 8px 12px;
+}
+html[data-layout="landscape"] .arena-card {
+  right: auto;
+  width: min(560px, calc(100vw - 250px));
+  max-height: calc(100vh - 120px);
+}
+html[data-layout="portrait"] .arena-back,
+html[data-layout="landscape"] .arena-back {
+  left: auto;
+  right: 8px;
+  top: calc(8px + var(--safe-top));
+  bottom: auto;
+  z-index: 3;
+}
+html[data-layout="landscape"] .arena-back {
+  right: 236px;
+}
+html[data-layout="portrait"] .arena-back {
+  top: calc(var(--hall-top) + 6px);
+}
+html[data-layout="portrait"] .arena-card.flip,
+html[data-layout="landscape"] .arena-card.flip {
+  animation-name: card-flip-phone;
+}
+@keyframes card-flip-phone {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
 }

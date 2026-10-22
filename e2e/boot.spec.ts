@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 test("boots the drawn campus and opens the lobby with Schools from the server, no console errors", async ({
   page,

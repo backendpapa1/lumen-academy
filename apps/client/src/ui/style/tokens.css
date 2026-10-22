@@ -1,6 +1,13 @@
 /* Design tokens (ADR-009): a bright, illustrated school. Every screen and the
    classroom read their colours, type and shadows from here. */
 :root {
+  /* Part B: the phone's notch and gesture bar (0 elsewhere). */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  /* Touch targets: at least this tall on a touch screen. */
+  --touch: 44px;
   /* colour */
   --sky: #c6ecff;
   --sky-hi: #e3f6ff;

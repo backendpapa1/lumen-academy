@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./test";
 
 // V3: the lobby's one button, the energy check-in and a micro-lesson's lit
 // desk. API and socket are faked, so this never touches real data or models.
@@ -197,7 +197,11 @@ test("'Don't ask me again' turns the check-in off for good", async ({ page }) =>
   await page.getByRole("button", { name: "Start class" }).click();
   await page.getByRole("button", { name: "Don't ask me again" }).click();
   await expect(page.locator(".room")).toBeVisible();
-  // Back in the lobby (not rejoining that class), start a micro-lesson.
+  // Back in the lobby (not rejoining that class), start a micro-lesson. Wait
+  // until the class is remembered, or the start message re-remembers it later.
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("lumen.liveClassroom")))
+    .not.toBeNull();
   await page.evaluate(() => localStorage.removeItem("lumen.liveClassroom"));
   await page.goto("/");
   await page.getByRole("button", { name: "Micro-lesson · 3 min" }).click();

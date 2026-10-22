@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // T-9 chalkboard on the holo-board, and T-8 peek at notes (N), on the demo class.
 test("the chalkboard shows on the board; N opens the selected cadet's notes", async ({ page }) => {

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // A fake server socket, so this never touches the real database or models.
 // The server half of resume is covered by classroomConnection.test.ts.

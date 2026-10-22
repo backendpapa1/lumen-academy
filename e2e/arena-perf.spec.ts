@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // M6-09 frame check: the arena with 15 cadets and beams in flight holds 60 FPS.
 test("the exam arena with 15 cadets and live beams holds 60 FPS", async ({ page }) => {

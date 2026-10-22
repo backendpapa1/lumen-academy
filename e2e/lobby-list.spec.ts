@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // Paul's notes: a growing School list (the lobby shows the 5 most recent, the
 // rest behind "See all") and deleting an archived School. API faked.

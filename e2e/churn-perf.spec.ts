@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // Live traffic must not cost frames: stream deltas, reactions, turns and hand
 // updates arrive while the frame budget holds (M2 gate). Driven from rAF so

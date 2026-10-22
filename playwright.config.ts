@@ -14,6 +14,29 @@ export default defineConfig({
   projects: [
     // Functional tests: default headless (software GL is fine for behaviour).
     { name: "default", testIgnore: /(perf|live)\.spec\.ts/ },
+    // Part B: the same flows on a phone held upright and on its side (touch, 2x).
+    {
+      name: "phone-portrait",
+      testIgnore: /(perf|live)\.spec\.ts/,
+      metadata: { phone: true },
+      use: {
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+        deviceScaleFactor: 2,
+      },
+    },
+    {
+      name: "phone-landscape",
+      testIgnore: /(perf|live)\.spec\.ts/,
+      metadata: { phone: true },
+      use: {
+        viewport: { width: 844, height: 390 },
+        isMobile: true,
+        hasTouch: true,
+        deviceScaleFactor: 2,
+      },
+    },
     // Frame-rate tests need the real GPU: new headless + ANGLE on Vulkan.
     // (Default headless renders with SwiftShader at ~4 FPS, which says nothing about the app.)
     {

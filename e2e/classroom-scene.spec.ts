@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 test("the drawn classroom seats every student, with no console errors (ADR-009)", async ({
   page,

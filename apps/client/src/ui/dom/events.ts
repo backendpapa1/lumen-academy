@@ -172,7 +172,7 @@ function render(e: EventState | undefined) {
           mic,
           h(
             "span",
-            { class: "dim", style: "font-size:12px" },
+            { class: e.sent ? "dim" : "dim kbd-hint", style: "font-size:12px" },
             e.sent ? "Grading…" : "Ctrl+Enter to send",
           ),
           h("span", { class: "spacer" }),
@@ -215,7 +215,7 @@ function render(e: EventState | undefined) {
         h(
           "div",
           { class: "actions" },
-          h("span", { class: "dim", style: "font-size:12px" }, "Y right · N wrong"),
+          h("span", { class: "dim kbd-hint", style: "font-size:12px" }, "Y right · N wrong"),
           h("span", { class: "spacer" }),
           h(
             "button",
@@ -267,7 +267,7 @@ function render(e: EventState | undefined) {
         h(
           "div",
           { class: "actions" },
-          h("span", { class: "dim", style: "font-size:12px" }, "Y right · N wrong"),
+          h("span", { class: "dim kbd-hint", style: "font-size:12px" }, "Y right · N wrong"),
           h("span", { class: "spacer" }),
           h(
             "button",

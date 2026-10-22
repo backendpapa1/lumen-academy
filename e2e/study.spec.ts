@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // Paul's note: a study session with body doubling. Read my own sources in the
 // study hall (the PDF itself, or the indexed text), and keep study notes. API faked.

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // V4: a living class. Two students talk to each other, a sticker lands on the
 // corkboard, and a student moves on in their growth arc. Socket and API faked.

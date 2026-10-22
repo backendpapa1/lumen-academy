@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // M3 gate (live): in the browser, found a School, upload a PDF, build and edit
 // the curriculum, open a class and watch cadets arrive with real portraits.

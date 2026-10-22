@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 test("speech panel types the stream in and shimmers on a rewrite", async ({ page }) => {
   const errors: string[] = [];

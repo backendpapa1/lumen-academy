@@ -183,3 +183,43 @@
 .card.guest-card[hidden] {
   display: none;
 }
+
+/* Part B: on a phone the banner shrinks to its name, and the panel is a sheet. */
+html[data-layout="portrait"] .card.mode-banner,
+html[data-layout="landscape"] .card.mode-banner {
+  top: calc(var(--room-top) + 2px);
+  left: 8px;
+  transform: none;
+  padding: 4px 8px;
+}
+html[data-layout="portrait"] .card.mode-banner > :not(b),
+html[data-layout="landscape"] .card.mode-banner > :not(b) {
+  max-width: 52vw;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+html[data-layout="landscape"] .card.mode-banner {
+  top: calc(56px + var(--safe-top));
+  left: auto;
+  right: 268px;
+  max-width: calc(100vw - 290px);
+}
+html[data-layout="landscape"] .card.mode-banner > :not(b) {
+  max-width: 30vw;
+}
+html[data-layout="portrait"] .card.mode-panel {
+  left: 8px;
+  right: 8px;
+  width: auto;
+  top: auto;
+  bottom: calc(80px + var(--safe-bottom));
+  max-height: 58vh;
+}
+html[data-layout="landscape"] .card.mode-panel {
+  top: calc(56px + var(--safe-top));
+  right: 8px;
+  width: min(380px, 46vw);
+  max-height: calc(100vh - 136px);
+}

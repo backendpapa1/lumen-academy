@@ -143,14 +143,19 @@ store.subscribe((s) => {
   const paused = live && s.classroom.clock.paused;
   el.disabled = !live || paused;
   if (paused && document.activeElement === el) el.blur();
+  const touch = document.documentElement.dataset.pointer === "coarse";
   el.placeholder =
     s.classroom.cost.state === "pause"
       ? "This month's AI budget is used up."
       : paused
-        ? "Paused. Press Esc to resume."
+        ? touch
+          ? "Paused."
+          : "Paused. Press Esc to resume."
         : live
           ? voice.canListen
-            ? "Teach your next idea, or hold Space and say it."
+            ? touch
+              ? "Teach your next idea, or hold the mic and say it."
+              : "Teach your next idea, or hold Space and say it."
             : "Teach your next idea. Keep it short."
           : "Class isn't running.";
 });

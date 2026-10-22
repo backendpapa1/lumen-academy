@@ -807,3 +807,191 @@
   border-left: 3px solid var(--cobalt);
   background: var(--paper);
 }
+
+/* --- Part B: phones ---------------------------------------------------------------------
+   Portrait: the top bar, then the room (framed around the board and desks), then
+   the speaking student's words, then the hands as a row of cards, then the
+   lectern. Landscape: the desktop layout, tightened. Touch screens never show
+   keyboard hints. */
+html[data-pointer="coarse"] .hud .hints {
+  display: none;
+}
+html[data-layout="portrait"],
+html[data-layout="landscape"] {
+  --room-top: calc(84px + var(--safe-top));
+}
+html[data-layout="landscape"] .hud-top {
+  background: linear-gradient(rgba(227, 246, 255, 0.9), rgba(227, 246, 255, 0));
+}
+html[data-layout="portrait"] .hud-top,
+html[data-layout="landscape"] .hud-top {
+  padding: calc(8px + var(--safe-top)) 12px 8px;
+  gap: 8px;
+  align-items: center;
+}
+html[data-layout="portrait"] .hud-xp,
+html[data-layout="landscape"] .hud-xp,
+html[data-layout="portrait"] .hud .cost,
+html[data-layout="landscape"] .hud .cost {
+  display: none;
+}
+html[data-layout="portrait"] .hud-title .concept,
+html[data-layout="landscape"] .hud-title .concept {
+  font-size: 16px;
+  padding: 6px 10px;
+}
+html[data-layout="portrait"] .hud-title .micro {
+  font-size: 10px;
+}
+html[data-layout="portrait"] .hud-right,
+html[data-layout="landscape"] .hud-right {
+  gap: 8px;
+  flex: none;
+}
+html[data-layout="portrait"] .hud .timer,
+html[data-layout="landscape"] .hud .timer {
+  min-width: 62px;
+  height: 38px;
+  font-size: 16px;
+}
+html[data-layout="portrait"] .hud-right .btn,
+html[data-layout="landscape"] .hud-right .btn {
+  min-height: 38px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+html[data-layout="portrait"] .concept-menu {
+  top: calc(64px + var(--safe-top));
+  left: 8px;
+  width: calc(100vw - 16px);
+}
+html[data-layout="portrait"] .hud-toasts {
+  top: calc(70px + var(--safe-top));
+  width: calc(100vw - 24px);
+}
+
+/* The lectern: a bottom bar, full width. */
+html[data-layout="portrait"] .hud-bottom,
+html[data-layout="landscape"] .hud-bottom {
+  bottom: calc(8px + var(--safe-bottom));
+  width: calc(100vw - 16px - var(--safe-left) - var(--safe-right));
+  gap: 0;
+}
+html[data-layout="portrait"] #lectern.in-hud,
+html[data-layout="landscape"] #lectern.in-hud {
+  min-height: 52px;
+  max-height: 120px;
+  padding: 14px 12px;
+  font-size: 16px; /* 16px or the phone zooms into the field */
+}
+html[data-layout="portrait"] .hud .lectern .mic,
+html[data-layout="landscape"] .hud .lectern .mic {
+  width: 56px;
+}
+html[data-layout="portrait"] .hud .lectern .teach {
+  padding: 0 14px;
+}
+html[data-layout="portrait"] .hud .lectern .teach kbd {
+  display: none;
+}
+
+/* Hands: a row of cards above the lectern, swiped sideways. */
+html[data-layout="portrait"] .hud-hands {
+  top: auto;
+  right: 0;
+  left: 0;
+  bottom: calc(80px + var(--safe-bottom));
+  width: auto;
+  flex-direction: row;
+  gap: 8px;
+  padding: 0 8px 4px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  pointer-events: auto;
+  scrollbar-width: none;
+}
+html[data-layout="portrait"] .hud-hands > .micro {
+  display: none;
+}
+html[data-layout="portrait"] .hand-card {
+  flex: none;
+  width: min(300px, 82vw);
+  scroll-snap-align: start;
+  padding: 8px 10px;
+  row-gap: 4px;
+}
+html[data-layout="portrait"] .hand-card q {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 14px;
+}
+html[data-layout="landscape"] .hud-hands {
+  top: calc(60px + var(--safe-top));
+  right: calc(8px + var(--safe-right));
+  width: 250px;
+  max-height: calc(100vh - 150px);
+  overflow-y: auto;
+  gap: 8px;
+  pointer-events: auto;
+  scrollbar-width: none;
+}
+html[data-layout="landscape"] .hud-hands > .micro {
+  display: none;
+}
+html[data-layout="landscape"] .hand-card {
+  padding: 8px 10px;
+  row-gap: 4px;
+}
+html[data-layout="landscape"] .hud-bottom {
+  left: calc(8px + var(--safe-left));
+  transform: none;
+  width: calc(100vw - 282px - var(--safe-left) - var(--safe-right));
+}
+
+/* Sheets: the roster, the recap. */
+html[data-layout="portrait"] .hud-roster {
+  top: calc(64px + var(--safe-top));
+  left: 8px;
+  right: 8px;
+  width: auto;
+  bottom: calc(80px + var(--safe-bottom));
+  overflow-y: auto;
+}
+html[data-layout="landscape"] .hud-roster {
+  top: calc(60px + var(--safe-top));
+  left: 8px;
+  width: min(360px, 50vw);
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+}
+html[data-layout="portrait"] .hud-recap,
+html[data-layout="landscape"] .hud-recap {
+  left: 8px;
+  right: 8px;
+  width: auto;
+  bottom: calc(200px + var(--safe-bottom));
+  font-size: 14px;
+}
+html[data-layout="landscape"] .hud-recap {
+  right: auto;
+  width: min(340px, 45vw);
+  bottom: calc(80px + var(--safe-bottom));
+}
+html[data-pointer="coarse"] .hud .btn,
+html[data-pointer="coarse"] .hand-card {
+  min-height: var(--touch);
+}
+/* Cards over the class (the bell, a pause) can be taller than a phone on its
+   side: the overlay scrolls, from the top. */
+html[data-layout="portrait"] .hud-overlay,
+html[data-layout="landscape"] .hud-overlay {
+  overflow-y: auto;
+  place-items: safe center;
+  padding: calc(8px + var(--safe-top)) 8px calc(8px + var(--safe-bottom));
+}
+html[data-layout="landscape"] .hud-overlay .dialog,
+html[data-layout="landscape"] .hud-overlay .ended {
+  padding: 14px 18px;
+}

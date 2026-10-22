@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./test";
 
 // The demo has no server, so record what the client tries to send instead.
 async function sent(page: Page) {
@@ -67,12 +67,17 @@ test("hovering a cadet tags them; clicking a raised hand calls on them", async (
   // Aim at the middle of their hit area: the camera's breathing drift moves edges.
   const at = await page.evaluate(() => {
     const hits: Array<[number, number]> = [];
-    for (let y = 200; y < 900; y += 8)
-      for (let x = 200; x < 1600; x += 8)
-        if (window.__lumen!.world.pick?.(x, y) === "cdt_1") hits.push([x, y]);
+    for (let y = 0; y < innerHeight; y += 8)
+      for (let x = 0; x < innerWidth; x += 8)
+        if (
+          window.__lumen!.world.pick?.(x, y) === "cdt_1" &&
+          // Only where their seat is on top (on a phone the HUD covers part of it).
+          document.elementFromPoint(x, y)?.closest(".seat")?.getAttribute("data-id") === "cdt_1"
+        )
+          hits.push([x, y]);
     if (!hits.length) return null;
-    const avg = (i: 0 | 1) => hits.reduce((a, h) => a + h[i], 0) / hits.length;
-    return { x: avg(0), y: avg(1) };
+    const [x, y] = hits[Math.floor(hits.length / 2)]!;
+    return { x, y };
   });
   expect(at).not.toBeNull();
   await page.mouse.move(at!.x, at!.y);

@@ -108,13 +108,28 @@ requestAnimationFrame(frame);
 function place(x: number, y: number) {
   const w = panel.offsetWidth;
   const h = panel.offsetHeight;
-  const maxLeft = Math.max(24, stage.clientWidth - RIGHT - w);
-  const left = Math.min(maxLeft, Math.max(24, x - w / 2));
-  const top = Math.max(TOP, y - GAP - h);
+  const layout = document.documentElement.dataset.layout;
+  let left: number;
+  let top: number;
+  let fromY: number;
+  if (layout === "portrait") {
+    // Part B: docked under the room (full width), the line up to the head.
+    const room = stage.querySelector(".room > svg")?.getBoundingClientRect();
+    const base = stage.getBoundingClientRect().top;
+    left = 8;
+    top = room ? room.bottom - base + 10 : TOP;
+    fromY = top;
+  } else {
+    const right = layout === "landscape" ? 270 : RIGHT;
+    const edge = layout === "landscape" ? 8 : 24;
+    const maxLeft = Math.max(edge, stage.clientWidth - right - w);
+    left = Math.min(maxLeft, Math.max(edge, x - w / 2));
+    top = Math.max(layout === "landscape" ? 60 : TOP, y - GAP - h);
+    fromY = top + h;
+  }
   panel.style.transform = `translate(${left}px, ${top}px)`;
-  // Light line from the panel's lower edge (nearest point) down to the head.
+  // Light line from the panel's nearest edge to the head.
   const fromX = Math.min(left + w - 16, Math.max(left + 16, x));
-  const fromY = top + h;
   const dx = x - fromX;
   const dy = y - fromY;
   const len = Math.max(0, Math.hypot(dx, dy));

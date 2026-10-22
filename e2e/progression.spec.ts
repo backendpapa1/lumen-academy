@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // V7: the class photo, decorating a room, and the progress screen, over a
 // faked API (no real data or models).

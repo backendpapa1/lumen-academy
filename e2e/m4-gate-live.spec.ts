@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./test";
 
 // M4 gate = MVP (live): one sitting, in the browser: teach → exit ticket →
 // homework → grade → exam → debrief → re-teach. Real models (≈$0.10).

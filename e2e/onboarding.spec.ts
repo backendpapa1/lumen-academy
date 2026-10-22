@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // The guided tour (Paul's note; replaces M6-07's cards): a fresh browser gets
 // it once; it spotlights the lobby, plays simulated class scenes, reads each

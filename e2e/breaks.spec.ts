@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // V3-05: a Pomodoro break after a work block; a reload during it comes back
 // to the break, and nothing is lost. Socket and API are faked.

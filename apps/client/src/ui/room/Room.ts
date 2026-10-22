@@ -5,6 +5,7 @@ import type { CadetState, ClassroomState } from "../../core/classroom";
 import { app } from "../../core/app";
 import { store } from "../../core/store";
 import { voice } from "../../core/voice";
+import { currentLayout, onLayout, type Layout } from "../../core/layout";
 import { anchors, world } from "../../world/anchors";
 import { dayPhase } from "../../world/lighting";
 import { FACE_FOR, lookFor, peepSvg, restingFace, type Look, type Pose } from "../peeps/peep";
@@ -30,6 +31,17 @@ const ROWS = [
   { y: 520, s: 0.6, gap: 152 },
 ] as const;
 const PER_ROW = 5;
+/**
+ * Part B: on a phone held upright the room is framed around the board and the
+ * desks (the windows and the door fall away), fitted rather than cropped, so
+ * every student stays in view. CSS gives the room the top of the screen.
+ */
+const FRAMES: Record<Layout, { box: string; fit: string }> = {
+  regular: { box: `0 0 ${W} ${H}`, fit: "xMidYMid slice" },
+  // A phone on its side: the board and the front desks, the ceiling and floor trimmed.
+  landscape: { box: "0 20 1600 780", fit: "xMidYMin slice" },
+  portrait: { box: "200 40 1180 960", fit: "xMidYMin meet" },
+};
 /** The bust's drawn size at scale 1. */
 export const BUST_W = 168;
 export const BUST_H = (BUST_W * 1130.6) / 940.3;
@@ -288,6 +300,7 @@ export class Room {
   private readonly offVoice: () => void;
   private layoutKey = "";
   private raf = 0;
+  private readonly offLayout: () => void;
   private flickerTimer: ReturnType<typeof setTimeout> | null = null;
   private lastEventId: string | null = null;
   private readonly clock: { h: SVGElement; m: SVGElement; s: SVGElement };
@@ -299,11 +312,16 @@ export class Room {
   ) {
     this.el = document.createElement("div");
     this.el.className = "room";
+    const frame = FRAMES[currentLayout()];
     this.root = svg("svg", {
-      viewBox: `0 0 ${W} ${H}`,
-      preserveAspectRatio: "xMidYMid slice",
+      viewBox: frame.box,
+      preserveAspectRatio: frame.fit,
       role: "img",
       "aria-label": "Your classroom",
+    });
+    this.offLayout = onLayout((l) => {
+      this.root.setAttribute("viewBox", FRAMES[l].box);
+      this.root.setAttribute("preserveAspectRatio", FRAMES[l].fit);
     });
     this.root.innerHTML = roomMarkup();
     this.el.append(this.root);
@@ -732,6 +750,7 @@ export class Room {
     if (this.flickerTimer) clearTimeout(this.flickerTimer);
     this.unsubscribe();
     this.offVoice();
+    this.offLayout();
     if (world.pick === this.pick) world.pick = null;
     anchors.speaker = null;
     this.el.remove();

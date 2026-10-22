@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // M6-03: sound starts only after a gesture, follows the room, and M mutes it.
 test("audio unlocks on the first gesture, and M toggles it", async ({ page }) => {

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./test";
 
 // V6-09: draw on the board with the mouse: two boxes, labels, a rough line
 // between them that snaps to an arrow. Done sends the structure (not pixels),

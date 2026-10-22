@@ -575,7 +575,7 @@ export class ClassroomHud {
         h("button", { class: "btn primary", onclick: () => app.resume() }, "Resume"),
         h("button", { class: "btn", onclick: () => app.endClass() }, "End class"),
         h("span", { class: "spacer" }),
-        h("span", { class: "dim small" }, "Esc or Space to resume"),
+        h("span", { class: "dim small kbd-hint" }, "Esc or Space to resume"),
       ),
     );
   }
@@ -596,7 +596,7 @@ export class ClassroomHud {
         h("button", { class: "btn primary", onclick: () => app.resume() }, "Back to it"),
         h("button", { class: "btn", onclick: () => app.endClass() }, "End class"),
         h("span", { class: "spacer" }),
-        h("span", { class: "dim small" }, "Space or Esc comes back early"),
+        h("span", { class: "dim small kbd-hint" }, "Space or Esc comes back early"),
       ),
     );
     queueMicrotask(() => this.tickBreak(until));

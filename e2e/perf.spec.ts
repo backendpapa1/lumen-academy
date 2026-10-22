@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // M2 gate, frame side: a full house (15 cadets) at 1080p holds ~60 FPS.
 test("15 cadets at 1080p hold 60 FPS within the draw-call budget", async ({ page }) => {

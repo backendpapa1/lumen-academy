@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./test";
 
 // V5: a smoke test per teaching mode, over a faked socket and API (no real
 // data or models). Each mode's server messages are scripted below.

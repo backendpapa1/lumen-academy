@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // T-7: the bell rings at the planned time and asks; "5 more minutes" extends.
 // Fake socket: the period starts 1.5 s before its planned 5 minutes.

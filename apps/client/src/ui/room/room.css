@@ -966,3 +966,16 @@
   stroke-width: 6;
   opacity: 0.35;
 }
+
+/* Part B: a phone held upright. The room sits under the top bar, fitted to the
+   width; below it the floor carries on behind the words, hands and lectern. */
+html[data-layout="portrait"] .room {
+  background: var(--paper-2);
+}
+html[data-layout="portrait"] .room > svg {
+  position: absolute;
+  top: var(--room-top);
+  left: 0;
+  width: 100%;
+  height: calc(100vw * 960 / 1180);
+}

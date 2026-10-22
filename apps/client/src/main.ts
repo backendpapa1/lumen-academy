@@ -5,6 +5,7 @@ import { applyServerMessage } from "./core/classroom";
 import { loadDemoClassroom } from "./core/demo";
 import { frames } from "./core/frames";
 import { installKeyboard } from "./core/input";
+import { installLayout } from "./core/layout";
 import { store } from "./core/store";
 import { voice } from "./core/voice";
 import { Campus } from "./ui/campus/Campus";
@@ -72,6 +73,7 @@ function applyRoute() {
 }
 store.subscribe(applyRoute);
 
+installLayout();
 installSound();
 if (view === "campus-demo") {
   // Visual check: one building per tier, 0 Blueprint → 4 Landmark (no server).
